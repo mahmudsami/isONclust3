@@ -1,10 +1,4 @@
-use std::env;
-use std::fs::File;
-use std::thread;
 use std::time::Duration;
-use bio_seq::dna;
-use bio_seq::prelude::*;
-
 mod file_actions;
 mod generate_sorted_fastq_for_cluster;
 

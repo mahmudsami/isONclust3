@@ -107,15 +107,13 @@ pub(crate) fn reverse_complement(dna: &str) -> String {
 }
 
 
-fn fastq_single_core(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file_actions::FastqRecord_isoncl_init>{
+fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file_actions::FastqRecord_isoncl_init>{
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
-
     //read the fastq file and store the result in fastq_records (a vector of FastqRecord_isoncl_init)
     let fastq_file = File::open(in_file_path).unwrap();
     let mut fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
-    let mut errors:HashMap<String,f64>  =HashMap::new();
     println!("{} reads recorded",fastq_records.len());
     //filter fastq_records: We only keep reads having a sequence length>2*k and that do not have a shorter compression than k
     fastq_records.retain(|record| record.sequence.len() >= 2*k && compress_sequence(&*record.sequence).len() >= k );
@@ -153,23 +151,24 @@ fn fastq_single_core(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file_acti
 }
 
 
-fn write_ordered_fastq(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>){
+fn write_ordered_fastq(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>)->std::io::Result<()>{
     //writes the fastq file
     let mut f = File::create("output.vtk").expect("Unable to create file");
     for record in fastq_records {
-        write!(f, "{}  {} \n + \n {} \n", record.header, record.sequence,record.quality);
+        write!(f, "{}  {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("Could not write file");
     }
+    Ok(())
 }
 
 
 fn print_statistics(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>){
+    /*
+    Prints the statistics for the resulting file TODO: add median and mean
+     */
     let min_e = fastq_records[0].error_rate;
     let max_e = fastq_records[fastq_records.len()-1].error_rate;
-
     println!("Lowest read error rate: {}",min_e);
     println!("Highest read error rate: {}",max_e);
-    //logfile.write("Lowest read error rate:{0}\n".format(min_e))
-    //logfile.write("Highest read error rate:{0}\n".format(max_e))
     //logfile.write("Median read error rate:{0}\n".format(median_e))
     //logfile.write("Mean read error rate:{0}\n".format(mean_e))
 }
@@ -178,9 +177,9 @@ fn print_statistics(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>){
 pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str ) {
     use std::time::Instant;
     let now = Instant::now();
-    let fastq_records=fastq_single_core(k, q_threshold, in_file_path);
+    let fastq_records=analyse_fastq_and_sort(k, q_threshold, in_file_path);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
+    write_ordered_fastq(fastq_records.borrow()).expect("Could not write file");
     print_statistics(fastq_records.borrow());
-    write_ordered_fastq(fastq_records.borrow());
 }
