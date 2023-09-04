@@ -7,6 +7,10 @@ use rayon::prelude::*;
 use std::time::Instant;
 use std::borrow::Borrow;
 use std::collections::VecDeque;
+
+
+
+//https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
 fn compress_sequence(seq: &str) -> String {
     //compresses the sequence seq by keeping only the first character of each consecutive group of equal characters. The resulting compressed sequence is stored in the variable seq_hpol_comp.
 
@@ -116,7 +120,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file
     let mut fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
     println!("{} reads recorded",fastq_records.len());
     //filter fastq_records: We only keep reads having a sequence length>2*k and that do not have a shorter compression than k
-    fastq_records.retain(|record| record.sequence.len() >= 2*k && compress_sequence(&*record.sequence).len() >= k );
+    fastq_records.retain(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );
     println!("{} reads accepted",fastq_records.len());
     //compute d_no_min and d, two arrays that we use for the calculations
     let d_no_min=compute_d_no_min();
@@ -124,14 +128,14 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file
     //iterate over all fastq_records and calculate error_rate as well as score
     fastq_records.par_iter_mut().for_each(|fastq_record| {
         //calculate the error rate and store it in vector errors
-        fastq_record.error_rate= calculate_error_rate(&fastq_record.quality, &d_no_min);
-        let exp_errors_in_kmers = expected_number_errornous_kmers(&fastq_record.quality, k, &d);
-        let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers/ (fastq_record.sequence.len() - k +1) as f64;
+        fastq_record.set_error_rate( calculate_error_rate(&fastq_record.get_quality(), &d_no_min));
+        let exp_errors_in_kmers = expected_number_errornous_kmers(&fastq_record.get_quality(), k, &d);
+        let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers/ (fastq_record.get_sequence().len() - k +1) as f64;
         //calculate the final score and add it to fastq_record (we have a dedicated field for that that was initialized with 0.0)
-        fastq_record.score = p_no_error_in_kmers  * ((fastq_record.sequence.len() - k +1) as f64)
+        fastq_record.set_score( p_no_error_in_kmers  * ((fastq_record.get_sequence().len() - k +1) as f64))
     });
     //filter out records that have a too high error rate
-    fastq_records.retain(|record| 10.0_f64*-record.error_rate.log(10.0_f64) > q_threshold);
+    fastq_records.retain(|record| 10.0_f64*-record.get_err_rate().log(10.0_f64) > q_threshold);
     /*Alternative version for above line: first do a filtering step, then get rid of all entries filtered out
     fastq_records.par_iter_mut().for_each(|record| {
         let should_retain = 10.0_f64 * - errors.last().expect("is a f64").log10() > q_threshold;
@@ -145,7 +149,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file
     fastq_records.retain(|record| !record.header.is_empty());*/
     println!("{} reads accepted",fastq_records.len());
     //sort the vector fastq_records by scores
-    fastq_records.par_sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    fastq_records.par_sort_by(|a, b| b.get_score().partial_cmp(&a.get_score()).unwrap());
     //fastq_records.reverse();
     fastq_records
 }
@@ -155,7 +159,7 @@ fn write_ordered_fastq(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>
     //writes the fastq file
     let mut f = File::create("output.vtk").expect("Unable to create file");
     for record in fastq_records {
-        write!(f, "{}  {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("Could not write file");
+        write!(f, "{}  {} \n + \n {} \n", record.get_header(), record.get_sequence(),record.get_quality()).expect("Could not write file");
     }
     Ok(())
 }
@@ -165,8 +169,8 @@ fn print_statistics(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>){
     /*
     Prints the statistics for the resulting file TODO: add median and mean
      */
-    let min_e = fastq_records[0].error_rate;
-    let max_e = fastq_records[fastq_records.len()-1].error_rate;
+    let min_e = fastq_records[0].get_err_rate();
+    let max_e = fastq_records[fastq_records.len()-1].get_err_rate();
     println!("Lowest read error rate: {}",min_e);
     println!("Highest read error rate: {}",max_e);
     //logfile.write("Median read error rate:{0}\n".format(median_e))

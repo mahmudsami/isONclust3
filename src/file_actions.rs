@@ -27,32 +27,67 @@ pub(crate) struct FastqRecord {
     quality_header: String,
     quality: String,
 }
-
-
-
-pub(crate) struct FastqRecord_isoncl_init {
-    //a struct used to store fastq records
-    pub(crate) header: String,
-    pub(crate) sequence: String,
-    //pub(crate) quality_header: String,
-    pub(crate) quality: String,
-    pub(crate) score: f64,
-    pub(crate) error_rate:f64,
-}
-
 impl fmt::Display for FastqRecord {
     // enables displaying the fastq record
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}\n{}\n{}\n{}", self.header, self.sequence,self.quality_header,self.quality)
+        write!(f, "{}\n{}", self.header, self.sequence)
     }
 }
+
+
+pub struct FastqRecord_isoncl_init {
+    //a struct used to store fastq records
+    pub header: String,
+    pub internal_id: i32,
+    pub sequence: String,
+    //pub(crate) quality_header: String,
+    pub quality: String,
+    pub score: f64,
+    pub error_rate:f64,
+}
+
+
+impl FastqRecord_isoncl_init{
+    pub fn get_header(&self)->&str{
+        &self.header
+    }
+    pub fn get_int_id(&self)->&i32{
+        &self.internal_id
+    }
+    pub fn get_sequence(&self)->&str{
+        &self.sequence
+    }
+    pub fn get_quality(&self)->&str{
+        &self.quality
+    }
+    pub fn get_score(&self)->&f64{
+        &self.score
+    }
+    pub fn get_err_rate(&self)->&f64{
+        &self.error_rate
+    }
+    pub fn set_error_rate(&mut self, new_error_rate: f64){
+        self.error_rate = new_error_rate
+    }
+    pub fn set_score(&mut self, new_score: f64) {
+        self.score = new_score
+    }
+}
+
+
+impl fmt::Display for FastqRecord_isoncl_init {
+    // enables displaying the fastq record
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}\n{}", self.header, self.sequence)
+    }
+}
+
 
 pub(crate) fn parse_fasta(file: File) -> Result<Vec<FastaRecord>, Box<dyn Error>> {
     //Parses a fasta file, returns a vector of FastaRecords
     let reader = BufReader::new(file);
     let mut records = vec![];
     let mut lines = reader.lines();
-
     while let Some(line) = lines.next() {
         let line = line?;
         if line.starts_with(">") {
@@ -77,7 +112,7 @@ pub(crate) fn parse_fastq(file: File) -> Result<Vec<FastqRecord_isoncl_init>, Bo
     //Parses a fastq file, returns a vector of FastqRecords
     let mut reader = BufReader::new(file);
     let mut records=vec![];
-
+    let mut id_int=0;
     loop {
         let mut header = String::new();
         let header_read = reader.read_line(&mut header)?;
@@ -109,7 +144,9 @@ pub(crate) fn parse_fastq(file: File) -> Result<Vec<FastqRecord_isoncl_init>, Bo
         quality = quality.trim().to_owned();
         let score=0.0_f64;
         let error_rate=0.0_f64;
-        records.push(FastqRecord_isoncl_init { header, sequence,/* quality_header,*/ quality, score,error_rate});
+        let internal_id=id_int;
+        records.push(FastqRecord_isoncl_init { header,internal_id, sequence,/* quality_header,*/ quality, score,error_rate});
+        id_int += 1;
     }
     Ok(records)
 }
