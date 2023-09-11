@@ -3,11 +3,13 @@ use std::time::Instant;
 use std::fs::File;
 use std::collections::{HashMap, HashSet};
 use std::env;
+use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer};
+
 
 mod file_actions;
 mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
-
+mod clustering;
 
 
 
@@ -35,7 +37,16 @@ fn test_minimizer_gens(){
     assert_eq!(minimizers_ineff, minimizers)
 
 }
+fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>>)->Vec<(i32, Vec<generate_sorted_fastq_new_version::Minimizer>)>{
+    // Sort by the length of vectors in descending order
+    let mut sorted_entries: Vec<(i32, Vec<generate_sorted_fastq_new_version::Minimizer>)> = mini_map_filtered
+        .into_iter()
+        .collect();
 
+    sorted_entries.sort_by_key(|(_, v)| std::cmp::Reverse(v.len()));
+
+    sorted_entries
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -49,14 +60,21 @@ fn main() {
     let fastq_file = File::open(fastq_path).unwrap();
     let fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
     //test_minimizer_gens();
-    let mut mini_map: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
+    //let mut mini_map: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
+    let mut mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
 
     //let mut idmap: HashMap<&str, i32> = HashMap::with_capacity(fastq_records.len());
     //let mut iterator=fastq_records.iter();
     for fastq_record in fastq_records{
         let this_minimizers=generate_sorted_fastq_new_version::get_kmer_minimizers(&*fastq_record.get_sequence(), k, window_size);
-        mini_map.insert(*fastq_record.get_int_id(), this_minimizers);
+        //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
+        let filtered_minis = filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
+        mini_map_filtered.insert(fastq_record.internal_id,filtered_minis);
     }
+    let sorted_entries = get_sorted_entries(mini_map_filtered);
+    clustering::cluster_sorted_entries(sorted_entries);
+
+
 
 
     //generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(15,7.0,"/home/alexanderpetri/Rust/100k_sample.fastq")
@@ -115,7 +133,7 @@ mod tests {
         let rev_comp = generate_sorted_fastq_for_cluster::reverse_complement("GGGGATCATCAGGGCTA");
         assert_eq!(rev_comp,"TAGCCCTGATGATCCCC");
         let rev_comp2 = generate_sorted_fastq_for_cluster::reverse_complement("ATCGA");
-        assert_eq!(rev_comp,"TCGAT");
+        assert_eq!(rev_comp2,"TCGAT");
     }
     
 }

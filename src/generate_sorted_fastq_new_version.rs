@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::ops::Index;
 
 use crate::file_actions::FastqRecord_isoncl_init;
+use std::cmp::max;
 //fn get_positional_minimizers(&seq:String,k:u32,w:u32)->(str,u32){
 //    let window: VecDeque<u32> = VecDeque::new();
 //    OK(mini_seq,mini_pos)
@@ -14,7 +15,24 @@ pub struct Minimizer {
     pub sequence: String,
     pub position: usize,
 }
+/*
+/// Computes the quality value transition for the quality scores we receive from the fastq format
+/// #Returns:
+///            d: the transition values
+///
+*/
 
+fn compute_d_no_min() -> [f64; 128] {
+    let mut d = [0.0; 128];
+
+    for i in 0..128 {
+        let chr_i = i as u8 as char;
+        let ord_i = chr_i as i8;
+        let exponent = -(ord_i - 33) as f64 / 10.0;
+        d[i] = (10.0 as f64).powf(exponent);
+    }
+    d
+}
 /*
 /// Generates positional minimizers from an input string.
 /// A positional minimizer is the lexicographically smallest substring of a given window size
@@ -67,24 +85,54 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     minimizers
 }
 
-pub fn is_significant(quality_interval: &str)->bool{
 
+fn average(numbers: &[f64]) -> f64 {
+    numbers.iter().sum::<f64>()/ numbers.len() as f64
 }
 
 
-pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_record: FastqRecord_isoncl_init, w: usize)-> Vec<Minimizer>{
+pub fn is_significant(quality_interval: &str)->bool{
+    let mut significance_indicator= false;
+    let mut qualities :Vec<f64> = vec![];
+    let d_no_min=compute_d_no_min();
+    for (i, c) in quality_interval.chars().enumerate() {
+        let index = c as usize;
+        let q_value = d_no_min[index];
+        let probability_error=1.0 - q_value;
+        qualities.push(probability_error);
+    }
+    //println!("{:?}",qualities);
+    let avg_quality = average(&qualities);
+    println!("AVG_QUal {}",avg_quality);
+    if avg_quality>0.93{
+        significance_indicator =true
+    }
+    significance_indicator
+}
+
+
+pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize)-> Vec<Minimizer>{
     let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
+    println!("Length of minimizers: {}",this_minimizers.len());
     for mini in this_minimizers{
+        //println!("{:?}",mini);
         let minimizer_pos= mini.position;
-        let minimizer_range_start = minimizer_pos - minimizer_range;
-        let minimizer_range_end = minimizer_pos + minimizer_range;
-        let qualitiy_interval= &fastq_record.quality[minimizer_range_start..minimizer_range_end];
-        let significant= is_significant(qualitiy_interval);
+        let mut minimizer_range_start=0;
+        if minimizer_pos>minimizer_range{
+            let minimizer_range_start = minimizer_pos - minimizer_range;
+        }
+        let mut minimizer_range_end = fastq_sequence.len();
+        if minimizer_pos+minimizer_range+k<minimizer_range_end{
+            minimizer_range_end = minimizer_pos + minimizer_range + k ;
+        }
+        let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end-1];
+        let significant= is_significant(&qualitiy_interval);
+        if significant{
+            minimizers_filtered.push(mini.clone())
+        }
     }
-
-
-
+    println!("Length after filter: {}",minimizers_filtered.len());
     minimizers_filtered
 }
 
@@ -201,43 +249,46 @@ mod tests {
     #[test]
     fn test_kmer_minimizers_0() {
         let input = "ATGCTAGCATGCTAGCATGCTAGC";
-        let window_size = 5;
+        let window_size = 8;
         let k = 3;
         let actual_minimizers = get_kmer_minimizers(input, k, window_size);
         println!("Generated Minimizers: {:?}", actual_minimizers);
         let expected_minimizers = vec![
             Minimizer { sequence: "ATG".to_string(), position: 0 },
-            Minimizer { sequence: "CTA".to_string(), position: 4 },
-            Minimizer { sequence: "CAT".to_string(), position: 8 },
-            Minimizer { sequence: "ATG".to_string(), position: 12 },
-            Minimizer { sequence: "CTA".to_string(), position: 16 },
-            Minimizer { sequence: "ATG".to_string(), position: 20 },
+            Minimizer { sequence: "AGC".to_string(), position: 5 },
+            Minimizer { sequence: "ATG".to_string(), position: 8 },
+            Minimizer { sequence: "AGC".to_string(), position: 13 },
+            Minimizer { sequence: "ATG".to_string(), position: 16 },
+            Minimizer { sequence: "AGC".to_string(), position: 21 },
         ];
         assert_eq!(actual_minimizers, expected_minimizers);
     }
+    #[test]
     fn test_kmer_minimizers_1() {
         let input = "CAATTTAAGGCCCGGG";
-        let window_size = 5;
+        let window_size = 10;
         let k = 5;
         let actual_minimizers = get_kmer_minimizers(input, k, window_size);
         println!("Generated Minimizers: {:?}", actual_minimizers);
         let expected_minimizers = vec![
             Minimizer { sequence: "AATTT".to_string(), position: 1 },
             Minimizer { sequence: "AAGGC".to_string(), position: 6 },
-            Minimizer { sequence: "CCCGG".to_string(), position: 10 },
+            Minimizer { sequence: "AGGCC".to_string(), position: 7 },
         ];
         assert_eq!(actual_minimizers, expected_minimizers);
     }
+
+    #[test]
     fn test_kmer_minimizers_2() {
         let input = "CAAAGTAAGGCCCTCC";
-        let window_size = 5;
+        let window_size = 10;
         let k = 5;
         let actual_minimizers = get_kmer_minimizers(input, k, window_size);
         println!("Generated Minimizers: {:?}", actual_minimizers);
         let expected_minimizers = vec![
             Minimizer { sequence: "AAAGT".to_string(), position: 1 },
             Minimizer { sequence: "AAGGC".to_string(), position: 6 },
-            Minimizer { sequence: "CCCTC".to_string(), position: 10 },
+            Minimizer { sequence: "AGGCC".to_string(), position: 7 },
         ];
         assert_eq!(actual_minimizers, expected_minimizers);
     }
