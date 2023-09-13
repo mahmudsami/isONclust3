@@ -2,13 +2,14 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::error::Error;
 use std::fmt;
+use std::collections::HashMap;
 
 
 
 pub(crate) struct FastaRecord {
     //a struct used to store fasta records
-    header: String,
-    sequence: String,
+    pub header: String,
+    pub sequence: String,
 }
 
 
@@ -83,25 +84,38 @@ impl fmt::Display for FastqRecord_isoncl_init {
 }
 
 
-pub(crate) fn parse_fasta(file: File) -> Result<Vec<FastaRecord>, Box<dyn Error>> {
-    //Parses a fasta file, returns a vector of FastaRecords
+pub(crate) fn parse_fasta(file_path: &str) -> Result<Vec<FastaRecord>, std::io::Error> {
+    let file = File::open(file_path)?;
     let reader = BufReader::new(file);
-    let mut records = vec![];
-    let mut lines = reader.lines();
-    while let Some(line) = lines.next() {
+    let mut records = Vec::new();
+    let mut current_header = String::new();
+    let mut current_sequence = Vec::new();
+
+    for line in reader.lines() {
         let line = line?;
-        if line.starts_with(">") {
-            let header = line[1..].to_owned();
-            let mut sequence = String::new();
-            while let Some(line) = lines.next() {
-                let line = line?;
-                if line.starts_with(">") {
-                    break;
-                }
-                sequence.push_str(&line);
+        if line.starts_with('>') {
+            // New header line
+            if !current_header.is_empty() {
+                // Store the previous sequence
+                records.push(FastaRecord {
+                    header: current_header.clone(),
+                    sequence: current_sequence.concat(),
+                });
+                current_sequence.clear();
             }
-            records.push(FastaRecord { header, sequence });
+            current_header = line[1..].trim().to_string(); // Remove '>'
+        } else {
+            // Sequence line
+            current_sequence.push(line);
         }
+    }
+
+    // Store the last sequence
+    if !current_header.is_empty() {
+        records.push(FastaRecord {
+            header: current_header.clone(),
+            sequence: current_sequence.concat(),
+        });
     }
 
     Ok(records)
