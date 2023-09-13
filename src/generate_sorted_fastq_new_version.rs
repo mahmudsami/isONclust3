@@ -51,9 +51,17 @@ fn compute_d_no_min() -> [f64; 128] {
 pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
     let w = w_size - k_size;
     let mut window_kmers: VecDeque<(&'a str, usize)> = VecDeque::with_capacity(w + 1);
+    if w+ k_size < seq.len() + 1{
+        for i in 0..w {
+            window_kmers.push_back((&seq[i..i + k_size], i));
+        }
+    }
     // Initialize the window_kmers deque
-    for i in 0..w {
-        window_kmers.push_back((&seq[i..i + k_size], i));
+    else{
+        let short_w = seq.len() + 1 - k_size;
+        for i in 0..short_w {
+            window_kmers.push_back((&seq[i..i + k_size], i));
+        }
     }
     //store the final positional minimizers in a vector
     let mut minimizers = vec![];
@@ -103,8 +111,8 @@ pub fn is_significant(quality_interval: &str)->bool{
     }
     //println!("{:?}",qualities);
     let avg_quality = average(&qualities);
-    println!("AVG_QUal {}",avg_quality);
-    if avg_quality>0.93{
+    //println!("AVG_QUal {}",avg_quality);
+    if avg_quality>0.92{
         significance_indicator =true
     }
     significance_indicator
@@ -114,7 +122,7 @@ pub fn is_significant(quality_interval: &str)->bool{
 pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize)-> Vec<Minimizer>{
     let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
-    println!("Length of minimizers: {}",this_minimizers.len());
+    //println!("Length of minimizers: {}",this_minimizers.len());
     for mini in this_minimizers{
         //println!("{:?}",mini);
         let minimizer_pos= mini.position;
@@ -132,7 +140,7 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
             minimizers_filtered.push(mini.clone())
         }
     }
-    println!("Length after filter: {}",minimizers_filtered.len());
+    //println!("Length after filter: {}",minimizers_filtered.len());
     minimizers_filtered
 }
 
@@ -241,7 +249,7 @@ fn main() {
     println!("{:?}",fourth);
 
 }
-//TODO: write correct tests for test_kmer_minimizers
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -291,5 +299,35 @@ mod tests {
             Minimizer { sequence: "AGGCC".to_string(), position: 7 },
         ];
         assert_eq!(actual_minimizers, expected_minimizers);
+    }
+    #[test]
+    fn test_kmer_minimizers_3() {
+        let input = "CAATGA";
+        let window_size = 10;
+        let k = 5;
+        let actual_minimizers = get_kmer_minimizers(input, k, window_size);
+        println!("Generated Minimizers: {:?}", actual_minimizers);
+        let expected_minimizers = vec![
+            Minimizer { sequence: "AATGA".to_string(), position: 1 },
+        ];
+        assert_eq!(actual_minimizers, expected_minimizers);
+    }
+    #[test]
+    fn test_average_0(){
+        let mut input=vec![];
+        input.push(0.5);
+        input.push(0.75);
+        input.push(0.25);
+        let average_res=average(&*input);
+        assert_eq!(average_res,0.5);
+    }
+    #[test]
+    fn test_average_1(){
+        let mut input=vec![];
+        input.push(1.0);
+        input.push(2.0);
+        input.push(3.0);
+        let average_res=average(&*input);
+        assert_eq!(average_res,2.0);
     }
 }
