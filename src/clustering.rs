@@ -12,6 +12,8 @@ enum Cluster<T, U> {
     mini_seqs(HashSet<U>),
 }
 
+
+//clustering method for the case that we do not have any annotation to compare the reads against
 pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>) -> HashMap<i32,Vec<i32>>{
     let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
     let mut init_cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
@@ -47,7 +49,7 @@ clusters
 }
 
 
-
+//clustering method for the case that we have an annotation to compare our reads against
 pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, initial_clusters: HashMap<u64, Vec<i32>>) ->HashMap<i32, Vec<i32>>{
     let mut clusters: HashMap<i32, Vec<i32>> = HashMap::new();
     for sorted_entry in sorted_entries{
@@ -66,7 +68,7 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, in
     }
 
 
-
+//if we have an annotation file we are interested to take the cluster number from the header of the respective read
 fn get_id_from_header(head: String) -> i32 {
     // Attempt to parse the extracted number as i32
     let number_part: String = head.chars().filter(|c| c.is_digit(10)).collect();
@@ -85,7 +87,7 @@ fn get_id_from_header(head: String) -> i32 {
 }
 
 
-
+//takes a string and hashes it via DefaultHasher. Used to improve search for minimizers in the data
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);

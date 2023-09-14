@@ -93,16 +93,18 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     minimizers
 }
 
-
+//calculates the average of  a list of f64s and returns it as f64
 fn average(numbers: &[f64]) -> f64 {
     numbers.iter().sum::<f64>()/ numbers.len() as f64
 }
 
-
+//used to detect significant minimizers
 pub fn is_significant(quality_interval: &str)->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
+    //d_no_min contains a translation for chars into quality values
     let d_no_min=compute_d_no_min();
+    //for each character in quality string:
     for (i, c) in quality_interval.chars().enumerate() {
         let index = c as usize;
         let q_value = d_no_min[index];
@@ -110,8 +112,10 @@ pub fn is_significant(quality_interval: &str)->bool{
         qualities.push(probability_error);
     }
     //println!("{:?}",qualities);
+    //nothing really sophisticated here: we just filter by average quality value
     let avg_quality = average(&qualities);
     //println!("AVG_QUal {}",avg_quality);
+    //if the average quality of the minimizer_impact_range is higher than 0.92 we keep the minimizer (return true for significance_indicator)
     if avg_quality>0.92{
         significance_indicator =true
     }
@@ -119,6 +123,7 @@ pub fn is_significant(quality_interval: &str)->bool{
 }
 
 
+//filter out minimizers for which the quality of the minimizer_impact range is too bad
 pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize)-> Vec<Minimizer>{
     let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
@@ -144,6 +149,8 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
     minimizers_filtered
 }
 
+
+//test implementation currently deprecated
 pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
     let w = w_size - k_size;
     let mut window_kmers: VecDeque<(&'a str, usize)> = VecDeque::with_capacity(w + 1);
