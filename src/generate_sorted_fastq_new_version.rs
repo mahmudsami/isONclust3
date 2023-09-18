@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::ops::Index;
-
+use rayon::prelude::*;
 use crate::file_actions::FastqRecord_isoncl_init;
 use std::cmp::max;
 //fn get_positional_minimizers(&seq:String,k:u32,w:u32)->(str,u32){
@@ -16,13 +16,13 @@ pub struct Minimizer {
     pub position: usize,
 }
 /*
-/// Computes the quality value transition for the quality scores we receive from the fastq format
+/// Computes the Probability of incorrect base call for the quality scores we receive from the fastq format
 /// #Returns:
-///            d: the transition values
+///            d[i]: Probability of incorrect base call for ith character
 ///
 */
 
-fn compute_d_no_min() -> [f64; 128] {
+pub fn compute_d_no_min() -> [f64; 128] {
     let mut d = [0.0; 128];
 
     for i in 0..128 {
@@ -49,7 +49,13 @@ fn compute_d_no_min() -> [f64; 128] {
 /// A vector containing `Minimizer` structs, each containing the lexicographically smallest
 ///substring and its starting position in the input string.*/
 pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
-    let w = w_size - k_size;
+    let mut w=0;
+    if w_size > k_size{
+        w = w_size - k_size;
+    }
+    else {
+        w = 1;
+    }
     let mut window_kmers: VecDeque<(&'a str, usize)> = VecDeque::with_capacity(w + 1);
     if w+ k_size < seq.len() + 1{
         for i in 0..w {
@@ -235,7 +241,7 @@ pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: us
 
 
 fn main() {
-    let input = "ATGCTAGCATGCTAGCATGCTAGC";
+    /*let input = "ATGCTAGCATGCTAGCATGCTAGC";
     let window_size = 5;
     let k= 3;
     let minimizers = get_kmer_minimizers(input, k,window_size);
@@ -253,7 +259,9 @@ fn main() {
     println!("{:?}",first);
     println!("{:?}",second);
     println!("{:?}",third);
-    println!("{:?}",fourth);
+    println!("{:?}",fourth);*/
+    let D_no_min= compute_d_no_min();
+    println!("{:?}",D_no_min)
 
 }
 
