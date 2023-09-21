@@ -122,7 +122,7 @@ pub fn is_significant(quality_interval: &str)->bool{
     let avg_quality = average(&qualities);
     //println!("AVG_QUal {}",avg_quality);
     //if the average quality of the minimizer_impact_range is higher than 0.92 we keep the minimizer (return true for significance_indicator)
-    if avg_quality>0.92{
+    if avg_quality> 0.0{
         significance_indicator =true
     }
     significance_indicator
@@ -240,30 +240,6 @@ pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: us
 
 
 
-fn main() {
-    /*let input = "ATGCTAGCATGCTAGCATGCTAGC";
-    let window_size = 5;
-    let k= 3;
-    let minimizers = get_kmer_minimizers(input, k,window_size);
-
-    println!("Generated Minimizers: {:?}", minimizers);
-    let a = Minimizer { sequence: "AGC".to_string(), position: 24 };
-    let b = Minimizer { sequence: "AGC".to_string(), position: 24 };
-
-    println!("{:?}", a); // Prints: Minimizer { sequence: "AGC", position: 24 }
-    println!("{}", a == b); // Prints: true
-    let first="AAA".as_bytes();
-    let second ="CCC".as_bytes();
-    let third="GGG".as_bytes();
-    let fourth ="TTT".as_bytes();
-    println!("{:?}",first);
-    println!("{:?}",second);
-    println!("{:?}",third);
-    println!("{:?}",fourth);*/
-    let D_no_min= compute_d_no_min();
-    println!("{:?}",D_no_min)
-
-}
 
 #[cfg(test)]
 mod tests {

@@ -1,9 +1,7 @@
 use std::time::Duration;
 use std::time::Instant;
 use std::fs::File;
-use std::path::Path;
-use std::collections::{HashMap, HashSet};
-use std::env;
+use std::collections::HashMap;
 use rayon::prelude::*;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
@@ -12,9 +10,9 @@ mod file_actions;
 mod clustering;
 mod generate_sorted_fastq_new_version;
 use std::path::PathBuf;
-use std::io::ErrorKind;
 mod isONclust;
-use isONclust::index_kmers;
+mod structs;
+
 use crate::file_actions::FastaRecord;
 
 
@@ -188,7 +186,7 @@ fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_
 
 
 #[derive(Parser,Debug)]
-#[command(name = "isONform3")]
+#[command(name = "isONclust3")]
 #[command(author = "Alexander J. Petri <alexjpetri@gmail.com>")]
 #[command(version = "0.0.1")]
 #[command(about = "Clustering of long-read sequencing data into gene families", long_about = "isONclust is a tool for clustering either PacBio Iso-Seq reads, or Oxford Nanopore reads into clusters, where each cluster represents all reads that came from a gene." )]
@@ -198,56 +196,63 @@ struct Cli {
     fastq: String,
     #[arg(long, short,help="Path to initial clusters (stored in fastq format)")]
     init_cl: Option<String>,
-    #[arg(short, default_value_t = 2020, help="Kmer length")]
+    #[arg(short, default_value_t = 13, help="Kmer length")]
     k: usize,
-    #[arg(short, default_value_t = 2020)]
+    #[arg(short, default_value_t = 20)]
     w: usize,
 
 }
 
 fn main() {
     let cli = Cli::parse();
-    //println!("fastq: {:?}", cli.fastq.as_deref());
-    //println!("init_cl: {:?}", Path::new(&cli.init_cl.unwrap_or_else(||{"".to_string()})));
     println!("k: {:?}", cli.k);
     println!("t: {:?}", cli.w);
-    let fastq_cl = cli.fastq;
-    //let fastq_file = File::open(fastq_cl);
-    //let fastq_path = Path::new(fastq_cl);
-    //println!("fastq: {:?}",fastq_file);
-    let fastq_file = File::open(fastq_cl).unwrap();
-    //let fastq_file = File::open(Path::new(&cli.fastq.as_deref())).unwrap();
-    let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
-    let initial_clustering_file = File::open(initial_clustering_path).unwrap();
-    let initial_clustering_records = file_actions::parse_fasta(initial_clustering_path).unwrap();
+    //
+    // READ the files (the initial_clusters_file as well as the fastq file containing the reads)
+    //
+    let fastq_file = File::open(cli.fastq).unwrap();
+    //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
+    let  initial_clustering_path =cli.init_cl.as_deref();
+    let mut initial_clustering_records=vec![];
+    let mut init_clust_rec_both_dir=vec![];
+    if initial_clustering_path.is_some(){
+        let clustering_path = initial_clustering_path.unwrap();
+        initial_clustering_records = file_actions::parse_fasta(clustering_path).unwrap();
+        init_clust_rec_both_dir = clustering::add_backward_seqs(initial_clustering_records);
+    }
     let k = cli.k;
     let window_size = cli.w;
     let fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
-
-    //test_minimizer_gens();
-    //let mut mini_map: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
+    //
+    //Generate the minimizers for the initial clusters
+    //
     let mut mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
-
-    //let mut idmap: HashMap<&str, i32> = HashMap::with_capacity(fastq_records.len());
-    //let mut iterator=fastq_records.iter();
+    //
+    // Generate minimizers for the fastq file and filter by significance
+    //
     for fastq_record in fastq_records{
+
         let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&*fastq_record.get_sequence(), k, window_size);
         //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
         let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
         mini_map_filtered.insert(fastq_record.internal_id,filtered_minis);
+        println!("{} : {} ",fastq_record.internal_id, fastq_record.header);
     }
     //sorted_entries: a Vec<(i32,Vec<Minimizer)> sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
     let sorted_entries = get_sorted_entries(mini_map_filtered);
-
-    if initial_clustering_records.len() > 0{
-        let init_cluster_map= clustering::get_initial_clustering(initial_clustering_records,k,window_size);
-        clustering::cluster_from_initial(sorted_entries, init_cluster_map);
+    //
+    //Perform the clustering
+    //
+    if init_clust_rec_both_dir.len() > 0{
+        let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
+        //println!("{:?}",init_cluster_map);
+        let clusters = clustering::cluster_from_initial(sorted_entries, init_cluster_map);
+        println!("{:?}",clusters);
     }
     else{
         clustering::cluster_sorted_entries(sorted_entries);
     }
-    let d_no_min =generate_sorted_fastq_new_version::compute_d_no_min();
-    println!("{:?}",d_no_min)
+
 
 }
 #[cfg(test)]

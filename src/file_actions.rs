@@ -5,7 +5,7 @@ use std::fmt;
 use std::collections::HashMap;
 
 
-
+#[derive(Clone)]
 pub(crate) struct FastaRecord {
     //a struct used to store fasta records
     pub header: String,
