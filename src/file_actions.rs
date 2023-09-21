@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::error::Error;
 
-use std::collections::HashMap;
 use crate::structs::FastqRecord_isoncl_init;
 use crate::structs::FastaRecord;
 use crate::structs;

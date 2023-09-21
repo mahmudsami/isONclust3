@@ -1,11 +1,10 @@
-use std::collections::HashSet;
-use crate::structs::{FastqRecord_isoncl_init, FastaRecord};
+use crate::structs:: FastaRecord;
 use std::collections::HashMap;
-use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer, get_kmer_minimizers};
+use crate::generate_sorted_fastq_new_version::Minimizer;
 use crate::generate_sorted_fastq_new_version;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::num::ParseIntError;
+
 
 
 
