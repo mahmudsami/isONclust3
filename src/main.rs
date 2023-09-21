@@ -6,14 +6,13 @@ use rayon::prelude::*;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
 use clap::Parser;
-mod file_actions;
+pub mod file_actions;
 mod clustering;
 mod generate_sorted_fastq_new_version;
 use std::path::PathBuf;
 mod isONclust;
 mod structs;
-
-use crate::file_actions::FastaRecord;
+use crate::structs::FastaRecord;
 
 
 fn compare_minimizer_gens(){

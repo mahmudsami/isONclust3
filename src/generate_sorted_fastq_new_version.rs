@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
 use std::ops::Index;
 use rayon::prelude::*;
-use crate::file_actions::FastqRecord_isoncl_init;
+//use crate::file_actions::FastqRecord_isoncl_init;
 use std::cmp::max;
+use crate::structs::{FastqRecord_isoncl_init, FastaRecord};
 //fn get_positional_minimizers(&seq:String,k:u32,w:u32)->(str,u32){
 //    let window: VecDeque<u32> = VecDeque::new();
 //    OK(mini_seq,mini_pos)
