@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::file_actions::{FastqRecord_isoncl_init, FastaRecord};
+use crate::structs::{FastqRecord_isoncl_init, FastaRecord};
 use std::collections::HashMap;
 use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer, get_kmer_minimizers};
 use crate::generate_sorted_fastq_new_version;
@@ -7,10 +7,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::num::ParseIntError;
 
-enum Cluster<T, U> {
-    read_ids(HashSet<T>),
-    mini_seqs(HashSet<U>),
-}
+
 
 
 //clustering method for the case that we do not have any annotation to compare the reads against
@@ -87,7 +84,6 @@ pub(crate) fn add_backward_seqs(initial_clustering_records:Vec<FastaRecord>) ->V
         init_len= init_len+1;
         let reversed: String = record.sequence.chars().rev().collect();
         let head = record.header.clone();
-
         both_dir_records.push(record.clone());
         let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
         println!("{}, {}",head,rev_record);
