@@ -237,6 +237,7 @@ fn main() {
         mini_map_filtered.insert(fastq_record.internal_id,filtered_minis);
         println!("{} : {} ",fastq_record.internal_id, fastq_record.header);
     }
+
     //sorted_entries: a Vec<(i32,Vec<Minimizer)> sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
     let sorted_entries = get_sorted_entries(mini_map_filtered);
     //
@@ -249,7 +250,10 @@ fn main() {
         println!("{:?}",clusters);
     }
     else{
-        clustering::cluster_sorted_entries(sorted_entries);
+        //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
+        let min_shared_minis=10;
+        let clusters= clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
+        println!("{:?}",clusters);
     }
 
 

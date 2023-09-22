@@ -6,42 +6,125 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 
+fn fill_first_cluster(init_cluster_map: &mut &HashMap<u64, Vec<i32>>,clusters:&HashMap<i32,Vec<i32>>,entry:&(i32,Vec<Minimizer>),id: i32,sign_minis:&Vec<Minimizer>){
 
+
+
+
+}
 
 
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>) -> HashMap<i32,Vec<i32>>{
+pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:i32) -> HashMap<i32,Vec<i32>>{
+    //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
-    let mut init_cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
+    //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of read ids as a value
+    let mut cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
+    let mut cl_id=1;
+    //entry represents a read in our data
     for entry in &sorted_entries{
+        let mut shared_mini_infos=HashMap::new();
+        /*for key in clusters.keys(){
+            shared_mini_infos.insert(*key, 0);
+        }*/
+        println!("Clusters len {}",clusters.len());
         let id = entry.0;
         let sign_minis= &entry.1;
-
         //if we already have at least one cluster: compare the new read to the cluster(s)
         if clusters.len() > 0{
+            let mut mini_hashs_vec=vec![];
+            let mut shared_mini_cter=0;
+            for minimizer in sign_minis {
+                //we get the minimizer sequence from the minimizer object
+                let mini_seq = &minimizer.sequence;
+                //calculate the hash of the minimizer sequence
+                let mini_hash = calculate_hash(&mini_seq);
+                //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
+                if let Some(belongs_to) = cluster_map.get(&mini_hash){
+                    //iterate over belongs_to to update the counts of shared minimizers for each cluster
+                    for &element in belongs_to {
+                        //if we do not have
+                        if let Some(new_val)=shared_mini_infos.get(&element){
+                            shared_mini_infos.insert(element, *new_val+1);
+                        }
+                        else{
+                            shared_mini_infos.insert(element, 0);
+                        }
+
+                    }
+
+                }
+                mini_hashs_vec.push(mini_hash);
+            }
+            let mut shared= false;
+            //key: cluster_id, value: count of shared minimizers
+            for (key, value) in shared_mini_infos{
+
+                if value > min_shared_minis{
+                    //TODO:add the new minimizers to the cluster
+                    for mini_hash in &mini_hashs_vec {
+                        cluster_map
+                            .entry(*mini_hash)
+                            .or_insert_with(Vec::new)
+                            .retain(|&existing_id| existing_id != key);
+                        // Check if id was retained (not a duplicate) and push it if needed
+                        let vect = cluster_map.get_mut(&mini_hash).unwrap();
+                        if !vect.contains(&key) {
+                            vect.push(key);
+                        }
+                    }
+                    //TODO: add the new read_id to the cluster
+                    let read_list=clusters.get_mut(&key).unwrap();
+                    if !read_list.contains(&id){
+                        read_list.push(id);
+                    }
+                    shared = true;
+                }
+                println!("id: {} , shared_with_init_cl: {}",key, value);
+            }
+            if !shared{
+                for mini_hash in mini_hashs_vec{
+                    cluster_map
+                        .entry(mini_hash)
+                        .or_insert_with(Vec::new)
+                        .retain(|&existing_id| existing_id != cl_id);
+                    // Check if id was retained (not a duplicate) and push it if needed
+                    let vect = cluster_map.get_mut(&mini_hash).unwrap();
+                    if !vect.contains(&cl_id) {
+                        vect.push(cl_id);
+                    }
+                }
+                let id_vec=vec![id];
+                clusters.insert(cl_id,id_vec);
+                cl_id+=1;
+            }
+
 
         }
         //we do not yet have a cluster and therefore need to fill the first read into the first
         else{
-            for minimizer in sign_minis{
+            let init_id = 0;
+            for minimizer in sign_minis {
                 //we get the minimizer sequence from the minimizer object
-                let mini_seq= &minimizer.sequence;
+                let mini_seq = &minimizer.sequence;
                 //calculate the hash of the minimizer sequence
-                let mini_hash= calculate_hash(&mini_seq);
-                init_cluster_map
+                let mini_hash = calculate_hash(&mini_seq);
+                //fill cluster_map with the minimizers that we found in the first read
+                cluster_map
                     .entry(mini_hash)
                     .or_insert_with(Vec::new)
-                    .retain(|&existing_id| existing_id != id);
+                    .retain(|&existing_id| existing_id != init_id);
                 // Check if id was retained (not a duplicate) and push it if needed
-                let vec = init_cluster_map.get_mut(&mini_hash).unwrap();
-                if !vec.contains(&id) {
-                    vec.push(id);
+                let vect = cluster_map.get_mut(&mini_hash).unwrap();
+                if !vect.contains(&init_id) {
+                    vect.push(init_id);
                 }
             }
+            let id_vec=vec![id];
+            clusters.insert(init_id,id_vec);
         }
-        //println!("{:?}",init_cluster_map)
         //println!("{}",sorted_entry.0);
-        println!("{:?}",clusters);
+        //println!("{:?}",clusters);
     }
 clusters
 }
