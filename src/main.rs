@@ -13,7 +13,7 @@ use std::path::PathBuf;
 mod isONclust;
 mod structs;
 use crate::structs::FastaRecord;
-
+mod write_output;
 
 fn compare_minimizer_gens(){
     //let input = "ATGCTAGCATGCTAGCATGCTAGC";
@@ -199,6 +199,8 @@ struct Cli {
     k: usize,
     #[arg(short, default_value_t = 20)]
     w: usize,
+    #[arg(long, short, help="Path to outfolder")]
+    outfolder: String,
 
 }
 
@@ -206,6 +208,7 @@ fn main() {
     let cli = Cli::parse();
     println!("k: {:?}", cli.k);
     println!("t: {:?}", cli.w);
+    println!("outfolder {:?}",cli.outfolder);
     //
     // READ the files (the initial_clusters_file as well as the fastq file containing the reads)
     //
@@ -221,7 +224,9 @@ fn main() {
     }
     let k = cli.k;
     let window_size = cli.w;
-    let fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
+    let outfolder = cli.outfolder;
+    let fastq_records=file_actions::parse_fastq_old(fastq_file).unwrap();
+    //let (fastq_records,id_map) = file_actions::parse_fastq(fastq_file);
     //
     //Generate the minimizers for the initial clusters
     //
@@ -229,13 +234,17 @@ fn main() {
     //
     // Generate minimizers for the fastq file and filter by significance
     //
-    for fastq_record in fastq_records{
-
-        let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&*fastq_record.get_sequence(), k, window_size);
+    let mut int_id_cter=0;
+    let mut id_map=HashMap::new();
+    for fastq_record in &fastq_records{
+        id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
+        //TODO: add hashmap holding the internal_id and read_id
+        let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
         //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
         let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
-        mini_map_filtered.insert(fastq_record.internal_id,filtered_minis);
-        println!("{} : {} ",fastq_record.internal_id, fastq_record.header);
+        mini_map_filtered.insert(int_id_cter,filtered_minis);
+        println!("{} : {} ",int_id_cter, fastq_record.header);
+        int_id_cter+=1;
     }
 
     //sorted_entries: a Vec<(i32,Vec<Minimizer)> sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
@@ -243,19 +252,21 @@ fn main() {
     //
     //Perform the clustering
     //
+    let mut clusters:HashMap<i32,Vec<i32>> = HashMap::new();
     if init_clust_rec_both_dir.len() > 0{
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
         //println!("{:?}",init_cluster_map);
-        let clusters = clustering::cluster_from_initial(sorted_entries, init_cluster_map);
+        clusters = clustering::cluster_from_initial(sorted_entries, init_cluster_map);
         println!("{:?}",clusters);
     }
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
         let min_shared_minis=10;
-        let clusters= clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
+        clusters= clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
         println!("{:?}",clusters);
+        //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }
-
+    write_output::write_output(outfolder,clusters,fastq_records, id_map);
 
 }
 #[cfg(test)]

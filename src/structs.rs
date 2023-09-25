@@ -42,7 +42,7 @@ impl fmt::Display for FastqRecord {
 pub struct FastqRecord_isoncl_init {
     //a struct used to store fastq records
     pub header: String,
-    pub internal_id: i32,
+    //pub internal_id: i32,
     pub sequence: String,
     //pub(crate) quality_header: String,
     pub quality: String,
@@ -55,9 +55,9 @@ impl FastqRecord_isoncl_init{
     pub fn get_header(&self)->&str{
         &self.header
     }
-    pub fn get_int_id(&self)->&i32{
-        &self.internal_id
-    }
+    //pub fn get_int_id(&self)->&i32{
+       // &self.internal_id
+    //}
     pub fn get_sequence(&self)->&str{
         &self.sequence
     }
