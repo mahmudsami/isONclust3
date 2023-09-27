@@ -96,19 +96,7 @@ fn compute_d_no_min() -> [f64; 128] {
 }
 
 
-pub(crate) fn reverse_complement(dna: &str) -> String {
-    let reverse_complement: String = dna.chars()
-        .rev()
-        .map(|c| match c {
-            'A' => 'T',
-            'T' => 'A',
-            'C' => 'G',
-            'G' => 'C',
-            _ => c,
-        })
-        .collect();
-    reverse_complement
-}
+
 
 
 fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file_actions::FastqRecord_isoncl_init>{

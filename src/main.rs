@@ -220,7 +220,7 @@ fn main() {
     if initial_clustering_path.is_some(){
         let clustering_path = initial_clustering_path.unwrap();
         initial_clustering_records = file_actions::parse_fasta(clustering_path).unwrap();
-        init_clust_rec_both_dir = clustering::add_backward_seqs(initial_clustering_records);
+        init_clust_rec_both_dir = clustering::add_rev_comp_seqs_annotation(initial_clustering_records);
     }
     let k = cli.k;
     let window_size = cli.w;
@@ -239,12 +239,18 @@ fn main() {
     for fastq_record in &fastq_records{
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
         //TODO: add hashmap holding the internal_id and read_id
-        let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
-        //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
-        let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
-        mini_map_filtered.insert(int_id_cter,filtered_minis);
-        println!("{} : {} ",int_id_cter, fastq_record.header);
-        int_id_cter+=1;
+        if fastq_record.sequence.len()>k{
+            let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
+            //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
+            let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
+            mini_map_filtered.insert(int_id_cter,filtered_minis);
+            //println!("{} : {} ",int_id_cter, fastq_record.header);
+            int_id_cter+=1;
+        }
+        else {
+            println!("Read too short- skipped {}",fastq_record.header)
+        }
+
     }
 
     //sorted_entries: a Vec<(i32,Vec<Minimizer)> sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
@@ -263,7 +269,7 @@ fn main() {
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
         let min_shared_minis=10;
         clusters= clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
-        println!("{:?}",clusters);
+        //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }
     write_output::write_output(outfolder,clusters,fastq_records, id_map);

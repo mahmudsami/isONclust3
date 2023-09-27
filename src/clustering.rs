@@ -13,6 +13,29 @@ fn fill_first_cluster(init_cluster_map: &mut &HashMap<u64, Vec<i32>>,clusters:&H
 
 }
 
+fn post_clustering(){
+
+}
+
+
+
+
+pub(crate) fn reverse_complement(dna: &str) -> String {
+    let reverse_complement: String = dna.chars()
+        .rev()
+        .map(|c| match c {
+            'A' => 'T',
+            'T' => 'A',
+            'C' => 'G',
+            'G' => 'C',
+            _ => c,
+        })
+        .collect();
+    reverse_complement
+}
+
+
+
 
 //clustering method for the case that we do not have any annotation to compare the reads against
 pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:i32) -> HashMap<i32,Vec<i32>>{
@@ -130,6 +153,47 @@ clusters
 }
 
 
+fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
+    //let mut final_cl=vec![];
+    let mut clustering: HashMap<i32,f32> = HashMap::new();
+    for tcl in this_clusters{
+        if tcl.len()==1{
+            let tcl_elem= tcl.first().unwrap();
+            println!("tcl elem {}",tcl_elem);
+            if clustering.contains_key(tcl_elem){
+                let mut elem=clustering.get_mut(tcl_elem).unwrap();
+                *elem = *elem + 1.0;
+            }
+            else{
+                clustering.insert(*tcl_elem,1.0);
+            }
+        }
+    }
+    let mut max_val:f32 = 0.0;
+    let mut max_clust=0;
+    let mut max_eq=0;
+    for (key,val) in clustering{
+        if val>max_val{
+            max_val=val;
+            max_clust=key;
+            max_eq=0;
+        }
+        if val==max_val{
+            max_eq=key;
+        }
+    }
+    if !max_eq==0{
+        println!("Not a singular cluster: {},{}", max_clust,max_eq)
+    }
+    if max_val<10.0{
+        println!("low support {}",max_val);
+    }
+
+    return max_clust
+}
+
+
+
 //clustering method for the case that we have an annotation to compare our reads against
 pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, initial_clusters: HashMap<u64, Vec<i32>>) ->HashMap<i32, Vec<i32>>{
     //the hashmap containing the clusters we found TODO: verify:(key: cluster_id, value: vector of internal read ids
@@ -153,18 +217,37 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, in
         }
         println!("{}",sorted_entry.0);
         println!("{:?}",this_clusters);
+        let final_cl = get_final_cl_init(this_clusters);
+        if clusters.contains_key(&final_cl){
+            let mut id_vec=clusters.get_mut(&final_cl).unwrap();
+            id_vec.push(sorted_entry.0)
+        }
+        else {
+            let mut id_vec=vec![sorted_entry.0];
+            clusters.insert(final_cl,id_vec);
+        }
 
-        //clusters.add(this_clusters)
     }
 
     clusters
     }
-pub(crate) fn add_backward_seqs(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
+
+
+
+pub(crate) fn add_rev_comp_seqs_annotation(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
+    ///Adds the reverse_compliment of the annotation
+    ///INPUT:   initial_clustering_records: The annotation
+    ///
+    /// OUTPUT:     both_dir_records: the records in both directions
+
+
+
     let mut both_dir_records =vec![];
     let mut init_len=initial_clustering_records.len();
     for record in initial_clustering_records{
         init_len= init_len+1;
-        let reversed: String = record.sequence.chars().rev().collect();
+        //let reversed: String = record.sequence.chars().rev().collect();
+        let reversed=reverse_complement(&*record.sequence);
         let head = record.header.clone();
         both_dir_records.push(record.clone());
         let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
@@ -174,6 +257,26 @@ pub(crate) fn add_backward_seqs(initial_clustering_records:Vec<FastaRecord>) ->V
 
     both_dir_records
 }
+
+
+pub(crate) fn add_rev_comp_seqs(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
+    let mut both_dir_records =vec![];
+    let mut init_len=initial_clustering_records.len();
+    for record in initial_clustering_records{
+        init_len= init_len+1;
+        //let reversed: String = record.sequence.chars().rev().collect();
+        let reversed=reverse_complement(&*record.sequence);
+        let head = record.header.clone();
+        both_dir_records.push(record.clone());
+        let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
+        println!("{}, {}",head,rev_record);
+        both_dir_records.push(rev_record)
+    }
+
+    both_dir_records
+}
+
+
 
 //if we have an annotation file we are interested to take the cluster number from the header of the respective read
 fn get_id_from_header(head: String) -> i32 {

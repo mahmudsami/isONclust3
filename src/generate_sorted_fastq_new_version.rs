@@ -65,10 +65,13 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     }
     // Initialize the window_kmers deque
     else{
-        let short_w = seq.len() + 1 - k_size;
-        for i in 0..short_w {
-            window_kmers.push_back((&seq[i..i + k_size], i));
+        if seq.len()+1>=k_size{
+            let short_w = seq.len() + 1 - k_size;
+            for i in 0..short_w {
+                window_kmers.push_back((&seq[i..i + k_size], i));
+            }
         }
+
     }
     //store the final positional minimizers in a vector
     let mut minimizers = vec![];
