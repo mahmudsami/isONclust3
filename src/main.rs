@@ -268,11 +268,11 @@ fn main() {
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
         let min_shared_minis=10;
-        clusters= clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
+        clusters = clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }
-    write_output::write_output(outfolder,clusters,fastq_records, id_map);
+    write_output::write_output(outfolder, clusters,fastq_records, id_map);
 
 }
 #[cfg(test)]

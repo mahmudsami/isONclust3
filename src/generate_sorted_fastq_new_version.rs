@@ -112,22 +112,28 @@ fn average(numbers: &[f64]) -> f64 {
 pub fn is_significant(quality_interval: &str)->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
+    let mut quality = 1.0;
     //d_no_min contains a translation for chars into quality values
     let d_no_min=compute_d_no_min();
     //for each character in quality string:
     for (i, c) in quality_interval.chars().enumerate() {
         let index = c as usize;
         let q_value = d_no_min[index];
-        let probability_error=1.0 - q_value;
+        let probability_error= 1.0 - q_value;
         qualities.push(probability_error);
+        quality = quality * probability_error;
     }
     //println!("{:?}",qualities);
     //nothing really sophisticated here: we just filter by average quality value
-    let avg_quality = average(&qualities);
+    //let avg_quality = average(&qualities);
     //println!("AVG_QUal {}",avg_quality);
     //if the average quality of the minimizer_impact_range is higher than 0.92 we keep the minimizer (return true for significance_indicator)
-    if avg_quality> 0.0{
+    /*if avg_quality> 0.0{
         significance_indicator =true
+    }*/
+    //println!("quality ,{}",quality);
+    if quality < 0.001{
+        significance_indicator = true;
     }
     significance_indicator
 }
@@ -141,19 +147,20 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
     for mini in this_minimizers{
         //println!("{:?}",mini);
         let minimizer_pos= mini.position;
-        let mut minimizer_range_start=0;
+        let mut minimizer_range_start= 0;
         if minimizer_pos>minimizer_range{
-            let minimizer_range_start = minimizer_pos - minimizer_range;
+            minimizer_range_start = minimizer_pos - minimizer_range;
         }
         let mut minimizer_range_end = fastq_sequence.len();
-        if minimizer_pos+minimizer_range+k<minimizer_range_end{
+        if minimizer_pos+minimizer_range + k < minimizer_range_end{
             minimizer_range_end = minimizer_pos + minimizer_range + k ;
         }
-        let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end-1];
+        let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
         let significant= is_significant(&qualitiy_interval);
         if significant{
             minimizers_filtered.push(mini.clone())
         }
+
     }
     //println!("Length after filter: {}",minimizers_filtered.len());
     minimizers_filtered

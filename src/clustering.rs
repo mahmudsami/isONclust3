@@ -4,16 +4,14 @@ use crate::generate_sorted_fastq_new_version::Minimizer;
 use crate::generate_sorted_fastq_new_version;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::borrow::Borrow;
 
 
-fn fill_first_cluster(init_cluster_map: &mut &HashMap<u64, Vec<i32>>,clusters:&HashMap<i32,Vec<i32>>,entry:&(i32,Vec<Minimizer>),id: i32,sign_minis:&Vec<Minimizer>){
-
-
-
+fn fill_first_cluster(clusters: & HashMap<i32,Vec<i32>>, id: i32, sign_minis:&Vec<Minimizer>, cluster_map:  HashMap<u64, Vec<i32>>){
 
 }
 
-fn post_clustering(){
+fn post_clustering(clusters: HashMap<i32,Vec<i32>>){
 
 }
 
@@ -46,17 +44,15 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
     let mut cl_id=1;
     //entry represents a read in our data
     for entry in &sorted_entries{
+        //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
         let mut shared_mini_infos=HashMap::new();
-        /*for key in clusters.keys(){
-            shared_mini_infos.insert(*key, 0);
-        }*/
         println!("Clusters len {}",clusters.len());
         let id = entry.0;
         let sign_minis= &entry.1;
+        println!("id: {}",id);
         //if we already have at least one cluster: compare the new read to the cluster(s)
         if clusters.len() > 0{
             let mut mini_hashs_vec=vec![];
-            let mut shared_mini_cter=0;
             for minimizer in sign_minis {
                 //we get the minimizer sequence from the minimizer object
                 let mini_seq = &minimizer.sequence;
@@ -65,26 +61,29 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
                 //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
                 if let Some(belongs_to) = cluster_map.get(&mini_hash){
                     //iterate over belongs_to to update the counts of shared minimizers for each cluster
-                    for &element in belongs_to {
-                        //if we do not have
-                        if let Some(new_val)=shared_mini_infos.get(&element){
-                            shared_mini_infos.insert(element, *new_val+1);
+                    for &belong_cluster in belongs_to {
+                        //if the cluster is already appointed to the read
+                        if let Some(new_val) = shared_mini_infos.get(&belong_cluster){
+                            //increase the counter of minimizers shared with cluster
+                            shared_mini_infos.insert(belong_cluster, *new_val+1);
                         }
                         else{
-                            shared_mini_infos.insert(element, 0);
+                            //add a new counter for the cluster element
+                            shared_mini_infos.insert(belong_cluster, 0);
                         }
-
                     }
-
                 }
                 mini_hashs_vec.push(mini_hash);
             }
             let mut shared= false;
+            let mut most_shared=0;
+            let mut most_shared_cluster=0;
             //key: cluster_id, value: count of shared minimizers
             for (key, value) in shared_mini_infos{
-
+                //we have more shared minis with the cluster than our threshold
                 if value > min_shared_minis{
-                    //TODO:add the new minimizers to the cluster
+                    println!("{} for old clusters" ,cl_id);
+                    //add the new minimizers to the cluster
                     for mini_hash in &mini_hashs_vec {
                         cluster_map
                             .entry(*mini_hash)
@@ -96,16 +95,24 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
                             vect.push(key);
                         }
                     }
-                    //TODO: add the new read_id to the cluster
-                    let read_list=clusters.get_mut(&key).unwrap();
-                    if !read_list.contains(&id){
-                        read_list.push(id);
+                    // add the new read_id to the cluster
+                    if value>most_shared{
+                        most_shared_cluster=key;
                     }
                     shared = true;
                 }
                 println!("id: {} , shared_with_init_cl: {}",key, value);
             }
-            if !shared{
+            //if we have a cluster that we share enough minimizers with
+            if shared{
+                //add the read id to read_list
+                let read_list= clusters.get_mut(&most_shared_cluster).unwrap();
+                if !read_list.contains(&id){
+                    read_list.push(id);
+                }
+            }
+            //we did not find a cluster that we could put the read into-> generate a new cluster
+            else{
                 for mini_hash in mini_hashs_vec{
                     cluster_map
                         .entry(mini_hash)
@@ -121,8 +128,6 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
                 clusters.insert(cl_id,id_vec);
                 cl_id+=1;
             }
-
-
         }
         //we do not yet have a cluster and therefore need to fill the first read into the first
         else{
@@ -146,8 +151,6 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
             let id_vec=vec![id];
             clusters.insert(init_id,id_vec);
         }
-        //println!("{}",sorted_entry.0);
-        //println!("{:?}",clusters);
     }
 clusters
 }
@@ -239,9 +242,6 @@ pub(crate) fn add_rev_comp_seqs_annotation(initial_clustering_records:Vec<FastaR
     ///INPUT:   initial_clustering_records: The annotation
     ///
     /// OUTPUT:     both_dir_records: the records in both directions
-
-
-
     let mut both_dir_records =vec![];
     let mut init_len=initial_clustering_records.len();
     for record in initial_clustering_records{
@@ -262,17 +262,20 @@ pub(crate) fn add_rev_comp_seqs_annotation(initial_clustering_records:Vec<FastaR
 pub(crate) fn add_rev_comp_seqs(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
     let mut both_dir_records =vec![];
     let mut init_len=initial_clustering_records.len();
+    //iterate over the records in initial_clustering_records
     for record in initial_clustering_records{
         init_len= init_len+1;
         //let reversed: String = record.sequence.chars().rev().collect();
         let reversed=reverse_complement(&*record.sequence);
         let head = record.header.clone();
+        //add the forward direction to both_dir_records
         both_dir_records.push(record.clone());
+        //generate a new record
         let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
         println!("{}, {}",head,rev_record);
+        //add the reversed reads to both_dir_records
         both_dir_records.push(rev_record)
     }
-
     both_dir_records
 }
 
@@ -329,7 +332,6 @@ pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord
                     .entry(mini_hash)
                     .or_insert_with(Vec::new)
                     .retain(|&existing_id| existing_id != id);
-
             // Check if id was retained (not a duplicate) and push it if needed
             let vec = init_cluster_map.get_mut(&mini_hash).unwrap();
             //vec.push(id);
