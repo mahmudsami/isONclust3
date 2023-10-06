@@ -201,6 +201,8 @@ struct Cli {
     w: usize,
     #[arg(long, short, help="Path to outfolder")]
     outfolder: String,
+    #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
+    n: usize,
 
 }
 
@@ -208,6 +210,7 @@ fn main() {
     let cli = Cli::parse();
     println!("k: {:?}", cli.k);
     println!("t: {:?}", cli.w);
+    println!("n: {:?}",cli.n);
     println!("outfolder {:?}",cli.outfolder);
     //
     // READ the files (the initial_clusters_file as well as the fastq file containing the reads)
@@ -225,7 +228,7 @@ fn main() {
     let k = cli.k;
     let window_size = cli.w;
     let outfolder = cli.outfolder;
-    let fastq_records=file_actions::parse_fastq_old(fastq_file).unwrap();
+    let fastq_records= file_actions::parse_fastq_old(fastq_file).unwrap();
     //let (fastq_records,id_map) = file_actions::parse_fastq(fastq_file);
     //
     //Generate the minimizers for the initial clusters
@@ -234,7 +237,7 @@ fn main() {
     //
     // Generate minimizers for the fastq file and filter by significance
     //
-    let mut int_id_cter=0;
+    let mut int_id_cter= 0;
     let mut id_map=HashMap::new();
     for fastq_record in &fastq_records{
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
@@ -245,7 +248,7 @@ fn main() {
             let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
             mini_map_filtered.insert(int_id_cter,filtered_minis);
             //println!("{} : {} ",int_id_cter, fastq_record.header);
-            int_id_cter+=1;
+            int_id_cter += 1;
         }
         else {
             println!("Read too short- skipped {}",fastq_record.header)
@@ -267,7 +270,7 @@ fn main() {
     }
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
-        let min_shared_minis=10;
+        let min_shared_minis= 10;
         clusters = clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis

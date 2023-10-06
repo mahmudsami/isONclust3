@@ -123,15 +123,7 @@ pub fn is_significant(quality_interval: &str)->bool{
         qualities.push(probability_error);
         quality = quality * probability_error;
     }
-    //println!("{:?}",qualities);
-    //nothing really sophisticated here: we just filter by average quality value
-    //let avg_quality = average(&qualities);
-    //println!("AVG_QUal {}",avg_quality);
-    //if the average quality of the minimizer_impact_range is higher than 0.92 we keep the minimizer (return true for significance_indicator)
-    /*if avg_quality> 0.0{
-        significance_indicator =true
-    }*/
-    //println!("quality ,{}",quality);
+
     if quality < 0.001{
         significance_indicator = true;
     }
@@ -180,7 +172,7 @@ pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: us
     // Find the initial minimizer (minimizer of initial window)
     let kmer_option = window_kmers.iter().min_by_key(|&&(kmer, _)| kmer).unwrap();
     let (curr_min,min_pos) = *kmer_option;
-    let mini =Minimizer {sequence: curr_min.to_string(),position: min_pos };
+    let mini = Minimizer {sequence: curr_min.to_string(),position: min_pos };
     //add the initial minimizer to the vector
     minimizers.push(mini);
 
@@ -188,7 +180,7 @@ pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: us
     let mut last_mini = minimizers.last().expect("We already have at least one minimizer in minimizers");
     let mut last_mini_pos = last_mini.position;
     let mut pos = window_kmers.front().expect("The window should contain elements");
-    let mut stored_value=pos.1;
+    let mut stored_value= pos.1;
     while stored_value <= last_mini_pos{
         window_kmers.pop_front();
         if window_kmers.is_empty(){
