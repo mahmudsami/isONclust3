@@ -7,7 +7,8 @@ use rayon::prelude::*;
 use std::time::Instant;
 use std::borrow::Borrow;
 use std::collections::VecDeque;
-
+use crate::clustering::reverse_complement;
+use crate::structs::FastqRecord_isoncl_init;
 
 
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
@@ -99,13 +100,13 @@ fn compute_d_no_min() -> [f64; 128] {
 
 
 
-fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file_actions::FastqRecord_isoncl_init>{
+fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<FastqRecord_isoncl_init>{
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
     //read the fastq file and store the result in fastq_records (a vector of FastqRecord_isoncl_init)
     let fastq_file = File::open(in_file_path).unwrap();
-    let mut fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
+    let mut fastq_records = file_actions::parse_fastq_old(fastq_file).unwrap();
     println!("{} reads recorded",fastq_records.len());
     //filter fastq_records: We only keep reads having a sequence length>2*k and that do not have a shorter compression than k
     fastq_records.retain(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );
@@ -143,7 +144,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<file
 }
 
 
-fn write_ordered_fastq(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>)->std::io::Result<()>{
+fn write_ordered_fastq(fastq_records:&Vec<FastqRecord_isoncl_init>)->std::io::Result<()>{
     //writes the fastq file
     let mut f = File::create("output.vtk").expect("Unable to create file");
     for record in fastq_records {
@@ -153,7 +154,7 @@ fn write_ordered_fastq(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>
 }
 
 
-fn print_statistics(fastq_records:&Vec<file_actions::FastqRecord_isoncl_init>){
+fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
     /*
     Prints the statistics for the resulting file TODO: add median and mean
      */

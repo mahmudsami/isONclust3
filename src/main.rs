@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use clap::Parser;
 pub mod file_actions;
 mod clustering;
+mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
 use std::path::PathBuf;
 mod isONclust;
@@ -277,16 +278,4 @@ fn main() {
     }
     write_output::write_output(outfolder, clusters,fastq_records, id_map);
 
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_reverse_complement() {
-        let rev_comp = generate_sorted_fastq_for_cluster::reverse_complement("GGGGATCATCAGGGCTA");
-        assert_eq!(rev_comp,"TAGCCCTGATGATCCCC");
-        let rev_comp2 = generate_sorted_fastq_for_cluster::reverse_complement("ATCGA");
-        assert_eq!(rev_comp2,"TCGAT");
-    }
-    
 }

@@ -159,6 +159,44 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
 }
 
 
+
+
+
+fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isize) -> Vec<Minimizer> {
+    let w = k_size - s_size;
+
+    // get t, the position of s-mer
+    // t is chosen to be in the middle of k-mer for the chosen syncmer
+    let mut t = t;
+    if t < 0 {
+        let diff = k_size as isize - s_size as isize;
+        t = if diff % 2 == 0 {
+            diff / 2
+        } else {
+            (diff + 1) / 2
+        };
+        t -= 1;
+    }
+
+    let mut syncmers = Vec::new();
+    // get list of all s-mers in the first k-mer
+    let mut kmer_smers: VecDeque<&str> = (0..=w).map(|i| &seq[i..i + s_size]).collect();
+    for i in 0..seq.len() - k_size {
+        // add a new syncmer to the list if its smallest s-mer is at place t
+        if kmer_smers.iter().position(|&x| x == *kmer_smers.iter().min().unwrap()) == Some(t as usize) {
+            syncmers.push(Minimizer {sequence: (&seq[i..i + k_size]).parse().unwrap(), position: i});
+        }
+        // move the window one step to the right by popping the leftmost
+        // s-mer and adding one to the right
+        kmer_smers.pop_front();
+        kmer_smers.push_back(&seq[i + k_size - s_size + 1..i + k_size + 1]);
+    }
+
+    syncmers
+}
+
+
+
 //test implementation currently deprecated
 pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
     let w = w_size - k_size;
@@ -305,6 +343,20 @@ mod tests {
             Minimizer { sequence: "AATGA".to_string(), position: 1 },
         ];
         assert_eq!(actual_minimizers, expected_minimizers);
+    }
+    #[test]
+    fn test_kmer_syncmers(){
+        let input ="CATTCAGGAATC";
+        let k=5;
+        let s=2;
+        let t=2;
+        let retreived_syncmers=get_kmer_syncmers(input,k,s,t);
+        let expected_syncmers=vec![
+            Minimizer { sequence: "TCAGG".to_string(), position: 3 },
+            Minimizer { sequence: "GGAAT".to_string(),position: 6},
+
+        ];
+        assert_eq!(retreived_syncmers, expected_syncmers);
     }
     #[test]
     fn test_average_0(){

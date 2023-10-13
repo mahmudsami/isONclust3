@@ -344,3 +344,18 @@ pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord
     //println!("{:?}",init_cluster_map);
     init_cluster_map
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_reverse_complement() {
+        let rev_comp = reverse_complement("GGGGATCATCAGGGCTA");
+        assert_eq!(rev_comp,"TAGCCCTGATGATCCCC");
+        let rev_comp2 = reverse_complement("ATCGA");
+        assert_eq!(rev_comp2,"TCGAT");
+    }
+
+}

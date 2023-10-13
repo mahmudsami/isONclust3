@@ -45,6 +45,13 @@ pub(crate) fn parse_fasta(file_path: &str) -> Result<Vec<FastaRecord>, std::io::
     Ok(records)
 }
 
+fn shorten_header(header:&str)-> &str{
+    let header_parts: Vec<_>=header.split(" ").collect();
+    let header_new = header_parts[0];
+
+    header_new
+}
+
 
 pub(crate) fn parse_fastq_old(file: File) -> Result<Vec<structs::FastqRecord_isoncl_init>, Box<dyn Error>> {
     //Parses a fastq file, returns a vector of FastqRecords
@@ -60,6 +67,7 @@ pub(crate) fn parse_fastq_old(file: File) -> Result<Vec<structs::FastqRecord_iso
 
         header = header.trim().to_owned();
         header = (&header[1..]).to_string();
+        header = shorten_header(&header).parse().unwrap();
         let mut sequence = String::new();
         let sequence_read = reader.read_line(&mut sequence)?;
         if sequence_read == 0 {

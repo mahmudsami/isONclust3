@@ -9,13 +9,13 @@ use std::collections::hash_map::RandomState;
 
 
 
-fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, id_map:HashMap<i32,String>)->HashMap<&String,i32>{
+fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, id_map:HashMap<i32,String>)->HashMap<String,i32>{
     let mut header_cluster_map=HashMap::new();
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
     for (cl_id, r_int_ids) in clusters.into_iter(){
         for r_int_id in r_int_ids{
-            let read_id=id_map.get(&r_int_id).unwrap();
+            let read_id = id_map.get(&r_int_id).unwrap().to_string();
             write!(f ,"{}\t{}\n", cl_id, read_id);
             header_cluster_map.insert(read_id,cl_id);
         }
@@ -25,15 +25,39 @@ fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, 
 
 
 
-fn write_fastq_files(outfolder: &Path, clusters: HashMap<i32,Vec<i32>>, fastq_vec: Vec<FastqRecord_isoncl_init>){
-    for (cl_id, r_int_ids) in clusters.into_iter(){
+fn create_final_ds(header_cluster_map: HashMap<String,i32>, fastq_vec: Vec<FastqRecord_isoncl_init>)->HashMap<i32,Vec<FastqRecord_isoncl_init>>{
+    let mut cluster_map= HashMap::new();
+    for read in fastq_vec{
+        let id =read.header.clone();
+        println!("id {}",id);
+        let cluster_id= header_cluster_map.get(&id).unwrap();
+        if cluster_map.contains_key(cluster_id) {
+            let mut id_vec:&mut Vec<FastqRecord_isoncl_init> = cluster_map.get_mut(cluster_id).unwrap();
+            id_vec.push(read)
+        }
+        else {
+            let mut id_vec=vec![read];
+            cluster_map.insert(*cluster_id,id_vec);
+        }
+    }
+    cluster_map
+}
+
+
+
+fn write_fastq_files(outfolder: &Path, cluster_map: HashMap<i32, Vec<FastqRecord_isoncl_init>>){
+   //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
+
+    for (cl_id, records) in cluster_map.into_iter(){
         let filename = cl_id.to_string()+".fastq";
         let file_path = PathBuf::from(outfolder).join(filename);
         let mut f = File::create(file_path).expect("unable to create file");
-
+        for record in records{
+            write!(f ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality);
+        }
             //let read_id=id_map.get(&r_int_id);
         //let index = test.iter().position(|&r| r == "two").unwrap();
-            //write!(f ,"{}\t{}\n", cl_id, read_id.unwrap());
+            //
 
 
     }
@@ -46,9 +70,7 @@ pub fn path_exists(path: &str) -> bool {
 }
 fn convert_infos_for_writing(id_map:HashMap<i32,String>, clusters:HashMap<i32,Vec<i32>>, fastq_vec:&Vec<FastqRecord_isoncl_init>){
 
-    for read in fastq_vec{
-        
-    }
+
 
 }
 
@@ -63,5 +85,6 @@ pub(crate) fn write_output(outfolder:String,clusters:HashMap<i32,Vec<i32>>,fastq
     }
     convert_infos_for_writing(id_map.clone(), clusters.clone(), &fastq_vec);
     let header_cluster_map=write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone());
-    write_fastq_files(&*fastq_path, clusters, fastq_vec);
+    let cluster_hashmap_fastq_record = create_final_ds(header_cluster_map, fastq_vec);
+    write_fastq_files(&*fastq_path, cluster_hashmap_fastq_record);
 }

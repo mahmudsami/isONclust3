@@ -39,7 +39,7 @@ impl fmt::Display for FastqRecord {
 }
 
 
-pub struct FastqRecord_isoncl_init {
+pub(crate) struct FastqRecord_isoncl_init {
     //a struct used to store fastq records
     pub header: String,
     //pub internal_id: i32,
