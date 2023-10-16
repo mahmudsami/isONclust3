@@ -30,14 +30,15 @@ fn create_final_ds(header_cluster_map: HashMap<String,i32>, fastq_vec: Vec<Fastq
     for read in fastq_vec{
         let id =read.header.clone();
         println!("id {}",id);
-        let cluster_id= header_cluster_map.get(&id).unwrap();
-        if cluster_map.contains_key(cluster_id) {
-            let mut id_vec:&mut Vec<FastqRecord_isoncl_init> = cluster_map.get_mut(cluster_id).unwrap();
-            id_vec.push(read)
-        }
-        else {
-            let mut id_vec=vec![read];
-            cluster_map.insert(*cluster_id,id_vec);
+        if header_cluster_map.contains_key(&id) {
+            let cluster_id = header_cluster_map.get(&id).unwrap();
+            if cluster_map.contains_key(cluster_id) {
+                let mut id_vec: &mut Vec<FastqRecord_isoncl_init> = cluster_map.get_mut(cluster_id).unwrap();
+                id_vec.push(read)
+            } else {
+                let mut id_vec = vec![read];
+                cluster_map.insert(*cluster_id, id_vec);
+            }
         }
     }
     cluster_map
