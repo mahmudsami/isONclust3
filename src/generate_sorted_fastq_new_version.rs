@@ -4,6 +4,8 @@ use rayon::prelude::*;
 //use crate::file_actions::FastqRecord_isoncl_init;
 use std::cmp::max;
 use crate::structs::{FastqRecord_isoncl_init, FastaRecord};
+use crate::clustering::reverse_complement;
+use std::borrow::Borrow;
 //fn get_positional_minimizers(&seq:String,k:u32,w:u32)->(str,u32){
 //    let window: VecDeque<u32> = VecDeque::new();
 //    OK(mini_seq,mini_pos)
@@ -103,6 +105,96 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     minimizers
 }
 
+fn add_rev_comp<'a>(k_mer_str:&str, window_kmers:VecDeque<(&'a str, usize)>,i:usize){
+
+}
+/*
+/// Generates positional canonical minimizers from an input string.
+/// A positional minimizer is the lexicographically smallest substring of a given window size
+/// as the window slides through the input string.
+///
+/// # Arguments
+///
+/// * `input` - The input string to generate minimizers from.
+/// * `window_size` - The size of the sliding window for generating minimizers.
+/// * `k` - The length of k-mers to use for generating minimizers.
+///
+/// # Returns
+///
+/// A vector containing `Minimizer` structs, each containing the lexicographically smallest
+///substring and its starting position in the input string.*/
+pub fn get_canonical_kmer_minimizers(seq: &str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
+    let mut w=0;
+    if w_size > k_size{
+        w = w_size - k_size;
+    }
+    else {
+        w = 1;
+    }
+    //let mut rc_vec=VecDeque::with_capacity(w+1);
+    let mut window_kmers: VecDeque<(String, usize)> = VecDeque::with_capacity(w + 1);
+    if w + k_size < seq.len() + 1{
+        for i in 0..w {
+            let k_mer_str = &seq[i..i + k_size];
+            let rc_string = reverse_complement(k_mer_str).clone();
+            //rc_vec.push_back(rc_string);
+            //let rc_last=rc_vec.back().unwrap();
+            if *k_mer_str<= *rc_string {
+                window_kmers.push_back(((*k_mer_str).to_string(), i));
+            }
+            else{
+
+                window_kmers.push_back((rc_string, i))
+            }
+
+        }
+    }
+    //store the final positional minimizers in a vector
+    let mut minimizers = vec![];
+    if !window_kmers.is_empty(){
+
+
+    // Find the initial minimizer (minimizer of initial window)
+    let mut binding=window_kmers.clone();
+    let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
+    //add the initial minimizer to the vector
+    let mini =Minimizer {sequence: curr_min.to_string(),position: *min_pos };
+    minimizers.push(mini.clone());
+    //we always store the previous minimizer to compare to the newly found one
+    let mut prev_minimizer = mini;
+    //iterate further over the sequence and generate the minimizers thereof
+    for (i, new_kmer) in seq[w..].as_bytes().windows(k_size).enumerate() {
+        let new_kmer_pos = i  + w;
+        let new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
+        let rc_string = reverse_complement(new_kmer_str).clone();
+        // updating window
+        window_kmers.pop_front().unwrap();
+        if rc_string> new_kmer_str.to_string(){
+            window_kmers.push_back(((*new_kmer_str).to_string(), new_kmer_pos));
+        }
+        else {
+            window_kmers.push_back(((rc_string,new_kmer_pos)))
+        }
+
+        // Find the new minimizer
+        binding=window_kmers.clone();
+        let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap().clone();
+        //make sure that the minimal string is a new minimizer not just the previously found one
+        if  min_pos !=prev_minimizer.position{ //&& *curr_min != prev_minimizer.1 {
+            //add the minimizer into the vector and store the minimizer as previously detected minimizer
+            let mini =Minimizer {sequence: curr_min.to_string(),position: min_pos };
+            //println!("minimizer {:?}",mini);
+            minimizers.push(mini.clone());
+
+            prev_minimizer = mini.clone();
+        }
+    }
+    }
+    minimizers
+}
+
+
+
 //calculates the average of  a list of f64s and returns it as f64
 fn average(numbers: &[f64]) -> f64 {
     numbers.iter().sum::<f64>()/ numbers.len() as f64
@@ -124,7 +216,7 @@ pub fn is_significant(quality_interval: &str)->bool{
         quality = quality * probability_error;
     }
 
-    if quality < 0.001{
+    if quality > 0.00000001{
         significance_indicator = true;
     }
     significance_indicator
@@ -162,7 +254,7 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
 
 
 
-fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isize) -> Vec<Minimizer> {
+pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isize) -> Vec<Minimizer> {
     let w = k_size - s_size;
 
     // get t, the position of s-mer

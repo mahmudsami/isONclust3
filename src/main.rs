@@ -243,8 +243,10 @@ fn main() {
     for fastq_record in &fastq_records{
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
         //TODO: add hashmap holding the internal_id and read_id
-        if fastq_record.sequence.len()>k{
-            let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
+        if fastq_record.sequence.len()>window_size-1{
+            //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
+            let this_minimizers = generate_sorted_fastq_new_version::get_kmer_syncmers(&fastq_record.sequence, k,5,-1);
+            let this_minimizers = generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&fastq_record.sequence, k, window_size);
             //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
             let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
             mini_map_filtered.insert(int_id_cter,filtered_minis);
