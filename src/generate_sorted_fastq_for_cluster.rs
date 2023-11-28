@@ -106,7 +106,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<Fast
      */
     //read the fastq file and store the result in fastq_records (a vector of FastqRecord_isoncl_init)
     let fastq_file = File::open(in_file_path).unwrap();
-    let mut fastq_records = file_actions::parse_fastq_old(fastq_file).unwrap();
+    let mut fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
     println!("{} reads recorded",fastq_records.len());
     //filter fastq_records: We only keep reads having a sequence length>2*k and that do not have a shorter compression than k
     fastq_records.retain(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );

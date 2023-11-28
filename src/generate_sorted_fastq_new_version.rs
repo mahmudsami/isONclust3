@@ -13,6 +13,7 @@ use std::borrow::Borrow;
 
 
 /// Represents a minimizer along with its starting position in the input string.
+/// TODO: rename to indexer or similar
 #[derive(Debug, PartialEq,Clone)]
 pub struct Minimizer {
     pub sequence: String,
@@ -36,7 +37,8 @@ pub fn compute_d_no_min() -> [f64; 128] {
     }
     d
 }
-/*
+
+
 /// Generates positional minimizers from an input string.
 /// A positional minimizer is the lexicographically smallest substring of a given window size
 /// as the window slides through the input string.
@@ -50,9 +52,9 @@ pub fn compute_d_no_min() -> [f64; 128] {
 /// # Returns
 ///
 /// A vector containing `Minimizer` structs, each containing the lexicographically smallest
-///substring and its starting position in the input string.*/
+///substring and its starting position in the input string.
 pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
-    let mut w=0;
+    let mut w= 0;
     if w_size > k_size{
         w = w_size - k_size;
     }
@@ -105,10 +107,7 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     minimizers
 }
 
-fn add_rev_comp<'a>(k_mer_str:&str, window_kmers:VecDeque<(&'a str, usize)>,i:usize){
 
-}
-/*
 /// Generates positional canonical minimizers from an input string.
 /// A positional minimizer is the lexicographically smallest substring of a given window size
 /// as the window slides through the input string.
@@ -122,73 +121,75 @@ fn add_rev_comp<'a>(k_mer_str:&str, window_kmers:VecDeque<(&'a str, usize)>,i:us
 /// # Returns
 ///
 /// A vector containing `Minimizer` structs, each containing the lexicographically smallest
-///substring and its starting position in the input string.*/
+///substring and its starting position in the input string.
+///
 pub fn get_canonical_kmer_minimizers(seq: &str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
-    let mut w=0;
+    //make sure that we have suitable values for k_size and w_size (w_size should be larger)
+    let mut w= 0;
     if w_size > k_size{
         w = w_size - k_size;
     }
+        //k_size was chosen larger than w_size. To not fail we use every k-mer as minimizer (maybe have an error message?)
     else {
         w = 1;
     }
     //let mut rc_vec=VecDeque::with_capacity(w+1);
     let mut window_kmers: VecDeque<(String, usize)> = VecDeque::with_capacity(w + 1);
+
+    //we can only get a minimizer if the sequence is longer than w + k_size - 1 (else we do not even cover one full window)
     if w + k_size < seq.len() + 1{
         for i in 0..w {
-            let k_mer_str = &seq[i..i + k_size];
+            let k_mer_str = &seq [i..i + k_size];
             let rc_string = reverse_complement(k_mer_str).clone();
-            //rc_vec.push_back(rc_string);
-            //let rc_last=rc_vec.back().unwrap();
-            if *k_mer_str<= *rc_string {
+
+            //we now want to find the canonical minimizer: we only push the smaller k-mer of k_mer_str and rc_String into the window
+            if k_mer_str <= rc_string.as_str() {
                 window_kmers.push_back(((*k_mer_str).to_string(), i));
             }
             else{
-
                 window_kmers.push_back((rc_string, i))
             }
 
         }
     }
+    //println!("kmers in window: {:?}", window_kmers);
     //store the final positional minimizers in a vector
     let mut minimizers = vec![];
     if !window_kmers.is_empty(){
+        // Find the initial minimizer (minimizer of initial window)
+        let mut binding=window_kmers.clone();
+        let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
+        //add the initial minimizer to the vector
+        let mini =Minimizer {sequence: curr_min.to_string(),position: *min_pos };
+        minimizers.push(mini.clone());
+        //we always store the previous minimizer to compare to the newly found one
+        let mut prev_minimizer = mini;
+        //iterate further over the sequence and generate the minimizers thereof
+        for (i, new_kmer) in seq[w..].as_bytes().windows(k_size).enumerate() {
+            let new_kmer_pos = i  + w;
+            let new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
+            let rc_string = reverse_complement(new_kmer_str).clone();
+            // updating  by removing first kmer from window
+            window_kmers.pop_front().unwrap();
+            if rc_string > new_kmer_str.to_string(){
+                window_kmers.push_back(((*new_kmer_str).to_string(), new_kmer_pos));
+            }
+            else {
+                window_kmers.push_back(((rc_string,new_kmer_pos)))
+            }
 
-
-    // Find the initial minimizer (minimizer of initial window)
-    let mut binding=window_kmers.clone();
-    let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
-    //add the initial minimizer to the vector
-    let mini =Minimizer {sequence: curr_min.to_string(),position: *min_pos };
-    minimizers.push(mini.clone());
-    //we always store the previous minimizer to compare to the newly found one
-    let mut prev_minimizer = mini;
-    //iterate further over the sequence and generate the minimizers thereof
-    for (i, new_kmer) in seq[w..].as_bytes().windows(k_size).enumerate() {
-        let new_kmer_pos = i  + w;
-        let new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
-        let rc_string = reverse_complement(new_kmer_str).clone();
-        // updating window
-        window_kmers.pop_front().unwrap();
-        if rc_string> new_kmer_str.to_string(){
-            window_kmers.push_back(((*new_kmer_str).to_string(), new_kmer_pos));
+            // Find the new minimizer, we need a ds that was cloned from window_kmers to abide ownership rules in rust
+            binding = window_kmers.clone();
+            let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap().clone();
+            //make sure that the minimal string is a new minimizer not just the previously found one
+            if  min_pos !=prev_minimizer.position{ //&& *curr_min != prev_minimizer.1 {
+                //add the minimizer into the vector and store the minimizer as previously detected minimizer
+                let mini =Minimizer {sequence: curr_min.to_string(),position: min_pos };
+                //println!("minimizer {:?}",mini);
+                minimizers.push(mini.clone());
+                prev_minimizer = mini.clone();
+            }
         }
-        else {
-            window_kmers.push_back(((rc_string,new_kmer_pos)))
-        }
-
-        // Find the new minimizer
-        binding=window_kmers.clone();
-        let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap().clone();
-        //make sure that the minimal string is a new minimizer not just the previously found one
-        if  min_pos !=prev_minimizer.position{ //&& *curr_min != prev_minimizer.1 {
-            //add the minimizer into the vector and store the minimizer as previously detected minimizer
-            let mini =Minimizer {sequence: curr_min.to_string(),position: min_pos };
-            //println!("minimizer {:?}",mini);
-            minimizers.push(mini.clone());
-
-            prev_minimizer = mini.clone();
-        }
-    }
     }
     minimizers
 }
@@ -200,7 +201,10 @@ fn average(numbers: &[f64]) -> f64 {
     numbers.iter().sum::<f64>()/ numbers.len() as f64
 }
 
-//used to detect significant minimizers
+///Used to detect significant minimizers by checking the read qualities and estimating the overall quality of the area of the read
+/// Input: quality_interval: the quality values of the area we want to check
+/// Output: significance_indicator: a bool stating whether the minimizer is significant( true: yes, false: no)
+///
 pub fn is_significant(quality_interval: &str)->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
@@ -212,10 +216,13 @@ pub fn is_significant(quality_interval: &str)->bool{
         let index = c as usize;
         let q_value = d_no_min[index];
         let probability_error= 1.0 - q_value;
+        //TODO: if we have a position having a worse quality char than '+' maybe we should not let this minimizer be significant
+        //if probability_error <0.9{
+        //    significance_indicator = false;}
         qualities.push(probability_error);
         quality = quality * probability_error;
     }
-
+    //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
     if quality > 0.00000001{
         significance_indicator = true;
     }
@@ -253,7 +260,12 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
 
 
 
-
+///Method used to generate syncmers from reads
+/// INPUT:  seq: a string reference to the original read sequence
+///         k_size: The size of the k_mer used
+///         s_size: The size of s
+///         t: The size of parameter t
+///OUtput:  syncmers: A vector storing all syncmers (we use the minimizer struct to store them as essentially the same infos)
 pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isize) -> Vec<Minimizer> {
     let w = k_size - s_size;
 
@@ -433,6 +445,18 @@ mod tests {
         println!("Generated Minimizers: {:?}", actual_minimizers);
         let expected_minimizers = vec![
             Minimizer { sequence: "AATGA".to_string(), position: 1 },
+        ];
+        assert_eq!(actual_minimizers, expected_minimizers);
+    }
+    #[test]
+    fn test_canonical_minis_1(){
+        let input ="GGGTAACTTTTCA";
+        let window_size=12;
+        let k =6;
+        let actual_minimizers=get_canonical_kmer_minimizers(input,k,window_size);
+        println!("Generated Minimizers: {:?}", actual_minimizers);
+        let expected_minimizers = vec![
+            Minimizer { sequence: "AAAAGT".to_string(), position: 5 },
         ];
         assert_eq!(actual_minimizers, expected_minimizers);
     }

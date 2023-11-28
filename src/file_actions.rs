@@ -53,7 +53,7 @@ fn shorten_header(header:&str)-> &str{
 }
 
 
-pub(crate) fn parse_fastq_old(file: File) -> Result<Vec<structs::FastqRecord_isoncl_init>, Box<dyn Error>> {
+pub(crate) fn parse_fastq(file: File) -> Result<Vec<structs::FastqRecord_isoncl_init>, Box<dyn Error>> {
     //Parses a fastq file, returns a vector of FastqRecords
     let mut reader = BufReader::new(file);
     let mut records=vec![];

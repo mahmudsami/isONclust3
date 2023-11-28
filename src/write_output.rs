@@ -13,6 +13,7 @@ fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, 
     let mut header_cluster_map=HashMap::new();
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
+    println!("{} different clusters identified",clusters.len());
     for (cl_id, r_int_ids) in clusters.into_iter(){
         for r_int_id in r_int_ids{
             let read_id = id_map.get(&r_int_id).unwrap().to_string();
@@ -29,7 +30,7 @@ fn create_final_ds(header_cluster_map: HashMap<String,i32>, fastq_vec: Vec<Fastq
     let mut cluster_map= HashMap::new();
     for read in fastq_vec{
         let id =read.header.clone();
-        println!("id {}",id);
+        //println!("id {}",id);
         if header_cluster_map.contains_key(&id) {
             let cluster_id = header_cluster_map.get(&id).unwrap();
             if cluster_map.contains_key(cluster_id) {

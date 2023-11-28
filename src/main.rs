@@ -204,6 +204,7 @@ struct Cli {
     outfolder: String,
     #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
     n: usize,
+    //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
 
 }
 
@@ -229,7 +230,7 @@ fn main() {
     let k = cli.k;
     let window_size = cli.w;
     let outfolder = cli.outfolder;
-    let fastq_records= file_actions::parse_fastq_old(fastq_file).unwrap();
+    let fastq_records= file_actions::parse_fastq(fastq_file).unwrap();
     //let (fastq_records,id_map) = file_actions::parse_fastq(fastq_file);
     //
     //Generate the minimizers for the initial clusters
