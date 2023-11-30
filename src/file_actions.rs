@@ -1,12 +1,14 @@
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::error::Error;
+use std::collections::HashMap;
 
+use crate::structs;
 use crate::structs::FastqRecord_isoncl_init;
 use crate::structs::FastaRecord;
 use crate::structs::FastqRecord;
-use crate::structs;
-use std::collections::HashMap;
+
+
 
 pub(crate) fn parse_fasta(file_path: &str) -> Result<Vec<FastaRecord>, std::io::Error> {
     let file = File::open(file_path)?;

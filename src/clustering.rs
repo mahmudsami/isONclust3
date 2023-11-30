@@ -49,7 +49,7 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
         println!("Clusters len {}",clusters.len());
         let id = entry.0;
         let sign_minis= &entry.1;
-        println!("id: {}",id);
+        //println!("id: {}",id);
         //if we already have at least one cluster: compare the new read to the cluster(s)
         if clusters.len() > 0{
             let mut mini_hashs_vec=vec![];
@@ -96,8 +96,8 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
                         }
                     }
                     // add the new read_id to the cluster
-                    if value>most_shared{
-                        most_shared_cluster=key;
+                    if value > most_shared{
+                        most_shared_cluster = key;
                     }
                     shared = true;
                 }
@@ -199,7 +199,7 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
 
 //clustering method for the case that we have an annotation to compare our reads against
 pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, initial_clusters: HashMap<u64, Vec<i32>>) ->HashMap<i32, Vec<i32>>{
-    //the hashmap containing the clusters we found TODO: verify:(key: cluster_id, value: vector of internal read ids
+    //the hashmap containing the clusters we found
     let mut clusters: HashMap<i32, Vec<i32>> = HashMap::new();
     for sorted_entry in sorted_entries{
         let mut this_clusters= vec![];
@@ -208,6 +208,7 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, in
             if initial_clusters.contains_key(&this_mini_hash){
                 let value= initial_clusters.get(&this_mini_hash).unwrap();
                 //this_clusters.append(&mut value.clone());
+                //we append the read to this
                 if value.len()>0{
                     this_clusters.push(value);
                 }
@@ -251,7 +252,7 @@ pub(crate) fn add_rev_comp_seqs_annotation(initial_clustering_records:Vec<FastaR
         let head = record.header.clone();
         both_dir_records.push(record.clone());
         let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
-        println!("{}, {}",head,rev_record);
+        //println!("{}, {}",head,rev_record);
         both_dir_records.push(rev_record)
     }
 

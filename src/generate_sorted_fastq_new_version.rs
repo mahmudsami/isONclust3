@@ -223,7 +223,7 @@ pub fn is_significant(quality_interval: &str)->bool{
         quality = quality * probability_error;
     }
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
-    if quality > 0.00000001{
+    if quality > 0.000000001 {
         significance_indicator = true;
     }
     significance_indicator
