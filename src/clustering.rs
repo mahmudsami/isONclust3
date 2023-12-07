@@ -7,14 +7,27 @@ use std::hash::{Hash, Hasher};
 use std::borrow::Borrow;
 
 
-fn fill_first_cluster(clusters: & HashMap<i32,Vec<i32>>, id: i32, sign_minis:&Vec<Minimizer>, cluster_map:  HashMap<u64, Vec<i32>>){
-
+fn fill_first_cluster(clusters: &mut HashMap<i32,Vec<i32>>, id: i32, sign_minis:&Vec<Minimizer>, mut cluster_map:  HashMap<u64, Vec<i32>>){
+    let init_id = 0;
+    for minimizer in sign_minis {
+        //we get the minimizer sequence from the minimizer object
+        let mini_seq = &minimizer.sequence;
+        //calculate the hash of the minimizer sequence
+        let mini_hash = calculate_hash(&mini_seq);
+        //fill cluster_map with the minimizers that we found in the first read
+        cluster_map
+            .entry(mini_hash)
+            .or_insert_with(Vec::new)
+            .retain(|&existing_id| existing_id != init_id);
+        // Check if id was retained (not a duplicate) and push it if needed
+        let vect = cluster_map.get_mut(&mini_hash).unwrap();
+        if !vect.contains(&init_id) {
+            vect.push(init_id);
+        }
+    }
+    let id_vec=vec![id];
+    clusters.insert(init_id,id_vec);
 }
-
-fn post_clustering(clusters: HashMap<i32,Vec<i32>>){
-
-}
-
 
 
 
@@ -34,14 +47,14 @@ pub(crate) fn reverse_complement(dna: &str) -> String {
 
 
 
-
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:i32) -> HashMap<i32,Vec<i32>>{
+pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:i32) -> HashMap<i32,Vec<i32>>{
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of read ids as a value
     let mut cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
     let mut cl_id=1;
+
     //entry represents a read in our data
     for entry in &sorted_entries{
         //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
@@ -50,6 +63,7 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
         let id = entry.0;
         let sign_minis= &entry.1;
         //println!("id: {}",id);
+
         //if we already have at least one cluster: compare the new read to the cluster(s)
         if clusters.len() > 0{
             let mut mini_hashs_vec=vec![];
@@ -58,6 +72,7 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
                 let mini_seq = &minimizer.sequence;
                 //calculate the hash of the minimizer sequence
                 let mini_hash = calculate_hash(&mini_seq);
+
                 //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
                 if let Some(belongs_to) = cluster_map.get(&mini_hash){
                     //iterate over belongs_to to update the counts of shared minimizers for each cluster
@@ -101,7 +116,7 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
                     }
                     shared = true;
                 }
-                println!("id: {} , shared_with_init_cl: {}",key, value);
+                //println!("id: {} , shared_with_init_cl: {}",key, value);
             }
             //if we have a cluster that we share enough minimizers with
             if shared{
@@ -131,6 +146,7 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
         }
         //we do not yet have a cluster and therefore need to fill the first read into the first
         else{
+            //fill_first_cluster(&mut clusters, id, sign_minis, cluster_map);
             let init_id = 0;
             for minimizer in sign_minis {
                 //we get the minimizer sequence from the minimizer object
@@ -154,6 +170,7 @@ pub(crate) fn cluster_sorted_entries(sorted_entries: Vec<(i32,Vec<Minimizer>)>,m
     }
 clusters
 }
+
 
 
 fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
@@ -319,7 +336,7 @@ pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord
         let id= get_id_from_header(head);
         //println!("{}",id);
         //generate the minimizers for each record and store them in this_minimizers
-        let this_minimizers= generate_sorted_fastq_new_version::get_kmer_minimizers(&*record.sequence, k, window_size);
+        let this_minimizers= generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&*record.sequence, k, window_size);
         //let sub_minis= &this_minimizers[0..100];
         //println!("{:?}",sub_minis);
         //now iterate over all minimizers that we generated for this record

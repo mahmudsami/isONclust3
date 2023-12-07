@@ -220,12 +220,12 @@ fn main() {
     let fastq_file = File::open(cli.fastq).unwrap();
     //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
     let  initial_clustering_path =cli.init_cl.as_deref();
-    let mut initial_clustering_records=vec![];
+    //let mut initial_clustering_records: Vec<_>=vec![];
     let mut init_clust_rec_both_dir=vec![];
     if initial_clustering_path.is_some(){
         let clustering_path = initial_clustering_path.unwrap();
-        initial_clustering_records = file_actions::parse_fasta(clustering_path).unwrap();
-        init_clust_rec_both_dir = clustering::add_rev_comp_seqs_annotation(initial_clustering_records);
+        init_clust_rec_both_dir = file_actions::parse_fasta(clustering_path).unwrap();
+        //init_clust_rec_both_dir = clustering::add_rev_comp_seqs_annotation(initial_clustering_records);
     }
     let k = cli.k;
     let window_size = cli.w;
@@ -260,22 +260,25 @@ fn main() {
 
     }
 
-    //sorted_entries: a Vec<(i32,Vec<Minimizer)> sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
+    //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
     let sorted_entries = get_sorted_entries(mini_map_filtered);
     //
     //Perform the clustering
     //
     let mut clusters:HashMap<i32,Vec<i32>> = HashMap::new();
+    //annotation based clustering
     if init_clust_rec_both_dir.len() > 0{
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
         //println!("{:?}",init_cluster_map);
         clusters = clustering::cluster_from_initial(sorted_entries, init_cluster_map);
         println!("{:?}",clusters);
     }
+    //de novo clustering
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
-        let min_shared_minis= 10;
-        clusters = clustering::cluster_sorted_entries(sorted_entries, min_shared_minis);
+        let min_shared_minis= 1;
+        //the clustering step
+        clusters = clustering::cluster_de_novo(sorted_entries, min_shared_minis);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }

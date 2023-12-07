@@ -175,7 +175,7 @@ pub fn get_canonical_kmer_minimizers(seq: &str, k_size: usize, w_size: usize) ->
                 window_kmers.push_back(((*new_kmer_str).to_string(), new_kmer_pos));
             }
             else {
-                window_kmers.push_back(((rc_string,new_kmer_pos)))
+                window_kmers.push_back((rc_string,new_kmer_pos))
             }
 
             // Find the new minimizer, we need a ds that was cloned from window_kmers to abide ownership rules in rust
@@ -205,7 +205,7 @@ fn average(numbers: &[f64]) -> f64 {
 /// Input: quality_interval: the quality values of the area we want to check
 /// Output: significance_indicator: a bool stating whether the minimizer is significant( true: yes, false: no)
 ///
-pub fn is_significant(quality_interval: &str)->bool{
+pub fn is_significant(quality_interval: &str,mini_range_len:usize)->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
@@ -214,7 +214,9 @@ pub fn is_significant(quality_interval: &str)->bool{
     //for each character in quality string:
     for (i, c) in quality_interval.chars().enumerate() {
         let index = c as usize;
+        //q_value gives the PHRED quality score: i.e. '+' gives us 0.1
         let q_value = d_no_min[index];
+        //here we get the base call accuracy
         let probability_error= 1.0 - q_value;
         //TODO: if we have a position having a worse quality char than '+' maybe we should not let this minimizer be significant
         //if probability_error <0.9{
@@ -222,8 +224,10 @@ pub fn is_significant(quality_interval: &str)->bool{
         qualities.push(probability_error);
         quality = quality * probability_error;
     }
+    //TODO: move this calculation to main to not recompute
+    let quality_threshold=0.9_f64.powi(mini_range_len as i32);
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
-    if quality > 0.000000001 {
+    if quality > quality_threshold {
         significance_indicator = true;
     }
     significance_indicator
@@ -234,12 +238,13 @@ pub fn is_significant(quality_interval: &str)->bool{
 pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize)-> Vec<Minimizer>{
     let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
+    let mini_range_len= (k + w) - 1;
     //println!("Length of minimizers: {}",this_minimizers.len());
     for mini in this_minimizers{
         //println!("{:?}",mini);
         let minimizer_pos= mini.position;
         let mut minimizer_range_start= 0;
-        if minimizer_pos>minimizer_range{
+        if minimizer_pos > minimizer_range{
             minimizer_range_start = minimizer_pos - minimizer_range;
         }
         let mut minimizer_range_end = fastq_sequence.len();
@@ -247,7 +252,7 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
             minimizer_range_end = minimizer_pos + minimizer_range + k ;
         }
         let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
-        let significant= is_significant(&qualitiy_interval);
+        let significant= is_significant(&qualitiy_interval,mini_range_len);
         if significant{
             minimizers_filtered.push(mini.clone())
         }
