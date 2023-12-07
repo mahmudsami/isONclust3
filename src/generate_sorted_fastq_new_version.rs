@@ -225,7 +225,7 @@ pub fn is_significant(quality_interval: &str,mini_range_len:usize)->bool{
         quality = quality * probability_error;
     }
     //TODO: move this calculation to main to not recompute
-    let quality_threshold=0.9_f64.powi(mini_range_len as i32);
+    let quality_threshold=0.8_f64.powi(mini_range_len as i32);
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
     if quality > quality_threshold {
         significance_indicator = true;

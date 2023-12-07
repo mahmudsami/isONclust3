@@ -14,14 +14,16 @@ fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, 
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
     println!("{} different clusters identified",clusters.len());
+    //let nr_clusters=clusters.len();
     for (cl_id, r_int_ids) in clusters.into_iter(){
         println!("cl_id {}, nr_reads {}",cl_id,r_int_ids.len());
         for r_int_id in r_int_ids{
             let read_id = id_map.get(&r_int_id).unwrap().to_string();
-            //write!(f ,"{}\t{}\n", cl_id, read_id);
+            write!(f ,"{}\t{}\n", cl_id, read_id);
             header_cluster_map.insert(read_id,cl_id);
         }
     }
+    //println!("{} different clusters identified",nr_clusters);
     header_cluster_map
 }
 

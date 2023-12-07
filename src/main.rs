@@ -14,6 +14,8 @@ use std::path::PathBuf;
 mod isONclust;
 mod structs;
 use crate::structs::FastaRecord;
+use std::thread;
+
 mod write_output;
 
 fn compare_minimizer_gens(){
@@ -211,7 +213,7 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     println!("k: {:?}", cli.k);
-    println!("t: {:?}", cli.w);
+    println!("w: {:?}", cli.w);
     println!("n: {:?}",cli.n);
     println!("outfolder {:?}",cli.outfolder);
     //
@@ -259,6 +261,7 @@ fn main() {
         }
 
     }
+
 
     //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
     let sorted_entries = get_sorted_entries(mini_map_filtered);
