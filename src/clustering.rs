@@ -59,7 +59,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
     for entry in &sorted_entries{
         //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
         let mut shared_mini_infos=HashMap::new();
-        println!("Clusters len {}",clusters.len());
+        //println!("Clusters len {}",clusters.len());
         let id = entry.0;
         let sign_minis= &entry.1;
         //println!("id: {}",id);
@@ -77,7 +77,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                 if let Some(belongs_to) = cluster_map.get(&mini_hash){
                     //iterate over belongs_to to update the counts of shared minimizers for each cluster
                     for &belong_cluster in belongs_to {
-                        //if the cluster is already appointed to the read
+                        //if the minimizer is already appointed to the cluster
                         if let Some(new_val) = shared_mini_infos.get(&belong_cluster){
                             //increase the counter of minimizers shared with cluster
                             shared_mini_infos.insert(belong_cluster, *new_val+1);
@@ -90,40 +90,42 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                 }
                 mini_hashs_vec.push(mini_hash);
             }
+            println!("smi {:?}",shared_mini_infos);
             let mut shared= false;
             let mut most_shared=0;
             let mut most_shared_cluster=0;
             //key: cluster_id, value: count of shared minimizers
-            for (key, value) in shared_mini_infos{
-                //we have more shared minis with the cluster than our threshold
-                if value > min_shared_minis{
-                    println!("{} for old clusters" ,cl_id);
-                    //add the new minimizers to the cluster
-                    for mini_hash in &mini_hashs_vec {
-                        cluster_map
-                            .entry(*mini_hash)
-                            .or_insert_with(Vec::new)
-                            .retain(|&existing_id| existing_id != key);
-                        // Check if id was retained (not a duplicate) and push it if needed
-                        let vect = cluster_map.get_mut(&mini_hash).unwrap();
-                        if !vect.contains(&key) {
-                            vect.push(key);
-                        }
+            for (key, value) in shared_mini_infos {
+                //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
+                if (value > min_shared_minis) & (value > most_shared)   {
+                    //update most_shared: the measure what the maximum number of shared minimizers was before
+                    most_shared = value;
+                    //update the id of the most shared cluster
+                    most_shared_cluster = key;
+                    //if we have not yet set shared to be true we do it now
+                    if !shared{
+                        shared = true;
                     }
-                    // add the new read_id to the cluster
-                    if value > most_shared{
-                        most_shared_cluster = key;
-                    }
-                    shared = true;
+
                 }
-                //println!("id: {} , shared_with_init_cl: {}",key, value);
             }
             //if we have a cluster that we share enough minimizers with
-            if shared{
+            if shared {
                 //add the read id to read_list
-                let read_list= clusters.get_mut(&most_shared_cluster).unwrap();
-                if !read_list.contains(&id){
+                let read_list = clusters.get_mut(&most_shared_cluster).unwrap();
+                if !read_list.contains(&id) {
                     read_list.push(id);
+                }
+                for mini_hash in &mini_hashs_vec {
+                    cluster_map
+                        .entry(*mini_hash)
+                        .or_insert_with(Vec::new)
+                        .retain(|&existing_id| existing_id != most_shared_cluster);
+                    // Check if id was retained (not a duplicate) and push it if needed
+                    let vect = cluster_map.get_mut(&mini_hash).unwrap();
+                    if !vect.contains(&most_shared_cluster) {
+                        vect.push(most_shared_cluster);
+                    }
                 }
             }
             //we did not find a cluster that we could put the read into-> generate a new cluster
@@ -141,7 +143,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                 }
                 let id_vec=vec![id];
                 clusters.insert(cl_id,id_vec);
-                cl_id+=1;
+                cl_id += 1;
             }
         }
         //we do not yet have a cluster and therefore need to fill the first read into the first
@@ -179,7 +181,7 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
     for tcl in this_clusters{
         if tcl.len()==1{
             let tcl_elem= tcl.first().unwrap();
-            println!("tcl elem {}",tcl_elem);
+            //println!("tcl elem {}",tcl_elem);
             if clustering.contains_key(tcl_elem){
                 let mut elem=clustering.get_mut(tcl_elem).unwrap();
                 *elem = *elem + 1.0;
@@ -206,7 +208,7 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
         println!("Not a singular cluster: {},{}", max_clust,max_eq)
     }
     if max_val<10.0{
-        println!("low support {}",max_val);
+        //println!("low support {}",max_val);
     }
 
     return max_clust
@@ -236,8 +238,8 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, in
 
             }
         }
-        println!("{}",sorted_entry.0);
-        println!("{:?}",this_clusters);
+        //println!("{}",sorted_entry.0);
+        //println!("{:?}",this_clusters);
         let final_cl = get_final_cl_init(this_clusters);
         if clusters.contains_key(&final_cl){
             let mut id_vec=clusters.get_mut(&final_cl).unwrap();
@@ -249,7 +251,7 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, in
         }
 
     }
-
+    //println!("{:?}",clusters);
     clusters
     }
 
@@ -327,6 +329,7 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
 
 
 pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord>,k: usize,window_size: usize)->HashMap<u64, Vec<i32>>{
+    //holds the respective
     let mut init_cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
     //iterate over the records of initial_clustering_records
     for record in initial_clustering_records{

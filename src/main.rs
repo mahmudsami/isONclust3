@@ -272,14 +272,14 @@ fn main() {
     //annotation based clustering
     if init_clust_rec_both_dir.len() > 0{
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
-        //println!("{:?}",init_cluster_map);
+        println!("{:?}",init_cluster_map);
         clusters = clustering::cluster_from_initial(sorted_entries, init_cluster_map);
-        println!("{:?}",clusters);
+        //println!("{:?}",clusters);
     }
     //de novo clustering
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
-        let min_shared_minis= 1;
+        let min_shared_minis= 5;
         //the clustering step
         clusters = clustering::cluster_de_novo(sorted_entries, min_shared_minis);
         //println!("{:?}",clusters);
