@@ -7,6 +7,23 @@ pub enum Cluster<T, U> {
 }
 
 
+pub(crate) struct GtfEntry {
+    pub seqname: String,
+    pub source: String,
+    pub feature: String,
+    pub start: usize,
+    pub end: usize,
+    pub score: f64,
+    pub strand: bool,
+    pub frame: i8,
+    pub attribute: String
+}
+impl fmt::Display for GtfEntry {
+    // enables displaying the fasta record
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}, {}, {}", self.seqname, self.source, self.feature)
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct FastaRecord {

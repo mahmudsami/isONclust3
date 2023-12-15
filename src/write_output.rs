@@ -16,7 +16,7 @@ fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, 
     println!("{} different clusters identified",clusters.len());
     //let nr_clusters=clusters.len();
     for (cl_id, r_int_ids) in clusters.into_iter(){
-        println!("cl_id {}, nr_reads {}",cl_id,r_int_ids.len());
+        //println!("cl_id {}, nr_reads {}",cl_id,r_int_ids.len());
         for r_int_id in r_int_ids{
             let read_id = id_map.get(&r_int_id).unwrap().to_string();
             write!(f ,"{}\t{}\n", cl_id, read_id);
@@ -86,7 +86,7 @@ pub(crate) fn write_output(outfolder:String,clusters:HashMap<i32,Vec<i32>>,fastq
     }
     let fastq_path=Path::new(&outfolder).join("fastq_files");
     if !fastq_path.exists(){
-        fs::create_dir(fastq_path.clone());
+        let result_dir=fs::create_dir(fastq_path.clone());
     }
     convert_infos_for_writing(id_map.clone(), clusters.clone(), &fastq_vec);
     let header_cluster_map=write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone());

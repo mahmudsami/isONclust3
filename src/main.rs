@@ -206,6 +206,8 @@ struct Cli {
     outfolder: String,
     #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
     n: usize,
+    #[arg(long, short,help="Path to gtf file (optional parameter)")]
+    gtf: Option<String>,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
 
 }
@@ -222,6 +224,7 @@ fn main() {
     let fastq_file = File::open(cli.fastq).unwrap();
     //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
     let  initial_clustering_path =cli.init_cl.as_deref();
+    let gtf_path = cli.gtf.as_deref();
     //let mut initial_clustering_records: Vec<_>=vec![];
     let mut init_clust_rec_both_dir=vec![];
     if initial_clustering_path.is_some(){
@@ -229,8 +232,20 @@ fn main() {
         init_clust_rec_both_dir = file_actions::parse_fasta(clustering_path).unwrap();
         //init_clust_rec_both_dir = clustering::add_rev_comp_seqs_annotation(initial_clustering_records);
     }
+    let mut gtf_entries=vec![];
+    if gtf_path.is_some(){
+        let gtf_path_u = gtf_path.unwrap();
+        gtf_entries = file_actions::parse_gtf(gtf_path_u).unwrap();
+        println!("gtf file parsed")
+    }
+
+    /*for gtf_e in gtf_entries{
+        println!("{}",gtf_e)
+    }*/
+
     let k = cli.k;
     let window_size = cli.w;
+    let w = window_size - k;
     let outfolder = cli.outfolder;
     let fastq_records= file_actions::parse_fastq(fastq_file).unwrap();
     //let (fastq_records,id_map) = file_actions::parse_fastq(fastq_file);
@@ -243,25 +258,32 @@ fn main() {
     //
     let mut int_id_cter= 0;
     let mut id_map=HashMap::new();
+    //count the number of reads that were too short to be clustered
+    let mut skipped_cter=0;
+    //d_no_min contains a translation for chars into quality values
+    let d_no_min=generate_sorted_fastq_new_version::compute_d_no_min();
+    let mini_range_len = 2 * (w - 1) + k;
+    //quality_threshold gives at what point minimizers are too low quality to be used in our algo
+    let quality_threshold=0.9_f64.powi(mini_range_len as i32);
+    println!("Parsed the files");
     for fastq_record in &fastq_records{
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
-        //TODO: add hashmap holding the internal_id and read_id
-        if fastq_record.sequence.len()>window_size-1{
+        if fastq_record.sequence.len() > mini_range_len{
             //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
             //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_syncmers(&fastq_record.sequence, k,5,-1);
             let this_minimizers = generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&fastq_record.sequence, k, window_size);
             //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
-            let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
+            let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min, quality_threshold);
             mini_map_filtered.insert(int_id_cter,filtered_minis);
             //println!("{} : {} ",int_id_cter, fastq_record.header);
             int_id_cter += 1;
         }
         else {
-            println!("Read too short- skipped {}",fastq_record.header)
+            skipped_cter+=1
+            //println!("Read too short- skipped {}",fastq_record.header)
         }
-
     }
-
+    println!("Skipped {} reads due to being too short",skipped_cter);
 
     //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
     let sorted_entries = get_sorted_entries(mini_map_filtered);
@@ -272,19 +294,19 @@ fn main() {
     //annotation based clustering
     if init_clust_rec_both_dir.len() > 0{
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
-        println!("{:?}",init_cluster_map);
+        //println!("{:?}",init_cluster_map);
         clusters = clustering::cluster_from_initial(sorted_entries, init_cluster_map);
         //println!("{:?}",clusters);
     }
     //de novo clustering
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
-        let min_shared_minis= 5;
+        let min_shared_minis= 9;
         //the clustering step
         clusters = clustering::cluster_de_novo(sorted_entries, min_shared_minis);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }
+    println!("Finished clustering");
     write_output::write_output(outfolder, clusters,fastq_records, id_map);
-
 }

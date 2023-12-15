@@ -53,6 +53,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
     let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of read ids as a value
     let mut cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
+    //we only need cl_id if cluster 0 already exists so we start with '1'
     let mut cl_id=1;
 
     //entry represents a read in our data
@@ -90,7 +91,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                 }
                 mini_hashs_vec.push(mini_hash);
             }
-            println!("smi {:?}",shared_mini_infos);
+            //println!("smi {:?}",shared_mini_infos);
             let mut shared= false;
             let mut most_shared=0;
             let mut most_shared_cluster=0;
