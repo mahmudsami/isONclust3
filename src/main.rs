@@ -1,7 +1,7 @@
 use std::time::Duration;
 use std::time::Instant;
 use std::fs::File;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use rayon::prelude::*;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
@@ -13,10 +13,65 @@ mod generate_sorted_fastq_new_version;
 use std::path::PathBuf;
 mod isONclust;
 mod structs;
-use crate::structs::FastaRecord;
+use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
 use std::thread;
-
 mod write_output;
+
+fn compute_d() -> [f64; 128] {
+    let mut d = [0.0; 128];
+
+    for i in 0..128 {
+        let chr_i = i as u8 as char;
+        let ord_i = chr_i as i8;
+        let exponent = -(ord_i - 33) as f64 / 10.0;
+        d[i] = (10.0 as f64).powf(exponent).min(0.79433);
+    }
+    d
+}
+
+fn expected_number_errornous_kmers(quality_string: &str, k: usize, d:&[f64;128]) -> f64 {
+    //computes the expeced number of errornous kmers for a read by analysing the quality entry
+    let prob_error: Vec<f64> = quality_string.chars().map(|char_| d[char_ as u8 as usize]).collect();
+    let mut sum_of_expectations = 0.0;
+    let mut qurrent_prob_no_error = 1.0;
+    let mut window: VecDeque<f64> = VecDeque::with_capacity(k);
+
+    for (i, &p_e) in prob_error.iter().enumerate() {
+        qurrent_prob_no_error *= 1.0 - p_e;
+
+        if i >= k {
+            let p_to_leave = window.pop_front().unwrap();
+            qurrent_prob_no_error /= p_to_leave;
+        }
+
+        sum_of_expectations += qurrent_prob_no_error;
+
+        if i >= k - 1 {
+            window.push_back(1.0 - p_e);
+        }
+    }
+    println!("Quality string: {}",(quality_string.len() - k + 1)as f64);
+    println!("SoE: {}",sum_of_expectations);
+    (quality_string.len() - k + 1) as f64 - sum_of_expectations
+}
+
+
+fn calculate_error_rate(qual: &str, d_no_min: &[f64; 128]) -> f64 {
+    let mut poisson_mean = 0.0;
+    let mut total_count = 0;
+
+    for char_ in qual.chars().collect::<HashSet<_>>() {
+        let count = qual.chars().filter(|&c| c == char_).count();
+        let index = char_ as usize;
+        poisson_mean += count as f64 * d_no_min[index];
+        total_count += count;
+    }
+
+    let error_rate = poisson_mean / total_count as f64;
+    error_rate
+}
+
+
 
 fn compare_minimizer_gens(){
     //let input = "ATGCTAGCATGCTAGCATGCTAGC";
@@ -50,6 +105,25 @@ fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_
 
     sorted_entries
 }
+
+
+fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:[f64;128], q_threshold:f64,k:usize,d :[f64;128])->Vec<FastqRecord_isoncl_init>{
+    fastq_records.par_iter_mut().for_each(|fastq_record| {
+    //calculate the error rate and store it in vector errors
+        if fastq_record.sequence.len() > k {
+            fastq_record.set_error_rate(calculate_error_rate(&fastq_record.get_quality(), &d_no_min));
+            let exp_errors_in_kmers = expected_number_errornous_kmers(&fastq_record.get_quality(), k, &d);
+            let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers / (fastq_record.get_sequence().len() - k + 1) as f64;
+            //calculate the final score and add it to fastq_record (we have a dedicated field for that that was initialized with 0.0)
+            fastq_record.set_score(p_no_error_in_kmers * ((fastq_record.get_sequence().len() - k + 1) as f64))
+        }
+    });
+    //filter out records that have a too high error rate
+    fastq_records.retain(|record| 10.0_f64*-record.get_err_rate().log(10.0_f64) > q_threshold);
+    println!("Nr of records that passed the filtering: {}",fastq_records.len());
+    fastq_records
+}
+
 
 /*fn main() {
     let args: Vec<String> = env::args().collect();
@@ -242,7 +316,7 @@ fn main() {
     /*for gtf_e in gtf_entries{
         println!("{}",gtf_e)
     }*/
-
+    let quality_threshold=7.0;
     let k = cli.k;
     let window_size = cli.w;
     let w = window_size - k;
@@ -253,6 +327,8 @@ fn main() {
     //Generate the minimizers for the initial clusters
     //
     let mut mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
+    let mut mini_map_unfiltered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
+
     //
     // Generate minimizers for the fastq file and filter by significance
     //
@@ -262,9 +338,13 @@ fn main() {
     let mut skipped_cter=0;
     //d_no_min contains a translation for chars into quality values
     let d_no_min=generate_sorted_fastq_new_version::compute_d_no_min();
-    let mini_range_len = 2 * (w - 1) + k;
+    let d =compute_d();
+    //TODO: only use the actual kmers position nothing surrounding
+    let mini_range_len = 2 * (w - 1) + k-1;
+    let mini_range_len = k;
+    println!("Mini range len: {}",mini_range_len);
     //quality_threshold gives at what point minimizers are too low quality to be used in our algo
-    let quality_threshold=0.9_f64.powi(mini_range_len as i32);
+    //let filtered_records=filter_fastq_records(fastq_records,d_no_min,quality_threshold,k,d);
     println!("Parsed the files");
     for fastq_record in &fastq_records{
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
@@ -272,9 +352,10 @@ fn main() {
             //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
             //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_syncmers(&fastq_record.sequence, k,5,-1);
             let this_minimizers = generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&fastq_record.sequence, k, window_size);
+            mini_map_unfiltered.insert(int_id_cter,this_minimizers.clone());
             //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
-            let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min, quality_threshold);
-            mini_map_filtered.insert(int_id_cter,filtered_minis);
+            let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers.clone(),&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min);
+            mini_map_filtered.insert(int_id_cter, filtered_minis);
             //println!("{} : {} ",int_id_cter, fastq_record.header);
             int_id_cter += 1;
         }
@@ -286,7 +367,7 @@ fn main() {
     println!("Skipped {} reads due to being too short",skipped_cter);
 
     //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
-    let sorted_entries = get_sorted_entries(mini_map_filtered);
+    let sorted_sign_minis = get_sorted_entries(mini_map_filtered);
     //
     //Perform the clustering
     //
@@ -295,15 +376,15 @@ fn main() {
     if init_clust_rec_both_dir.len() > 0{
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
         //println!("{:?}",init_cluster_map);
-        clusters = clustering::cluster_from_initial(sorted_entries, init_cluster_map);
+        clusters = clustering::cluster_from_initial(sorted_sign_minis, init_cluster_map);
         //println!("{:?}",clusters);
     }
     //de novo clustering
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
-        let min_shared_minis= 9;
+        let min_shared_minis= 0.4;
         //the clustering step
-        clusters = clustering::cluster_de_novo(sorted_entries, min_shared_minis);
+        clusters = clustering::cluster_de_novo(sorted_sign_minis, min_shared_minis, mini_map_unfiltered);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }

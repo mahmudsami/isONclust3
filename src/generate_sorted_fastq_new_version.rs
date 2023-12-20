@@ -6,6 +6,8 @@ use std::cmp::max;
 use crate::structs::{FastqRecord_isoncl_init, FastaRecord};
 use crate::clustering::reverse_complement;
 use std::borrow::Borrow;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 //fn get_positional_minimizers(&seq:String,k:u32,w:u32)->(str,u32){
 //    let window: VecDeque<u32> = VecDeque::new();
 //    OK(mini_seq,mini_pos)
@@ -205,7 +207,7 @@ fn average(numbers: &[f64]) -> f64 {
 /// Input: quality_interval: the quality values of the area we want to check
 /// Output: significance_indicator: a bool stating whether the minimizer is significant( true: yes, false: no)
 ///
-pub fn is_significant(quality_interval: &str, d_no_min:[f64;128], quality_threshold: f64)->bool{
+pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
@@ -223,6 +225,7 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128], quality_thresh
         quality = quality * probability_error;
     }
 
+    let quality_threshold=0.9_f64.powi(quality_interval.len() as i32);
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
     if quality > quality_threshold {
         significance_indicator = true;
@@ -232,7 +235,7 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128], quality_thresh
 
 
 //filter out minimizers for which the quality of the minimizer_impact range is too bad
-pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize, d_no_min:[f64;128],quality_threshold:f64)-> Vec<Minimizer>{
+pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize, d_no_min:[f64;128])-> Vec<Minimizer>{
     let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
     let mut skipped_cter=0;
@@ -243,15 +246,18 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
         let mut minimizer_range_start= 0;
         //set the start of the minimizer_range that we want to inspect
         if minimizer_pos > minimizer_range{
-            minimizer_range_start = minimizer_pos - minimizer_range;
+            //minimizer_range_start = minimizer_pos - minimizer_range;
+            minimizer_range_start=minimizer_pos;
         }
 
         let mut minimizer_range_end = fastq_sequence.len();
         if minimizer_pos + minimizer_range + k < minimizer_range_end{
-            minimizer_range_end = minimizer_pos + minimizer_range + k ;
+            //minimizer_range_end = minimizer_pos + minimizer_range + k ;
+            minimizer_range_end=minimizer_pos+k;
         }
         let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
-        let significant= is_significant(&qualitiy_interval, d_no_min, quality_threshold);
+        //println!("Quality_interval len {}",qualitiy_interval.len());
+        let significant= is_significant(&qualitiy_interval, d_no_min);
         if significant{
             minimizers_filtered.push(mini.clone())
         }
@@ -291,6 +297,7 @@ pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isiz
 
     let mut syncmers = Vec::new();
     // get list of all s-mers in the first k-mer
+
     let mut kmer_smers: VecDeque<&str> = (0..=w).map(|i| &seq[i..i + s_size]).collect();
     for i in 0..seq.len() - k_size {
         // add a new syncmer to the list if its smallest s-mer is at place t
@@ -305,6 +312,62 @@ pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isiz
 
     syncmers
 }
+
+
+/*fn syncmers_canonical(seq: &str, k: usize, s: usize, t: usize) -> Vec<Minimizer> {
+    let seq_rc = reverse_complement(seq);
+    let mut hasher = DefaultHasher::new();
+    let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1).map(|i| seq[i..i + s].hash()).collect();
+    let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1).map(|i| seq_rc[i..i + s].hash()).collect();
+
+    let curr_min_fw = *window_smers_fw.iter().min().unwrap();
+    let curr_min_rc = *window_smers_rc.iter().min().unwrap();
+
+    let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
+    let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
+
+    let (pos_min, seq_tmp) = if curr_min_fw < curr_min_rc {
+        (pos_min_fw, &seq[0..k])
+    } else {
+        (pos_min_rc, &seq_rc[0..k])
+    };
+
+    let mut syncmers:Vec<Minimizer> = vec![];
+    if pos_min == t {
+        syncmers.push(Minimizer{sequence:seq_tmp.to_string(), position: 0});
+    }
+
+    for i in k - s + 1..seq.len() - s {
+        seq[i..i + s].hash(&mut hasher);
+        let new_smer_fw = hasher.finish();
+        seq_rc[i..i + s].hash(&mut hasher);
+        let new_smer_rc=hasher.finish();
+        // Updating windows
+        let _ = window_smers_fw.pop_front();
+        window_smers_fw.push_back(new_smer_fw);
+        let _ = window_smers_rc.pop_front();
+        window_smers_rc.push_back(new_smer_rc);
+
+        let curr_min_fw = *window_smers_fw.iter().min().unwrap();
+        let curr_min_rc = *window_smers_rc.iter().min().unwrap();
+
+        let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
+        let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
+
+        let (pos_min, seq_tmp) = if curr_min_fw < curr_min_rc {
+            (pos_min_fw, &seq[i - (k - s)..i - (k - s) + k])
+        } else {
+            (pos_min_rc, &seq_rc[i - (k - s)..i - (k - s) + k])
+        };
+
+        if pos_min == t {
+            let kmer = seq_tmp.to_string();
+            syncmers.push(Minimizer {sequence:kmer, position:i - (k - s)});
+        }
+    }
+
+    syncmers
+}*/
 
 
 

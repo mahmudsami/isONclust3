@@ -46,9 +46,15 @@ pub(crate) fn reverse_complement(dna: &str) -> String {
 }
 
 
+fn calculate_shared_perc(nr_sign_minis:usize,value:i32)->f64{
+    let shared_perc= value as f64/nr_sign_minis as f64;
+    shared_perc
+}
+
+
 
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:i32) -> HashMap<i32,Vec<i32>>{
+pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:f64,minimizer_hashmap: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>>) -> HashMap<i32,Vec<i32>>{
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of read ids as a value
@@ -64,50 +70,55 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
         let id = entry.0;
         let sign_minis= &entry.1;
         //println!("id: {}",id);
-
+        let minimizers=minimizer_hashmap.get(&id).unwrap();
         //if we already have at least one cluster: compare the new read to the cluster(s)
         if clusters.len() > 0{
             let mut mini_hashs_vec=vec![];
-            for minimizer in sign_minis {
-                //we get the minimizer sequence from the minimizer object
-                let mini_seq = &minimizer.sequence;
-                //calculate the hash of the minimizer sequence
-                let mini_hash = calculate_hash(&mini_seq);
 
-                //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
-                if let Some(belongs_to) = cluster_map.get(&mini_hash){
-                    //iterate over belongs_to to update the counts of shared minimizers for each cluster
-                    for &belong_cluster in belongs_to {
-                        //if the minimizer is already appointed to the cluster
-                        if let Some(new_val) = shared_mini_infos.get(&belong_cluster){
-                            //increase the counter of minimizers shared with cluster
-                            shared_mini_infos.insert(belong_cluster, *new_val+1);
-                        }
-                        else{
-                            //add a new counter for the cluster element
-                            shared_mini_infos.insert(belong_cluster, 0);
+            //if sign_minis.len() > min_shared_minis as usize {
+                for minimizer in minimizers {
+                    //we get the minimizer sequence from the minimizer object
+                    let mini_seq = &minimizer.sequence;
+                    //calculate the hash of the minimizer sequence
+                    let mini_hash = calculate_hash(&mini_seq);
+
+                    //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
+                    if let Some(belongs_to) = cluster_map.get(&mini_hash) {
+                        //iterate over belongs_to to update the counts of shared minimizers for each cluster
+                        for &belong_cluster in belongs_to {
+                            //if the minimizer is already appointed to the cluster
+                            if let Some(new_val) = shared_mini_infos.get(&belong_cluster) {
+                                //increase the counter of minimizers shared with cluster
+                                shared_mini_infos.insert(belong_cluster, *new_val + 1);
+                            } else {
+                                //add a new counter for the cluster element
+                                shared_mini_infos.insert(belong_cluster, 0);
+                            }
                         }
                     }
+                    mini_hashs_vec.push(mini_hash);
                 }
-                mini_hashs_vec.push(mini_hash);
-            }
+            //}
+            //else {
+
+            //}
             //println!("smi {:?}",shared_mini_infos);
             let mut shared= false;
-            let mut most_shared=0;
+            let mut most_shared=0.0;
             let mut most_shared_cluster=0;
             //key: cluster_id, value: count of shared minimizers
+            //TODO: sort wrt length of value and then only look at the first (best fit)
             for (key, value) in shared_mini_infos {
                 //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
-                if (value > min_shared_minis) & (value > most_shared)   {
-                    //update most_shared: the measure what the maximum number of shared minimizers was before
-                    most_shared = value;
-                    //update the id of the most shared cluster
+                let nr_minis= minimizers.len();
+                let shared_perc= calculate_shared_perc(nr_minis,value);
+                //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
+                if shared_perc > min_shared_minis && shared_perc> most_shared{
+                    most_shared = shared_perc;
                     most_shared_cluster = key;
-                    //if we have not yet set shared to be true we do it now
                     if !shared{
                         shared = true;
                     }
-
                 }
             }
             //if we have a cluster that we share enough minimizers with
@@ -117,9 +128,10 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                 if !read_list.contains(&id) {
                     read_list.push(id);
                 }
-                for mini_hash in &mini_hashs_vec {
+                for sign_mini in sign_minis {
+                    let mini_hash=calculate_hash(&sign_mini.sequence);
                     cluster_map
-                        .entry(*mini_hash)
+                        .entry(mini_hash)
                         .or_insert_with(Vec::new)
                         .retain(|&existing_id| existing_id != most_shared_cluster);
                     // Check if id was retained (not a duplicate) and push it if needed
@@ -131,7 +143,8 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
             }
             //we did not find a cluster that we could put the read into-> generate a new cluster
             else{
-                for mini_hash in mini_hashs_vec{
+                for sign_mini in sign_minis {
+                    let mini_hash=calculate_hash(&sign_mini.sequence);
                     cluster_map
                         .entry(mini_hash)
                         .or_insert_with(Vec::new)
@@ -180,6 +193,7 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
     //let mut final_cl=vec![];
     let mut clustering: HashMap<i32,f32> = HashMap::new();
     for tcl in this_clusters{
+        //println!("{:?}",tcl);
         if tcl.len()==1{
             let tcl_elem= tcl.first().unwrap();
             //println!("tcl elem {}",tcl_elem);
