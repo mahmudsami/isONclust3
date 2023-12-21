@@ -382,7 +382,7 @@ fn main() {
     //de novo clustering
     else{
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
-        let min_shared_minis= 0.3;
+        let min_shared_minis= 0.8;
         //the clustering step
         clusters = clustering::cluster_de_novo(sorted_sign_minis, min_shared_minis, mini_map_unfiltered);
         //println!("{:?}",clusters);

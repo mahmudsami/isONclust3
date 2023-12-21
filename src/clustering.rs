@@ -51,7 +51,25 @@ fn calculate_shared_perc(nr_sign_minis:usize,value:i32)->f64{
     shared_perc
 }
 
-
+fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos:HashMap<i32,i32>,minimizers:&Vec<Minimizer>) -> (bool, i32) {
+    let mut most_shared=0.0;
+    let mut shared=false;
+    let mut most_shared_cluster=0;
+    for (key, value) in shared_mini_infos {
+        //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
+        let nr_minis= minimizers.len();
+        let shared_perc= calculate_shared_perc(nr_minis,value);
+        //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
+        if shared_perc > min_shared_minis && shared_perc> most_shared{
+            most_shared = shared_perc;
+            most_shared_cluster = key;
+            if !shared{
+                shared = true;
+            }
+        }
+    }
+    (shared,most_shared_cluster)
+}
 
 //clustering method for the case that we do not have any annotation to compare the reads against
 pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:f64,minimizer_hashmap: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>>) -> HashMap<i32,Vec<i32>>{
@@ -61,7 +79,8 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
     let mut cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
     //we only need cl_id if cluster 0 already exists so we start with '1'
     let mut cl_id=1;
-
+    let shared_perc_mini=min_shared_minis/2.0_f64;
+    //TODO: This can be heavily improved if I add a field, high_confidence, to the seed object (here minimizer) We then can only pass over the minis with high_confidence=false
     //entry represents a read in our data
     for entry in &sorted_entries{
         //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
@@ -76,7 +95,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
             let mut mini_hashs_vec=vec![];
 
             //if sign_minis.len() > min_shared_minis as usize {
-                for minimizer in minimizers {
+                for minimizer in sign_minis {
                     //we get the minimizer sequence from the minimizer object
                     let mini_seq = &minimizer.sequence;
                     //calculate the hash of the minimizer sequence
@@ -103,12 +122,14 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
 
             //}
             //println!("smi {:?}",shared_mini_infos);
-            let mut shared= false;
+
             let mut most_shared=0.0;
             let mut most_shared_cluster=0;
+            let mut shared=false;
             //key: cluster_id, value: count of shared minimizers
             //TODO: sort wrt length of value and then only look at the first (best fit)
-            for (key, value) in shared_mini_infos {
+            (shared,most_shared_cluster) = detect_whether_shared(min_shared_minis, shared_mini_infos, sign_minis);
+            /*for (key, value) in shared_mini_infos {
                 //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
                 let nr_minis= minimizers.len();
                 let shared_perc= calculate_shared_perc(nr_minis,value);
@@ -120,6 +141,32 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                         shared = true;
                     }
                 }
+            }*/
+            if !shared{
+                let mut shared_mini_infos_norm=HashMap::new();
+                for minimizer in minimizers{
+                    //we get the minimizer sequence from the minimizer object
+                    let mini_seq = &minimizer.sequence;
+                    //calculate the hash of the minimizer sequence
+                    let mini_hash = calculate_hash(&mini_seq);
+
+                    //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
+                    if let Some(belongs_to) = cluster_map.get(&mini_hash) {
+                        //iterate over belongs_to to update the counts of shared minimizers for each cluster
+                        for &belong_cluster in belongs_to {
+                            //if the minimizer is already appointed to the cluster
+                            if let Some(new_val) = shared_mini_infos_norm.get(&belong_cluster) {
+                                //increase the counter of minimizers shared with cluster
+                                shared_mini_infos_norm.insert(belong_cluster, *new_val + 1);
+                            } else {
+                                //add a new counter for the cluster element
+                                shared_mini_infos_norm.insert(belong_cluster, 0);
+                            }
+                        }
+                    }
+                }
+                (shared,most_shared_cluster) =detect_whether_shared(shared_perc_mini, shared_mini_infos_norm, minimizers);
+
             }
             //if we have a cluster that we share enough minimizers with
             if shared {

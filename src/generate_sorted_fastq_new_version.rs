@@ -20,6 +20,7 @@ use std::hash::{Hash, Hasher};
 pub struct Minimizer {
     pub sequence: String,
     pub position: usize,
+   // pub is_representative: bool
 }
 /*
 /// Computes the Probability of incorrect base call for the quality scores we receive from the fastq format
