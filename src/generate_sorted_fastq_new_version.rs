@@ -3,8 +3,8 @@ use std::ops::Index;
 use rayon::prelude::*;
 //use crate::file_actions::FastqRecord_isoncl_init;
 use std::cmp::max;
-use crate::structs::{FastqRecord_isoncl_init, FastaRecord};
-use crate::clustering::reverse_complement;
+use crate::structs::{FastqRecord_isoncl_init, FastaRecord, Minimizer};
+use crate::clustering::{reverse_complement, calculate_hash};
 use std::borrow::Borrow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -14,14 +14,7 @@ use std::hash::{Hash, Hasher};
 //}
 
 
-/// Represents a minimizer along with its starting position in the input string.
-/// TODO: rename to indexer or similar
-#[derive(Debug, PartialEq,Clone)]
-pub struct Minimizer {
-    pub sequence: String,
-    pub position: usize,
-   // pub is_representative: bool
-}
+
 /*
 /// Computes the Probability of incorrect base call for the quality scores we receive from the fastq format
 /// #Returns:
@@ -174,6 +167,7 @@ pub fn get_canonical_kmer_minimizers(seq: &str, k_size: usize, w_size: usize) ->
             let rc_string = reverse_complement(new_kmer_str).clone();
             // updating  by removing first kmer from window
             window_kmers.pop_front().unwrap();
+
             if rc_string > new_kmer_str.to_string(){
                 window_kmers.push_back(((*new_kmer_str).to_string(), new_kmer_pos));
             }
@@ -239,7 +233,7 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
 pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize, d_no_min:[f64;128])-> Vec<Minimizer>{
     let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
-    let mut skipped_cter=0;
+    let mut skipped_cter= 0;
     //println!("Number of minimizers: {}",this_minimizers.len());
     for mini in this_minimizers{
         //println!("{:?}",mini);
@@ -248,13 +242,13 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
         //set the start of the minimizer_range that we want to inspect
         if minimizer_pos > minimizer_range{
             //minimizer_range_start = minimizer_pos - minimizer_range;
-            minimizer_range_start=minimizer_pos;
+            minimizer_range_start = minimizer_pos;
         }
 
         let mut minimizer_range_end = fastq_sequence.len();
         if minimizer_pos + minimizer_range + k < minimizer_range_end{
             //minimizer_range_end = minimizer_pos + minimizer_range + k ;
-            minimizer_range_end=minimizer_pos+k;
+            minimizer_range_end= minimizer_pos + k;
         }
         let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
         //println!("Quality_interval len {}",qualitiy_interval.len());
@@ -263,7 +257,7 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer>,fastq_sequen
             minimizers_filtered.push(mini.clone())
         }
         else{
-            skipped_cter= skipped_cter+1;
+            skipped_cter = skipped_cter + 1;
         }
     }
     //println!("{} minimizers filtered out due to bad quality", skipped_cter);
@@ -303,7 +297,7 @@ pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isiz
     for i in 0..seq.len() - k_size {
         // add a new syncmer to the list if its smallest s-mer is at place t
         if kmer_smers.iter().position(|&x| x == *kmer_smers.iter().min().unwrap()) == Some(t as usize) {
-            syncmers.push(Minimizer {sequence: (&seq[i..i + k_size]).parse().unwrap(), position: i});
+            syncmers.push(Minimizer {sequence: (&seq[ i..i + k_size]).parse().unwrap(), position: i});
         }
         // move the window one step to the right by popping the leftmost
         // s-mer and adding one to the right
@@ -318,8 +312,8 @@ pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isiz
 /*fn syncmers_canonical(seq: &str, k: usize, s: usize, t: usize) -> Vec<Minimizer> {
     let seq_rc = reverse_complement(seq);
     let mut hasher = DefaultHasher::new();
-    let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1).map(|i| seq[i..i + s].hash()).collect();
-    let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1).map(|i| seq_rc[i..i + s].hash()).collect();
+    let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1).map(|i| seq[i..i + s].hash(&mut hasher)).collect();
+    let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1).map(|i| seq_rc[i..i + s].hash(&mut hasher)).collect();
 
     let curr_min_fw = *window_smers_fw.iter().min().unwrap();
     let curr_min_rc = *window_smers_rc.iter().min().unwrap();
@@ -397,7 +391,7 @@ pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: us
     while stored_value <= last_mini_pos{
         window_kmers.pop_front();
         if window_kmers.is_empty(){
-            stored_value = last_mini_pos+1;
+            stored_value = last_mini_pos + 1;
         }
         else {
             pos = window_kmers.front().expect("The window should contain elements still");
@@ -434,7 +428,7 @@ pub fn get_kmer_minimizers_efficient<'a>(seq: &'a str, k_size: usize, w_size: us
             while stored_value <= last_mini_pos{
                 window_kmers.pop_front();
                 if window_kmers.is_empty(){
-                    stored_value = last_mini_pos+1;
+                    stored_value = last_mini_pos + 1;
                 }
                 else{
                     pos = window_kmers.front().expect("The window should contain elements still");

@@ -1,7 +1,7 @@
 use crate::structs:: FastaRecord;
 use std::collections::HashMap;
-use crate::generate_sorted_fastq_new_version::Minimizer;
-use crate::generate_sorted_fastq_new_version;
+use crate::structs::Minimizer;
+use crate::{generate_sorted_fastq_new_version, structs};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::borrow::Borrow;
@@ -72,7 +72,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos:HashMap<i32,i32
 }
 
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:f64,minimizer_hashmap: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>>) -> HashMap<i32,Vec<i32>>{
+pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:f64,minimizer_hashmap: HashMap<i32, Vec<structs::Minimizer>>) -> HashMap<i32,Vec<i32>>{
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of read ids as a value
@@ -382,8 +382,8 @@ fn get_id_from_header(head: String) -> i32 {
 }
 
 
-//takes a string and hashes it via DefaultHasher. Used to improve search for minimizers in the data
-fn calculate_hash<T: Hash>(t: &T) -> u64 {
+//takes an object T and hashes it via DefaultHasher. Used to improve search for minimizers in the data
+pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
     s.finish()

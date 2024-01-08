@@ -58,7 +58,7 @@ fn write_fastq_files(outfolder: &Path, cluster_map: HashMap<i32, Vec<FastqRecord
         let file_path = PathBuf::from(outfolder).join(filename);
         let mut f = File::create(file_path).expect("unable to create file");
         for record in records{
-            write!(f ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality);
+            write!(f ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
         }
             //let read_id=id_map.get(&r_int_id);
         //let index = test.iter().position(|&r| r == "two").unwrap();
@@ -82,7 +82,7 @@ fn convert_infos_for_writing(id_map:HashMap<i32,String>, clusters:HashMap<i32,Ve
 
 pub(crate) fn write_output(outfolder:String,clusters:HashMap<i32,Vec<i32>>,fastq_vec:Vec<FastqRecord_isoncl_init>, id_map:HashMap<i32,String>){
     if !path_exists(&*outfolder){
-        fs::create_dir(outfolder.clone());
+        fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
     let fastq_path=Path::new(&outfolder).join("fastq_files");
     if !fastq_path.exists(){

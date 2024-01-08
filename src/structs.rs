@@ -7,6 +7,16 @@ pub enum Cluster<T, U> {
 }
 
 
+/// Represents a minimizer along with its starting position in the input string.
+/// TODO: rename to indexer or similar
+#[derive(Debug, PartialEq,Clone)]
+pub struct Minimizer {
+    pub sequence: String,
+    pub position: usize,
+    // pub is_representative: bool
+}
+
+
 pub(crate) struct GtfEntry {
     pub seqname: String,
     pub source: String,

@@ -1,12 +1,11 @@
-use std::fs::{File, read_to_string};
+use std::fs::{File};
 use std::io::{BufReader, BufRead};
 use std::error::Error;
-use std::collections::HashMap;
+
 
 use crate::structs;
 use crate::structs::{FastqRecord_isoncl_init, GtfEntry};
 use crate::structs::FastaRecord;
-use crate::structs::FastqRecord;
 use rayon::iter::split;
 use std::str::FromStr;
 

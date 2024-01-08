@@ -1,8 +1,7 @@
-use std::time::Duration;
-use std::time::Instant;
 use std::fs::File;
 use std::collections::{HashMap, HashSet, VecDeque};
 use rayon::prelude::*;
+use std::time::Instant;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
 use clap::Parser;
@@ -15,6 +14,8 @@ mod isONclust;
 mod structs;
 use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
 use std::thread;
+use crate::clustering::calculate_hash;
+
 mod write_output;
 
 fn compute_d() -> [f64; 128] {
@@ -90,14 +91,14 @@ fn compare_minimizer_gens(){
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
     //println!("Generated Minimizers ineff: {:?}", minimizers_ineff);
-    let a = generate_sorted_fastq_new_version::Minimizer { sequence: "AGC".to_string(), position: 24 };
-    let b = generate_sorted_fastq_new_version::Minimizer { sequence: "AGC".to_string(), position: 24 };
+    let a = structs::Minimizer { sequence: "AGC".to_string(), position: 24 };
+    let b = structs::Minimizer { sequence: "AGC".to_string(), position: 24 };
     assert_eq!(minimizers_ineff, minimizers)
 
 }
-fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>>)->Vec<(i32, Vec<generate_sorted_fastq_new_version::Minimizer>)>{
+fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<structs::Minimizer>>)->Vec<(i32, Vec<structs::Minimizer>)>{
     // Sort by the length of vectors in descending order
-    let mut sorted_entries: Vec<(i32, Vec<generate_sorted_fastq_new_version::Minimizer>)> = mini_map_filtered
+    let mut sorted_entries: Vec<(i32, Vec<structs::Minimizer>)> = mini_map_filtered
         .into_iter()
         .collect();
 
@@ -326,8 +327,8 @@ fn main() {
     //
     //Generate the minimizers for the initial clusters
     //
-    let mut mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
-    let mut mini_map_unfiltered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
+    let mut mini_map_filtered: HashMap<i32, Vec<structs::Minimizer>> = HashMap::with_capacity(fastq_records.len());
+    let mut mini_map_unfiltered: HashMap<i32, Vec<structs::Minimizer>> = HashMap::with_capacity(fastq_records.len());
 
     //
     // Generate minimizers for the fastq file and filter by significance
