@@ -7,7 +7,7 @@ use std::time::Instant;
 use clap::Parser;
 pub mod file_actions;
 mod clustering;
-mod generate_sorted_fastq_for_cluster;
+//mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
 use std::path::PathBuf;
 mod isONclust;
@@ -15,7 +15,8 @@ mod structs;
 use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
 use std::thread;
 use crate::clustering::calculate_hash;
-
+extern crate rayon;
+extern crate clap;
 mod write_output;
 
 fn compute_d() -> [f64; 128] {
