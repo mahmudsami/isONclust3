@@ -373,7 +373,7 @@ fn main() {
         println!("Couldn't get the current memory usage :(");
     }
     for fastq_record in &fastq_records{
-        println!("int id {}",int_id_cter);
+        //println!("int id {}",int_id_cter);
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
         if fastq_record.sequence.len() > mini_range_len{
             //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
