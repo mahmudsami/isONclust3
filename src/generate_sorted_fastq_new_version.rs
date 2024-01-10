@@ -49,7 +49,7 @@ pub fn compute_d_no_min() -> [f64; 128] {
 ///
 /// A vector containing `Minimizer` structs, each containing the lexicographically smallest
 ///substring and its starting position in the input string.
-pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Vec<Minimizer_hashed> {
+pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Vec<Minimizer> {
     let mut w= 0;
     if w_size > k_size{
         w = w_size - k_size;
@@ -57,10 +57,10 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     else {
         w = 1;
     }
-    let mut window_kmers: VecDeque<(u64, usize)> = VecDeque::with_capacity(w + 1);
+    let mut window_kmers: VecDeque<(&'a str, usize)> = VecDeque::with_capacity(w + 1);
     if w+ k_size < seq.len() + 1{
         for i in 0..w {
-            window_kmers.push_back((calculate_hash(&seq[i..i + k_size]), i));
+            window_kmers.push_back((&seq[i..i + k_size], i));
         }
     }
     // Initialize the window_kmers deque
@@ -68,7 +68,7 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
         if seq.len()+1>=k_size{
             let short_w = seq.len() + 1 - k_size;
             for i in 0..short_w {
-                window_kmers.push_back((calculate_hash(&seq[i..i + k_size]), i));
+                window_kmers.push_back((&seq[i..i + k_size], i));
             }
         }
 
@@ -78,14 +78,14 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     // Find the initial minimizer (minimizer of initial window)
     let (curr_min, min_pos) = window_kmers.iter().min_by_key(|&&(kmer, _)| kmer).unwrap();
     //add the initial minimizer to the vector
-    let mini =Minimizer_hashed {sequence: *curr_min,position: *min_pos };
+    let mini =Minimizer {sequence: curr_min.to_string(),position: *min_pos };
     minimizers.push(mini);
     //we always store the previous minimizer to compare to the newly found one
     let mut prev_minimizer =(*min_pos,*curr_min);
     //iterate further over the sequence and generate the minimizers thereof
     for (i, new_kmer) in seq[w..].as_bytes().windows(k_size).enumerate() {
         let new_kmer_pos = i  + w;
-        let new_kmer_str = calculate_hash(new_kmer);
+        let new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
         // updating window
         window_kmers.pop_front().unwrap();
         window_kmers.push_back((new_kmer_str, new_kmer_pos));
@@ -94,7 +94,7 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
         //make sure that the minimal string is a new minimizer not just the previously found one
         if  *min_pos !=prev_minimizer.0{ //&& *curr_min != prev_minimizer.1 {
             //add the minimizer into the vector and store the minimizer as previously detected minimizer
-            let mini =Minimizer_hashed {sequence: *curr_min,position: *min_pos };
+            let mini =Minimizer {sequence: curr_min.to_string(),position: *min_pos };
             //println!("minimizer {:?}",mini);
             minimizers.push(mini);
             prev_minimizer=(*min_pos, *curr_min);
@@ -102,6 +102,7 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
     }
     minimizers
 }
+
 
 
 /// Generates positional canonical minimizers from an input string.
