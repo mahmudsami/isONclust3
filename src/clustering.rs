@@ -1,6 +1,6 @@
 use crate::structs:: FastaRecord;
 use std::collections::HashMap;
-use crate::structs::Minimizer;
+use crate::structs::{Minimizer,Minimizer_hashed};
 use crate::{generate_sorted_fastq_new_version, structs};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -51,7 +51,7 @@ fn calculate_shared_perc(nr_sign_minis:usize,value:i32)->f64{
     shared_perc
 }
 
-fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos:HashMap<i32,i32>,minimizers:&Vec<Minimizer>) -> (bool, i32) {
+fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos:HashMap<i32,i32>,minimizers:&Vec<Minimizer_hashed>) -> (bool, i32) {
     let mut most_shared=0.0;
     let mut shared=false;
     let mut most_shared_cluster=0;
@@ -72,7 +72,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos:HashMap<i32,i32
 }
 
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shared_minis:f64,minimizer_hashmap: HashMap<i32, Vec<structs::Minimizer>>) -> HashMap<i32,Vec<i32>>{
+pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,min_shared_minis:f64,minimizer_hashmap: HashMap<i32, Vec<structs::Minimizer_hashed>>) -> HashMap<i32,Vec<i32>>{
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of read ids as a value
@@ -97,9 +97,9 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
             //if sign_minis.len() > min_shared_minis as usize {
                 for minimizer in sign_minis {
                     //we get the minimizer sequence from the minimizer object
-                    let mini_seq = &minimizer.sequence;
+                    let mini_hash = &minimizer.sequence;
                     //calculate the hash of the minimizer sequence
-                    let mini_hash = calculate_hash(&mini_seq);
+                    //let mini_hash = calculate_hash(&mini_seq);
 
                     //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
                     if let Some(belongs_to) = cluster_map.get(&mini_hash) {
@@ -146,9 +146,9 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                 let mut shared_mini_infos_norm=HashMap::new();
                 for minimizer in minimizers{
                     //we get the minimizer sequence from the minimizer object
-                    let mini_seq = &minimizer.sequence;
+                    let mini_hash = minimizer.sequence;
                     //calculate the hash of the minimizer sequence
-                    let mini_hash = calculate_hash(&mini_seq);
+                    //let mini_hash = calculate_hash(&mini_seq);
 
                     //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
                     if let Some(belongs_to) = cluster_map.get(&mini_hash) {
@@ -176,13 +176,13 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
                     read_list.push(id);
                 }
                 for sign_mini in sign_minis {
-                    let mini_hash=calculate_hash(&sign_mini.sequence);
+                    //let mini_hash=;
                     cluster_map
-                        .entry(mini_hash)
+                        .entry(sign_mini.sequence)
                         .or_insert_with(Vec::new)
                         .retain(|&existing_id| existing_id != most_shared_cluster);
                     // Check if id was retained (not a duplicate) and push it if needed
-                    let vect = cluster_map.get_mut(&mini_hash).unwrap();
+                    let vect = cluster_map.get_mut(&sign_mini.sequence).unwrap();
                     if !vect.contains(&most_shared_cluster) {
                         vect.push(most_shared_cluster);
                     }
@@ -191,7 +191,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
             //we did not find a cluster that we could put the read into-> generate a new cluster
             else{
                 for sign_mini in sign_minis {
-                    let mini_hash=calculate_hash(&sign_mini.sequence);
+                    let mini_hash=sign_mini.sequence;
                     cluster_map
                         .entry(mini_hash)
                         .or_insert_with(Vec::new)
@@ -213,9 +213,9 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer>)>,min_shar
             let init_id = 0;
             for minimizer in sign_minis {
                 //we get the minimizer sequence from the minimizer object
-                let mini_seq = &minimizer.sequence;
+                let mini_hash = minimizer.sequence;
                 //calculate the hash of the minimizer sequence
-                let mini_hash = calculate_hash(&mini_seq);
+                //let mini_hash = calculate_hash(&mini_seq);
                 //fill cluster_map with the minimizers that we found in the first read
                 cluster_map
                     .entry(mini_hash)
@@ -279,13 +279,13 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
 
 
 //clustering method for the case that we have an annotation to compare our reads against
-pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer>)>, initial_clusters: HashMap<u64, Vec<i32>>) ->HashMap<i32, Vec<i32>>{
+pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>, initial_clusters: HashMap<u64, Vec<i32>>) ->HashMap<i32, Vec<i32>>{
     //the hashmap containing the clusters we found
     let mut clusters: HashMap<i32, Vec<i32>> = HashMap::new();
     for sorted_entry in sorted_entries{
         let mut this_clusters= vec![];
         for mini in sorted_entry.1{
-            let this_mini_hash= calculate_hash(&mini.sequence);
+            let this_mini_hash= mini.sequence;
             if initial_clusters.contains_key(&this_mini_hash){
                 let value= initial_clusters.get(&this_mini_hash).unwrap();
                 //this_clusters.append(&mut value.clone());

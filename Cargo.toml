@@ -10,5 +10,6 @@ bio-seq = "0.10.0"
 clap = { version = "4.4.3", features = ["derive","cargo"] }
 clap-cargo = "0.12.0"
 rayon = "1.7"
+memory-stats = "1.0.0"
 
 

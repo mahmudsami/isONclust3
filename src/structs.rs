@@ -16,6 +16,12 @@ pub struct Minimizer {
     // pub is_representative: bool
 }
 
+#[derive(Debug, PartialEq,Clone)]
+pub struct Minimizer_hashed {
+    pub sequence: u64,
+    pub position: usize,
+    // pub is_representative: bool
+}
 
 pub(crate) struct GtfEntry {
     pub seqname: String,

@@ -18,6 +18,7 @@ use crate::clustering::calculate_hash;
 extern crate rayon;
 extern crate clap;
 mod write_output;
+use memory_stats::memory_stats;
 
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
@@ -97,9 +98,9 @@ fn compare_minimizer_gens(){
     assert_eq!(minimizers_ineff, minimizers)
 
 }
-fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<structs::Minimizer>>)->Vec<(i32, Vec<structs::Minimizer>)>{
+fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<structs::Minimizer_hashed>>)->Vec<(i32, Vec<structs::Minimizer_hashed>)>{
     // Sort by the length of vectors in descending order
-    let mut sorted_entries: Vec<(i32, Vec<structs::Minimizer>)> = mini_map_filtered
+    let mut sorted_entries: Vec<(i32, Vec<structs::Minimizer_hashed>)> = mini_map_filtered
         .into_iter()
         .collect();
 
@@ -285,7 +286,7 @@ struct Cli {
     #[arg(long, short,help="Path to gtf file (optional parameter)")]
     gtf: Option<String>,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
-
+    
 }
 
 fn main() {
@@ -323,14 +324,31 @@ fn main() {
     let window_size = cli.w;
     let w = window_size - k;
     let outfolder = cli.outfolder;
+    if let Some(usage) = memory_stats() {
+        println!("Current physical memory usage: {}", usage.physical_mem);
+        println!("Current virtual memory usage: {}", usage.virtual_mem);
+    } else {
+        println!("Couldn't get the current memory usage :(");
+    }
     let fastq_records= file_actions::parse_fastq(fastq_file).unwrap();
     //let (fastq_records,id_map) = file_actions::parse_fastq(fastq_file);
     //
     //Generate the minimizers for the initial clusters
     //
-    let mut mini_map_filtered: HashMap<i32, Vec<structs::Minimizer>> = HashMap::with_capacity(fastq_records.len());
-    let mut mini_map_unfiltered: HashMap<i32, Vec<structs::Minimizer>> = HashMap::with_capacity(fastq_records.len());
-
+    if let Some(usage) = memory_stats() {
+        println!("Current physical memory usage: {}", usage.physical_mem);
+        println!("Current virtual memory usage: {}", usage.virtual_mem);
+    } else {
+        println!("Couldn't get the current memory usage :(");
+    }
+    let mut mini_map_filtered: HashMap<i32, Vec<structs::Minimizer_hashed>> = HashMap::with_capacity(fastq_records.len());
+    let mut mini_map_unfiltered: HashMap<i32, Vec<structs::Minimizer_hashed>> = HashMap::with_capacity(fastq_records.len());
+    if let Some(usage) = memory_stats() {
+        println!("Current physical memory usage: {}", usage.physical_mem);
+        println!("Current virtual memory usage: {}", usage.virtual_mem);
+    } else {
+        println!("Couldn't get the current memory usage :(");
+    }
     //
     // Generate minimizers for the fastq file and filter by significance
     //
@@ -348,12 +366,19 @@ fn main() {
     //quality_threshold gives at what point minimizers are too low quality to be used in our algo
     //let filtered_records=filter_fastq_records(fastq_records,d_no_min,quality_threshold,k,d);
     println!("Parsed the files");
+    if let Some(usage) = memory_stats() {
+        println!("Current physical memory usage: {}", usage.physical_mem);
+        println!("Current virtual memory usage: {}", usage.virtual_mem);
+    } else {
+        println!("Couldn't get the current memory usage :(");
+    }
     for fastq_record in &fastq_records{
+        println!("int id {}",int_id_cter);
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
         if fastq_record.sequence.len() > mini_range_len{
             //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
             //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_syncmers(&fastq_record.sequence, k,5,-1);
-            let this_minimizers = generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&fastq_record.sequence, k, window_size);
+            let this_minimizers = generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&fastq_record.sequence, k, window_size);
             mini_map_unfiltered.insert(int_id_cter,this_minimizers.clone());
             //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
             let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers.clone(),&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min);
@@ -367,7 +392,12 @@ fn main() {
         }
     }
     println!("Skipped {} reads due to being too short",skipped_cter);
-
+    if let Some(usage) = memory_stats() {
+        println!("Current physical memory usage: {}", usage.physical_mem);
+        println!("Current virtual memory usage: {}", usage.virtual_mem);
+    } else {
+        println!("Couldn't get the current memory usage :(");
+    }
     //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
     let sorted_sign_minis = get_sorted_entries(mini_map_filtered);
     //
@@ -378,7 +408,8 @@ fn main() {
     if init_clust_rec_both_dir.len() > 0{
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
         //println!("{:?}",init_cluster_map);
-        clusters = clustering::cluster_from_initial(sorted_sign_minis, init_cluster_map);
+        //TODO fix cluster_from initial to work with mini hashs and not the strings
+        //clusters = clustering::cluster_from_initial(sorted_sign_minis, init_cluster_map);
         //println!("{:?}",clusters);
     }
     //de novo clustering
@@ -389,6 +420,12 @@ fn main() {
         clusters = clustering::cluster_de_novo(sorted_sign_minis, min_shared_minis, mini_map_unfiltered);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
+    }
+    if let Some(usage) = memory_stats() {
+    println!("Current physical memory usage: {}", usage.physical_mem);
+    println!("Current virtual memory usage: {}", usage.virtual_mem);
+    } else {
+        println!("Couldn't get the current memory usage :(");
     }
     println!("Finished clustering");
     write_output::write_output(outfolder, clusters,fastq_records, id_map);
