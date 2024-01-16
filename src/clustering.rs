@@ -78,7 +78,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,m
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of read ids as a value
     let mut cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
     //we only need cl_id if cluster 0 already exists so we start with '1'
-    let mut cl_id=1;
+    let mut cl_id= 1;
     let shared_perc_mini=min_shared_minis/2.0_f64;
     //TODO: This can be heavily improved if I add a field, high_confidence, to the seed object (here minimizer) We then can only pass over the minis with high_confidence=false
     //entry represents a read in our data
@@ -89,7 +89,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,m
         let id = entry.0;
         let sign_minis= &entry.1;
         //println!("id: {}",id);
-        let minimizers=minimizer_hashmap.get(&id).unwrap();
+        let minimizers= minimizer_hashmap.get(&id).unwrap();
         //if we already have at least one cluster: compare the new read to the cluster(s)
         if clusters.len() > 0{
             let mut mini_hashs_vec=vec![];

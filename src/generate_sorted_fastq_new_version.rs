@@ -251,7 +251,6 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
             else {
                 window_kmers.push_back((reverse_hash,new_kmer_pos))
             }
-
             // Find the new minimizer, we need a ds that was cloned from window_kmers to abide ownership rules in rust
             binding = window_kmers.clone();
             let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap().clone();
@@ -266,6 +265,116 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
         }
     }
     minimizers
+}
+/*
+static seq_nt4_table: &'static [u8] = &[
+0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
+]; //seq_nt4_table
+
+fn make_string_to_hashvalues_random_minimizers(seq: &str, string_hashes: &mut Vec<u64>, pos_to_seq_choord: &mut Vec<u32>, k: usize, kmask: u64, w: usize) {
+    let mut q: VecDeque<u64> = VecDeque::new();
+    let mut q_pos: VecDeque<u32> = VecDeque::new();
+    let mut seq_iter = seq.chars();
+    let mut seq_length = seq.len();
+    let mut q_size = 0;
+    let mut q_min_val = u64::MAX;
+    let mut q_min_pos = -1;
+
+    let mut hash_count = 0;
+    let mut l = 0;
+    let mut x = 0;
+
+    while let Some(ch) = seq_iter.next() {
+        let c = seq_nt4_table[ch as usize];
+        if c < 4 {
+            x = (x << 2 | c as u64) & kmask;
+            if l >= k {
+                let hash_k = robin_hash(x);
+
+                if q_size < w {
+                    q.push_back(hash_k);
+                    q_pos.push_back((l - k as u32 + 1) as u32);
+                    q_size += 1;
+                } else if q_size == w - 1 {
+                    q.push_back(hash_k);
+                    q_pos.push_back((l - k as u32 + 1) as u32);
+                    q_min_val = u64::MAX;
+                    q_min_pos = -1;
+                    for (j, &val) in q.iter().enumerate() {
+                        if val < q_min_val {
+                            q_min_val = val;
+                            q_min_pos = q_pos[j] as i32;
+                        }
+                    }
+                    string_hashes.push(q_min_val);
+                    pos_to_seq_choord.push(q_min_pos as u32);
+                    hash_count += 1;
+                } else {
+                    let mut new_minimizer = false;
+                    update_window(&mut q, &mut q_pos, &mut q_min_val, &mut q_min_pos, hash_k, (l - k as u32 + 1) as u32, &mut new_minimizer);
+                    if new_minimizer {
+                        string_hashes.push(q_min_val);
+                        pos_to_seq_choord.push(q_min_pos as u32);
+                        hash_count += 1;
+                    }
+                }
+            }
+        } else {
+            l = 0;
+            x = 0;
+        }
+        seq_length -= 1;
+    }
+    // println!("{} values produced from string of length {}", hash_count, seq.len());
+    // for t in pos_to_seq_choord {
+    //     print!("{} ", t);
+    // }
+    // println!();
+}
+*/
+
+fn update_window(q: &mut VecDeque<u64>, q_pos: &mut VecDeque<u32>, q_min_val: &mut u64, q_min_pos: &mut i32, new_strobe_hashval: u64, i: u32, new_minimizer: &mut bool) {
+// uint64_t popped_val;
+// popped_val = q.front();
+    q.pop_front();
+    let popped_index = q_pos.pop_front().unwrap();
+
+    q.push_back(new_strobe_hashval);
+    q_pos.push_back(i);
+
+    if *q_min_pos == popped_index as i32 {
+        // we popped the previous minimizer, find new brute force
+        *q_min_val = u64::MAX;
+        *q_min_pos = i as i32;
+        for j in (0..q.len()).rev() {
+            // Iterate in reverse to choose the rightmost minimizer in a window
+            if q[j] < *q_min_val {
+                *q_min_val = q[j];
+                *q_min_pos = q_pos[j] as i32;
+                *new_minimizer = true;
+            }
+        }
+    } else if new_strobe_hashval < *q_min_val {
+        // the new value added to the queue is the new minimum
+        *q_min_val = new_strobe_hashval;
+        *q_min_pos = i as i32;
+        *new_minimizer = true;
+    }
 }
 
 //calculates the average of  a list of f64s and returns it as f64

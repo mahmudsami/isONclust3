@@ -2,9 +2,12 @@ use std::fs::File;
 use std::collections::{HashMap, HashSet, VecDeque};
 use rayon::prelude::*;
 use std::time::Instant;
+use std::time::Duration;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
 use clap::Parser;
+
+
 pub mod file_actions;
 mod clustering;
 //mod generate_sorted_fastq_for_cluster;
@@ -285,6 +288,8 @@ struct Cli {
     n: usize,
     #[arg(long, short,help="Path to gtf file (optional parameter)")]
     gtf: Option<String>,
+    #[arg(long, short,help="Path to gtf file (optional parameter)")]
+    noncanonical: Option<bool>,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
     
 }
@@ -298,9 +303,17 @@ fn main() {
     //
     // READ the files (the initial_clusters_file as well as the fastq file containing the reads)
     //
+    let now1 = Instant::now();
     let fastq_file = File::open(cli.fastq).unwrap();
+    println!("{} s used for file input", now1.elapsed().as_secs());
     //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
     let  initial_clustering_path =cli.init_cl.as_deref();
+    //let noncanonical= cli.noncanonical.as_deref();
+    //let mut noncanonical=false;
+    //if noncanonical.is_some(){
+    //    noncanonical=true;
+    //}
+
     let gtf_path = cli.gtf.as_deref();
     //let mut initial_clustering_records: Vec<_>=vec![];
     let mut init_clust_rec_both_dir=vec![];
@@ -372,6 +385,8 @@ fn main() {
     } else {
         println!("Couldn't get the current memory usage :(");
     }
+    let now2 = Instant::now();
+    println!("{} s before minimizergen", now1.elapsed().as_secs());
     for fastq_record in &fastq_records{
         //println!("int id {}",int_id_cter);
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
@@ -391,6 +406,7 @@ fn main() {
             //println!("Read too short- skipped {}",fastq_record.header)
         }
     }
+    println!("{} s for minimizer gen and filtering of minis", now2.elapsed().as_secs());
     println!("Skipped {} reads due to being too short",skipped_cter);
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);
@@ -404,6 +420,7 @@ fn main() {
     //Perform the clustering
     //
     let mut clusters:HashMap<i32,Vec<i32>> = HashMap::new();
+    let now3 = Instant::now();
     //annotation based clustering
     if init_clust_rec_both_dir.len() > 0{
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
@@ -421,6 +438,8 @@ fn main() {
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }
+    println!("{} s for denovo clustering", now3.elapsed().as_secs());
+
     if let Some(usage) = memory_stats() {
     println!("Current physical memory usage: {}", usage.physical_mem);
     println!("Current virtual memory usage: {}", usage.virtual_mem);
@@ -428,5 +447,8 @@ fn main() {
         println!("Couldn't get the current memory usage :(");
     }
     println!("Finished clustering");
+    let now4 = Instant::now();
     write_output::write_output(outfolder, clusters,fastq_records, id_map);
+    println!("{} s for file output", now4.elapsed().as_secs());
+    println!("{} overall runtime", now1.elapsed().as_secs());
 }
