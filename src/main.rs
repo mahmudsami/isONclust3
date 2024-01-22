@@ -288,8 +288,8 @@ struct Cli {
     n: usize,
     #[arg(long, short,help="Path to gtf file (optional parameter)")]
     gtf: Option<String>,
-    #[arg(long, short,help="Path to gtf file (optional parameter)")]
-    noncanonical: Option<bool>,
+    //#[arg(long, short,help="Path to gtf file (optional parameter)")]
+    //noncanonical: Option<bool>,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
     
 }
@@ -371,7 +371,7 @@ fn main() {
     let mut skipped_cter=0;
     //d_no_min contains a translation for chars into quality values
     let d_no_min=generate_sorted_fastq_new_version::compute_d_no_min();
-    let d =compute_d();
+    //let d =compute_d();
     //TODO: only use the actual kmers position nothing surrounding
     let mini_range_len = 2 * (w - 1) + k-1;
     let mini_range_len = k;
@@ -426,7 +426,7 @@ fn main() {
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
         //println!("{:?}",init_cluster_map);
         //TODO fix cluster_from initial to work with mini hashs and not the strings
-        //clusters = clustering::cluster_from_initial(sorted_sign_minis, init_cluster_map);
+        clusters = clustering::cluster_from_initial(sorted_sign_minis, init_cluster_map);
         //println!("{:?}",clusters);
     }
     //de novo clustering
@@ -434,7 +434,7 @@ fn main() {
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
         let min_shared_minis= 0.8;
         //the clustering step
-        clusters = clustering::cluster_de_novo(sorted_sign_minis, min_shared_minis, mini_map_unfiltered);
+        clusters = clustering::cluster_de_novo(sorted_sign_minis, min_shared_minis, &mini_map_unfiltered);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }

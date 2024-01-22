@@ -175,7 +175,6 @@ pub fn get_canonical_kmer_minimizers(seq: &str, k_size: usize, w_size: usize) ->
             else {
                 window_kmers.push_back((rc_string,new_kmer_pos))
             }
-
             // Find the new minimizer, we need a ds that was cloned from window_kmers to abide ownership rules in rust
             binding = window_kmers.clone();
             let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap().clone();
