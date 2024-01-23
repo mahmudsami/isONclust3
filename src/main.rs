@@ -6,7 +6,7 @@ use std::time::Duration;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
 use clap::Parser;
-
+use std::cmp::Ordering;
 
 pub mod file_actions;
 mod clustering;
@@ -106,8 +106,10 @@ fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<structs::Minimizer_has
     let mut sorted_entries: Vec<(i32, Vec<structs::Minimizer_hashed>)> = mini_map_filtered
         .into_iter()
         .collect();
+    sorted_entries.sort_by(|a, b| {
+            b.1.len().cmp(&a.1.len()).then_with(|| a.0.cmp(&b.0))
+        });
 
-    sorted_entries.sort_by_key(|(_, v)| std::cmp::Reverse(v.len()));
 
     sorted_entries
 }
@@ -366,14 +368,13 @@ fn main() {
     // Generate minimizers for the fastq file and filter by significance
     //
     let mut int_id_cter= 0;
-    let mut id_map=HashMap::new();
+    let mut id_map= HashMap::new();
     //count the number of reads that were too short to be clustered
     let mut skipped_cter=0;
     //d_no_min contains a translation for chars into quality values
-    let d_no_min=generate_sorted_fastq_new_version::compute_d_no_min();
+    let d_no_min= generate_sorted_fastq_new_version::compute_d_no_min();
     //let d =compute_d();
     //TODO: only use the actual kmers position nothing surrounding
-    let mini_range_len = 2 * (w - 1) + k-1;
     let mini_range_len = k;
     println!("Mini range len: {}",mini_range_len);
     //quality_threshold gives at what point minimizers are too low quality to be used in our algo
@@ -391,12 +392,12 @@ fn main() {
         //println!("int id {}",int_id_cter);
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
         if fastq_record.sequence.len() > mini_range_len{
-            //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&fastq_record.sequence, k, window_size);
-            //let this_minimizers = generate_sorted_fastq_new_version::get_kmer_syncmers(&fastq_record.sequence, k,5,-1);
-            let this_minimizers = generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&fastq_record.sequence, k, window_size);
+            let mut this_minimizers=vec![];
+            generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&fastq_record.sequence, k, window_size,&mut this_minimizers);
             mini_map_unfiltered.insert(int_id_cter,this_minimizers.clone());
             //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
-            let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers.clone(),&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min);
+            let mut filtered_minis = vec![];
+            generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min,&mut filtered_minis);
             mini_map_filtered.insert(int_id_cter, filtered_minis);
             //println!("{} : {} ",int_id_cter, fastq_record.header);
             int_id_cter += 1;
@@ -414,12 +415,14 @@ fn main() {
     } else {
         println!("Couldn't get the current memory usage :(");
     }
-    //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
-    let sorted_sign_minis = get_sorted_entries(mini_map_filtered);
+    let now5 = Instant::now();
+    //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers -> least amount of significant minimizers
+    let sorted_sign_minis=get_sorted_entries(mini_map_filtered);
+    println!("{} s for sorting of reads", now5.elapsed().as_secs());
     //
     //Perform the clustering
     //
-    let mut clusters:HashMap<i32,Vec<i32>> = HashMap::new();
+    let mut clusters: HashMap<i32,Vec<i32>> = HashMap::new();
     let now3 = Instant::now();
     //annotation based clustering
     if init_clust_rec_both_dir.len() > 0{
@@ -434,7 +437,7 @@ fn main() {
         //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
         let min_shared_minis= 0.8;
         //the clustering step
-        clusters = clustering::cluster_de_novo(sorted_sign_minis, min_shared_minis, &mini_map_unfiltered);
+        clustering::cluster_de_novo(&sorted_sign_minis, min_shared_minis, &mini_map_unfiltered, &mut clusters);
         //println!("{:?}",clusters);
         //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
     }
@@ -448,7 +451,7 @@ fn main() {
     }
     println!("Finished clustering");
     let now4 = Instant::now();
-    write_output::write_output(outfolder, clusters,fastq_records, id_map);
+    write_output::write_output(outfolder, &clusters,fastq_records, id_map);
     println!("{} s for file output", now4.elapsed().as_secs());
     println!("{} overall runtime", now1.elapsed().as_secs());
 }

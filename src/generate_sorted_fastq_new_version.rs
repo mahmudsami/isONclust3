@@ -191,7 +191,7 @@ pub fn get_canonical_kmer_minimizers(seq: &str, k_size: usize, w_size: usize) ->
     minimizers
 }
 
-pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: usize) -> Vec<Minimizer_hashed> {
+pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
     //make sure that we have suitable values for k_size and w_size (w_size should be larger)
     let mut w= 0;
     if w_size > k_size{
@@ -225,14 +225,13 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
     }
     //println!("kmers in window: {:?}", window_kmers);
     //store the final positional minimizers in a vector
-    let mut minimizers = vec![];
     if !window_kmers.is_empty(){
         // Find the initial minimizer (minimizer of initial window)
         let mut binding=window_kmers.clone();
         let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
         //add the initial minimizer to the vector
         let mini = Minimizer_hashed {sequence: *curr_min,position: *min_pos };
-        minimizers.push(mini.clone());
+        this_minimizers.push(mini.clone());
         //we always store the previous minimizer to compare to the newly found one
         let mut prev_minimizer = mini;
         //iterate further over the sequence and generate the minimizers thereof
@@ -258,12 +257,11 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
                 //add the minimizer into the vector and store the minimizer as previously detected minimizer
                 let mini =Minimizer_hashed {sequence: curr_min,position: min_pos };
                 //println!("minimizer {:?}",mini);
-                minimizers.push(mini.clone());
+                this_minimizers.push(mini.clone());
                 prev_minimizer = mini.clone();
             }
         }
     }
-    minimizers
 }
 /*
 static seq_nt4_table: &'static [u8] = &[
@@ -413,8 +411,8 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
 
 
 //filter out minimizers for which the quality of the minimizer_impact range is too bad
-pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer_hashed>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize, d_no_min:[f64;128])-> Vec<Minimizer_hashed>{
-    let mut minimizers_filtered = vec![];
+pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>) {
+    //let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
     let mut skipped_cter= 0;
     //println!("Number of minimizers: {}",this_minimizers.len());
@@ -445,7 +443,7 @@ pub fn filter_minimizers_by_quality(this_minimizers: Vec<Minimizer_hashed>,fastq
     }
     //println!("{} minimizers filtered out due to bad quality", skipped_cter);
     //println!("Length after filter: {}",minimizers_filtered.len());
-    minimizers_filtered
+    //minimizers_filtered
 }
 
 

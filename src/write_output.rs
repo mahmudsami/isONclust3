@@ -29,7 +29,7 @@ fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, 
 
 
 
-fn create_final_ds(header_cluster_map: HashMap<String,i32>, fastq_vec: Vec<FastqRecord_isoncl_init>)->HashMap<i32,Vec<FastqRecord_isoncl_init>>{
+fn create_final_ds(header_cluster_map: &HashMap<String,i32>, fastq_vec: Vec<FastqRecord_isoncl_init>)->HashMap<i32,Vec<FastqRecord_isoncl_init>>{
     let mut cluster_map= HashMap::new();
     for read in fastq_vec{
         let id =read.header.clone();
@@ -73,14 +73,10 @@ fn write_fastq_files(outfolder: &Path, cluster_map: HashMap<i32, Vec<FastqRecord
 pub fn path_exists(path: &str) -> bool {
     fs::metadata(path).is_ok()
 }
-fn convert_infos_for_writing(id_map:HashMap<i32,String>, clusters:HashMap<i32,Vec<i32>>, fastq_vec:&Vec<FastqRecord_isoncl_init>){
 
 
 
-}
-
-
-pub(crate) fn write_output(outfolder:String,clusters:HashMap<i32,Vec<i32>>,fastq_vec:Vec<FastqRecord_isoncl_init>, id_map:HashMap<i32,String>){
+pub(crate) fn write_output(outfolder:String,clusters:&HashMap<i32,Vec<i32>>,fastq_vec:Vec<FastqRecord_isoncl_init>, id_map:HashMap<i32,String>){
     if !path_exists(&*outfolder){
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
@@ -88,8 +84,8 @@ pub(crate) fn write_output(outfolder:String,clusters:HashMap<i32,Vec<i32>>,fastq
     if !fastq_path.exists(){
         let result_dir=fs::create_dir(fastq_path.clone());
     }
-    convert_infos_for_writing(id_map.clone(), clusters.clone(), &fastq_vec);
+    //convert_infos_for_writing(id_map.clone(), clusters.clone(), fastq_vec);
     let header_cluster_map=write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone());
-    let cluster_hashmap_fastq_record = create_final_ds(header_cluster_map, fastq_vec);
+    let cluster_hashmap_fastq_record = create_final_ds(&header_cluster_map, fastq_vec);
     write_fastq_files(&*fastq_path, cluster_hashmap_fastq_record);
 }

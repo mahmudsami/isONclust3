@@ -7,28 +7,6 @@ use std::hash::{Hash, Hasher};
 use std::borrow::Borrow;
 
 
-fn fill_first_cluster(clusters: &mut HashMap<i32,Vec<i32>>, id: i32, sign_minis:&Vec<Minimizer>, mut cluster_map:  HashMap<u64, Vec<i32>>){
-    let init_id = 0;
-    for minimizer in sign_minis {
-        //we get the minimizer sequence from the minimizer object
-        let mini_seq = &minimizer.sequence;
-        //calculate the hash of the minimizer sequence
-        let mini_hash = calculate_hash(&mini_seq);
-        //fill cluster_map with the minimizers that we found in the first read
-        cluster_map
-            .entry(mini_hash)
-            .or_insert_with(Vec::new)
-            .retain(|&existing_id| existing_id != init_id);
-        // Check if id was retained (not a duplicate) and push it if needed
-        let vect = cluster_map.get_mut(&mini_hash).unwrap();
-        if !vect.contains(&init_id) {
-            vect.push(init_id);
-        }
-    }
-    let id_vec=vec![id];
-    clusters.insert(init_id,id_vec);
-}
-
 
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
@@ -60,7 +38,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &HashMap<i32,i
         let nr_minis= minimizers.len();
         let shared_perc= calculate_shared_perc(nr_minis,*value);
         //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
-        if shared_perc > min_shared_minis && shared_perc> most_shared{
+        if shared_perc > min_shared_minis && shared_perc > most_shared{
             most_shared = shared_perc;
             most_shared_cluster = *key;
             if !shared{
@@ -72,9 +50,9 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &HashMap<i32,i
 }
 
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,min_shared_minis:f64,minimizer_hashmap: &HashMap<i32, Vec<structs::Minimizer_hashed>>) -> HashMap<i32,Vec<i32>>{
+pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,min_shared_minis:f64,minimizer_hashmap: &HashMap<i32, Vec<structs::Minimizer_hashed>>,clusters: &mut HashMap<i32,Vec<i32>>){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
-    let mut clusters: HashMap<i32,Vec<i32>>=HashMap::new();
+    //let mut clusters: HashMap<i32,Vec<i32>> = HashMap::new();
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of cluster ids as a value
     let mut cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
     //we only need cl_id if cluster 0 already exists so we start with '1'
@@ -82,9 +60,9 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,m
     let shared_perc_mini= min_shared_minis / 2.0_f64;
     //TODO: This can be heavily improved if I add a field, high_confidence, to the seed object (here minimizer) We then can only pass over the minis with high_confidence=false
     //entry represents a read in our data
-    for entry in &sorted_entries{
+    for entry in sorted_entries{
         //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
-        let mut shared_mini_infos=HashMap::new();
+        let mut shared_mini_infos= HashMap::new();
         let id = entry.0;
         let sign_minis= &entry.1;
         let minimizers= minimizer_hashmap.get(&id).unwrap();
@@ -107,12 +85,13 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,m
                         }
                     }
                 }
-            let mut most_shared_cluster=0;
-            let mut shared=false;
+            let mut most_shared_cluster= 0;
+            let mut shared_high_confidence= false;
+            let mut shared_normal= false;
             //key: cluster_id, value: count of shared minimizers
             //TODO: sort wrt length of value and then only look at the first (best fit)
-            (shared,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_mini_infos, sign_minis);
-            if !shared{
+            (shared_high_confidence,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_mini_infos, sign_minis);
+            if !shared_high_confidence{
                 let mut shared_mini_infos_norm=HashMap::new();
                 for minimizer in minimizers{
                     //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
@@ -130,10 +109,10 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,m
                         }
                     }
                 }
-                (shared,most_shared_cluster) = detect_whether_shared(shared_perc_mini, &shared_mini_infos_norm, minimizers);
+                (shared_normal,most_shared_cluster) = detect_whether_shared(shared_perc_mini, &shared_mini_infos_norm, minimizers);
             }
             //if we have a cluster that we share enough minimizers with
-            if shared {
+            if shared_high_confidence || shared_normal{
                 //add the read id to read_list
                 let read_list = clusters.get_mut(&most_shared_cluster).unwrap();
                 if !read_list.contains(&id) {
@@ -189,7 +168,6 @@ pub(crate) fn cluster_de_novo(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>,m
             clusters.insert(init_id,id_vec);
         }
     }
-clusters
 }
 
 
