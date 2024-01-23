@@ -19,7 +19,7 @@ fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, 
         //println!("cl_id {}, nr_reads {}",cl_id,r_int_ids.len());
         for r_int_id in r_int_ids{
             let read_id = id_map.get(&r_int_id).unwrap().to_string();
-            write!(f ,"{}\t{}\n", cl_id, read_id);
+            writeln!(f ,"{}\t{}", cl_id, read_id);
             header_cluster_map.insert(read_id,cl_id);
         }
     }
@@ -77,7 +77,7 @@ pub fn path_exists(path: &str) -> bool {
 
 
 pub(crate) fn write_output(outfolder:String,clusters:&HashMap<i32,Vec<i32>>,fastq_vec:Vec<FastqRecord_isoncl_init>, id_map:HashMap<i32,String>){
-    if !path_exists(&*outfolder){
+    if !path_exists(&outfolder){
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
     let fastq_path=Path::new(&outfolder).join("fastq_files");
@@ -87,5 +87,5 @@ pub(crate) fn write_output(outfolder:String,clusters:&HashMap<i32,Vec<i32>>,fast
     //convert_infos_for_writing(id_map.clone(), clusters.clone(), fastq_vec);
     let header_cluster_map=write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone());
     let cluster_hashmap_fastq_record = create_final_ds(&header_cluster_map, fastq_vec);
-    write_fastq_files(&*fastq_path, cluster_hashmap_fastq_record);
+    write_fastq_files(&fastq_path, cluster_hashmap_fastq_record);
 }

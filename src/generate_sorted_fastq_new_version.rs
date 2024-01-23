@@ -29,7 +29,7 @@ pub fn compute_d_no_min() -> [f64; 128] {
         let chr_i = i as u8 as char;
         let ord_i = chr_i as i8;
         let exponent = -(ord_i - 33) as f64 / 10.0;
-        d[i] = (10.0 as f64).powf(exponent);
+        d[i] = (10.0_f64).powf(exponent);
     }
     d
 }
@@ -64,15 +64,13 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
         }
     }
     // Initialize the window_kmers deque
-    else{
-        if seq.len()+1>=k_size{
-            let short_w = seq.len() + 1 - k_size;
-            for i in 0..short_w {
-                window_kmers.push_back((&seq[i..i + k_size], i));
-            }
+    else if seq.len() + 1 >= k_size{
+         let short_w = seq.len() + 1 - k_size;
+         for i in 0..short_w {
+             window_kmers.push_back((&seq[i..i + k_size], i));
         }
+     }
 
-    }
     //store the final positional minimizers in a vector
     let mut minimizers = vec![];
     // Find the initial minimizer (minimizer of initial window)
@@ -169,7 +167,7 @@ pub fn get_canonical_kmer_minimizers(seq: &str, k_size: usize, w_size: usize) ->
             // updating  by removing first kmer from window
             window_kmers.pop_front().unwrap();
 
-            if rc_string > new_kmer_str.to_string(){
+            if rc_string > (*new_kmer_str).to_string(){
                 window_kmers.push_back(((*new_kmer_str).to_string(), new_kmer_pos));
             }
             else {
@@ -251,7 +249,7 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
             }
             // Find the new minimizer, we need a ds that was cloned from window_kmers to abide ownership rules in rust
             binding = window_kmers.clone();
-            let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap().clone();
+            let (curr_min, min_pos) = *binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
             //make sure that the minimal string is a new minimizer not just the previously found one
             if  min_pos !=prev_minimizer.position{ //&& *curr_min != prev_minimizer.1 {
                 //add the minimizer into the vector and store the minimizer as previously detected minimizer
@@ -398,7 +396,7 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
         //if probability_error <0.9{
         //    significance_indicator = false;}
         qualities.push(probability_error);
-        quality = quality * probability_error;
+        quality *= probability_error
     }
 
     let quality_threshold=0.9_f64.powi(quality_interval.len() as i32);
@@ -433,12 +431,12 @@ pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fast
         }
         let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
         //println!("Quality_interval len {}",qualitiy_interval.len());
-        let significant= is_significant(&qualitiy_interval, d_no_min);
+        let significant= is_significant(qualitiy_interval, d_no_min);
         if significant{
             minimizers_filtered.push(mini.clone())
         }
         else{
-            skipped_cter = skipped_cter + 1;
+            skipped_cter += 1;
         }
     }
     //println!("{} minimizers filtered out due to bad quality", skipped_cter);
@@ -478,7 +476,7 @@ pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isiz
     for i in 0..seq.len() - k_size {
         // add a new syncmer to the list if its smallest s-mer is at place t
         if kmer_smers.iter().position(|&x| x == *kmer_smers.iter().min().unwrap()) == Some(t as usize) {
-            syncmers.push(Minimizer {sequence: (&seq[ i..i + k_size]).parse().unwrap(), position: i});
+            syncmers.push(Minimizer {sequence: (seq[ i..i + k_size]).parse().unwrap(), position: i});
         }
         // move the window one step to the right by popping the leftmost
         // s-mer and adding one to the right

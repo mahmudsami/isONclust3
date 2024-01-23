@@ -61,8 +61,8 @@ pub(crate) struct FastqRecord {
     //a struct used to store fastq records
     header: String,
     sequence: String,
-    quality_header: String,
-    quality: String,
+    //quality_header: String,
+    //quality: String,
 }
 impl fmt::Display for FastqRecord {
     // enables displaying the fastq record
@@ -75,9 +75,7 @@ impl fmt::Display for FastqRecord {
 pub(crate) struct FastqRecord_isoncl_init {
     //a struct used to store fastq records
     pub header: String,
-    //pub internal_id: i32,
     pub sequence: String,
-    //pub(crate) quality_header: String,
     pub quality: String,
     pub score: f64,
     pub error_rate:f64,

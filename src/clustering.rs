@@ -1,12 +1,9 @@
 use crate::structs:: FastaRecord;
 use std::collections::HashMap;
-use crate::structs::{Minimizer,Minimizer_hashed};
+use crate::structs::Minimizer_hashed;
 use crate::{generate_sorted_fastq_new_version, structs};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::borrow::Borrow;
-
-
 
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
@@ -25,8 +22,7 @@ pub(crate) fn reverse_complement(dna: &str) -> String {
 
 
 fn calculate_shared_perc(nr_sign_minis:usize,value:i32)->f64{
-    let shared_perc= value as f64/nr_sign_minis as f64;
-    shared_perc
+    value as f64/nr_sign_minis as f64
 }
 
 fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &HashMap<i32,i32>,minimizers: &Vec<Minimizer_hashed>) -> (bool, i32) {
@@ -182,7 +178,7 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
             //println!("tcl elem {}",tcl_elem);
             if clustering.contains_key(tcl_elem){
                 let mut elem=clustering.get_mut(tcl_elem).unwrap();
-                *elem = *elem + 1.0;
+                *elem += 1.0;
             }
             else{
                 clustering.insert(*tcl_elem,1.0);
@@ -209,7 +205,7 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
         //println!("low support {}",max_val);
     }
 
-    return max_clust
+    max_clust
 }
 
 
@@ -226,7 +222,7 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer_hashed
                 let value= initial_clusters.get(&this_mini_hash).unwrap();
                 //this_clusters.append(&mut value.clone());
                 //we append the read to this
-                if value.len()>0{
+                if !value.is_empty() {
                     this_clusters.push(value);
                 }
                 else{
@@ -239,14 +235,24 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer_hashed
         //println!("{}",sorted_entry.0);
         //println!("{:?}",this_clusters);
         let final_cl = get_final_cl_init(this_clusters);
-        if clusters.contains_key(&final_cl){
+        if let std::collections::hash_map::Entry::Vacant(e) = clusters.entry(final_cl) {
+             let mut id_vec=vec![sorted_entry.0];
+            e.insert(id_vec);
+        } else {
+            let mut id_vec=clusters.get_mut(&final_cl).unwrap();
+             id_vec.push(sorted_entry.0);
+         }
+
+
+
+        /*if clusters.contains_key(&final_cl){
             let mut id_vec=clusters.get_mut(&final_cl).unwrap();
             id_vec.push(sorted_entry.0)
         }
         else {
             let mut id_vec=vec![sorted_entry.0];
             clusters.insert(final_cl,id_vec);
-        }
+        }*/
 
     }
     //println!("{:?}",clusters);
@@ -256,16 +262,16 @@ pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer_hashed
 
 
 pub(crate) fn add_rev_comp_seqs_annotation(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
-    ///Adds the reverse_compliment of the annotation
-    ///INPUT:   initial_clustering_records: The annotation
-    ///
-    /// OUTPUT:     both_dir_records: the records in both directions
+    //Adds the reverse_compliment of the annotation
+    //INPUT:   initial_clustering_records: The annotation
+    //
+    // OUTPUT:     both_dir_records: the records in both directions
     let mut both_dir_records =vec![];
     let mut init_len=initial_clustering_records.len();
     for record in initial_clustering_records{
-        init_len= init_len+1;
+        init_len += 1;
         //let reversed: String = record.sequence.chars().rev().collect();
-        let reversed=reverse_complement(&*record.sequence);
+        let reversed=reverse_complement(&record.sequence);
         let head = record.header.clone();
         both_dir_records.push(record.clone());
         let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
@@ -282,9 +288,9 @@ pub(crate) fn add_rev_comp_seqs(initial_clustering_records:Vec<FastaRecord>) ->V
     let mut init_len=initial_clustering_records.len();
     //iterate over the records in initial_clustering_records
     for record in initial_clustering_records{
-        init_len= init_len+1;
+        init_len += 1;
         //let reversed: String = record.sequence.chars().rev().collect();
-        let reversed=reverse_complement(&*record.sequence);
+        let reversed=reverse_complement(&record.sequence);
         let head = record.header.clone();
         //add the forward direction to both_dir_records
         both_dir_records.push(record.clone());
@@ -302,7 +308,7 @@ pub(crate) fn add_rev_comp_seqs(initial_clustering_records:Vec<FastaRecord>) ->V
 //if we have an annotation file we are interested to take the cluster number from the header of the respective read
 fn get_id_from_header(head: String) -> i32 {
     // Attempt to parse the extracted number as i32
-    let number_part: String = head.chars().filter(|c| c.is_digit(10)).collect();
+    let number_part: String = head.chars().filter(|c| c.is_ascii_digit()).collect();
     let parsed_number: Result<i32, _> = number_part.parse();
 
     match parsed_number {
@@ -337,7 +343,7 @@ pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord
         let id= get_id_from_header(head);
         //println!("{}",id);
         //generate the minimizers for each record and store them in this_minimizers
-        let this_minimizers= generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&*record.sequence, k, window_size);
+        let this_minimizers= generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&record.sequence, k, window_size);
         //let sub_minis= &this_minimizers[0..100];
         //println!("{:?}",sub_minis);
         //now iterate over all minimizers that we generated for this record

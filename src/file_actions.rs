@@ -48,10 +48,8 @@ pub(crate) fn parse_fasta(file_path: &str) -> Result<Vec<FastaRecord>, std::io::
 }
 
 fn shorten_header(header:&str)-> &str{
-    let header_parts: Vec<_>=header.split(" ").collect();
-    let header_new = header_parts[0];
-
-    header_new
+    let header_parts: Vec<_>=header.split(' ').collect();
+    header_parts[0] as _
 }
 
 
@@ -79,17 +77,16 @@ fn gtf_parse_strand(entry:String) -> bool {
 
 
 fn gtf_parse_frame(entry:String) -> i8 {
-    let frame_ind = entry.parse::<i8>().unwrap();
-    frame_ind
+    entry.parse::<i8>().unwrap()
 }
 fn gtf_parse_score(entry:&str) ->f64 {
-    let score:f64;
-    if entry=="."{
+    let score:f64=f64::from_str(entry).unwrap();
+    /*if entry=="."{
         score=0.0;
     }
     else{
-        score=f64::from_str(entry).unwrap();
-    }
+        score;
+    }*/
     score
 }
 
@@ -153,7 +150,7 @@ pub(crate) fn parse_fastq(file: File) -> Result<Vec<structs::FastqRecord_isoncl_
         }
 
         header = header.trim().to_owned();
-        header = (&header[1..]).to_string();
+        header = (header[1..]).to_string();
         header = shorten_header(&header).parse().unwrap();
         let mut sequence = String::new();
         let sequence_read = reader.read_line(&mut sequence).expect("Should be contained");

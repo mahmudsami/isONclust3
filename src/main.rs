@@ -6,7 +6,6 @@ use std::time::Duration;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
 use clap::Parser;
-use std::cmp::Ordering;
 
 pub mod file_actions;
 mod clustering;
@@ -30,7 +29,7 @@ fn compute_d() -> [f64; 128] {
         let chr_i = i as u8 as char;
         let ord_i = chr_i as i8;
         let exponent = -(ord_i - 33) as f64 / 10.0;
-        d[i] = (10.0 as f64).powf(exponent).min(0.79433);
+        d[i] = (10.0_f64).powf(exponent).min(0.79433);
     }
     d
 }
@@ -73,8 +72,8 @@ fn calculate_error_rate(qual: &str, d_no_min: &[f64; 128]) -> f64 {
         total_count += count;
     }
 
-    let error_rate = poisson_mean / total_count as f64;
-    error_rate
+    poisson_mean / total_count as f64
+
 }
 
 
@@ -119,8 +118,8 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
     fastq_records.par_iter_mut().for_each(|fastq_record| {
     //calculate the error rate and store it in vector errors
         if fastq_record.sequence.len() > k {
-            fastq_record.set_error_rate(calculate_error_rate(&fastq_record.get_quality(), &d_no_min));
-            let exp_errors_in_kmers = expected_number_errornous_kmers(&fastq_record.get_quality(), k, &d);
+            fastq_record.set_error_rate(calculate_error_rate(fastq_record.get_quality(), &d_no_min));
+            let exp_errors_in_kmers = expected_number_errornous_kmers(fastq_record.get_quality(), k, &d);
             let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers / (fastq_record.get_sequence().len() - k + 1) as f64;
             //calculate the final score and add it to fastq_record (we have a dedicated field for that that was initialized with 0.0)
             fastq_record.set_score(p_no_error_in_kmers * ((fastq_record.get_sequence().len() - k + 1) as f64))
@@ -319,14 +318,14 @@ fn main() {
     let gtf_path = cli.gtf.as_deref();
     //let mut initial_clustering_records: Vec<_>=vec![];
     let mut init_clust_rec_both_dir=vec![];
-    if initial_clustering_path.is_some(){
-        let clustering_path = initial_clustering_path.unwrap();
+    if let Some(clustering_path) = initial_clustering_path{
+    //if initial_clustering_path.is_some(){
+        //let clustering_path = initial_clustering_path.unwrap();
         init_clust_rec_both_dir = file_actions::parse_fasta(clustering_path).unwrap();
         //init_clust_rec_both_dir = clustering::add_rev_comp_seqs_annotation(initial_clustering_records);
     }
     let mut gtf_entries=vec![];
-    if gtf_path.is_some(){
-        let gtf_path_u = gtf_path.unwrap();
+    if let Some(gtf_path_u) = gtf_path {
         gtf_entries = file_actions::parse_gtf(gtf_path_u).unwrap();
         println!("gtf file parsed")
     }
@@ -425,7 +424,7 @@ fn main() {
     let mut clusters: HashMap<i32,Vec<i32>> = HashMap::new();
     let now3 = Instant::now();
     //annotation based clustering
-    if init_clust_rec_both_dir.len() > 0{
+    if !init_clust_rec_both_dir.is_empty(){
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
         //println!("{:?}",init_cluster_map);
         //TODO fix cluster_from initial to work with mini hashs and not the strings
