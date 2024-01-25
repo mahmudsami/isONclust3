@@ -4,7 +4,7 @@ use crate::structs::Minimizer_hashed;
 use crate::{generate_sorted_fastq_new_version, structs};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-
+use rustc_hash::FxHashMap;
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
     let reverse_complement: String = dna.chars()
@@ -25,7 +25,7 @@ fn calculate_shared_perc(nr_sign_minis:usize,value:i32)->f64{
     value as f64/nr_sign_minis as f64
 }
 
-fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &HashMap<i32,i32>,minimizers: &Vec<Minimizer_hashed>) -> (bool, i32) {
+fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32,i32>,minimizers: &Vec<Minimizer_hashed>) -> (bool, i32) {
     let mut most_shared= 0.0;
     let mut shared= false;
     let mut most_shared_cluster= 0;
@@ -46,11 +46,11 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &HashMap<i32,i
 }
 
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,min_shared_minis:f64,minimizer_hashmap: &HashMap<i32, Vec<structs::Minimizer_hashed>>,clusters: &mut HashMap<i32,Vec<i32>>){
+pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,min_shared_minis:f64,minimizer_hashmap: &FxHashMap<i32, Vec<structs::Minimizer_hashed>>,clusters: &mut FxHashMap<i32,Vec<i32>>){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     //let mut clusters: HashMap<i32,Vec<i32>> = HashMap::new();
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of cluster ids as a value
-    let mut cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
+    let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
     //we only need cl_id if cluster 0 already exists so we start with '1'
     let mut cl_id= 1;
     let shared_perc_mini= min_shared_minis / 2.0_f64;
@@ -58,7 +58,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,
     //entry represents a read in our data
     for entry in sorted_entries{
         //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
-        let mut shared_mini_infos= HashMap::new();
+        let mut shared_mini_infos= FxHashMap::default();
         let id = entry.0;
         let sign_minis= &entry.1;
         let minimizers= minimizer_hashmap.get(&id).unwrap();
@@ -88,7 +88,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,
             //TODO: sort wrt length of value and then only look at the first (best fit)
             (shared_high_confidence,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_mini_infos, sign_minis);
             if !shared_high_confidence{
-                let mut shared_mini_infos_norm=HashMap::new();
+                let mut shared_mini_infos_norm=FxHashMap::default();
                 for minimizer in minimizers{
                     //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
                     if let Some(belongs_to) = cluster_map.get(&minimizer.sequence) {
@@ -170,7 +170,7 @@ pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,
 
 fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
     //let mut final_cl=vec![];
-    let mut clustering: HashMap<i32,f32> = HashMap::new();
+    let mut clustering: FxHashMap<i32,f32> = FxHashMap::default();
     for tcl in this_clusters{
         //println!("{:?}",tcl);
         if tcl.len()==1{
@@ -211,9 +211,9 @@ fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
 
 
 //clustering method for the case that we have an annotation to compare our reads against
-pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>, initial_clusters: HashMap<u64, Vec<i32>>) ->HashMap<i32, Vec<i32>>{
+pub(crate) fn cluster_from_initial(sorted_entries: Vec<(i32,Vec<Minimizer_hashed>)>, initial_clusters: FxHashMap<u64, Vec<i32>>) ->FxHashMap<i32, Vec<i32>>{
     //the hashmap containing the clusters we found
-    let mut clusters: HashMap<i32, Vec<i32>> = HashMap::new();
+    let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
     for sorted_entry in sorted_entries{
         let mut this_clusters= vec![];
         for mini in sorted_entry.1{
@@ -332,9 +332,9 @@ pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
 }
 
 
-pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord>,k: usize,window_size: usize)->HashMap<u64, Vec<i32>>{
+pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord>,k: usize,window_size: usize)->FxHashMap<u64, Vec<i32>>{
     //holds the respective
-    let mut init_cluster_map: HashMap<u64, Vec<i32>> = HashMap::new();
+    let mut init_cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
     //iterate over the records of initial_clustering_records
     for record in initial_clustering_records{
         //get the header of record

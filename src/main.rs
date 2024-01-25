@@ -21,6 +21,7 @@ extern crate rayon;
 extern crate clap;
 mod write_output;
 use memory_stats::memory_stats;
+use rustc_hash::FxHashMap;
 
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
@@ -100,7 +101,7 @@ fn compare_minimizer_gens(){
     assert_eq!(minimizers_ineff, minimizers)
 
 }
-fn get_sorted_entries(mini_map_filtered: HashMap<i32, Vec<structs::Minimizer_hashed>>)->Vec<(i32, Vec<structs::Minimizer_hashed>)>{
+fn get_sorted_entries(mini_map_filtered: FxHashMap<i32, Vec<structs::Minimizer_hashed>>)->Vec<(i32, Vec<structs::Minimizer_hashed>)>{
     // Sort by the length of vectors in descending order
     let mut sorted_entries: Vec<(i32, Vec<structs::Minimizer_hashed>)> = mini_map_filtered
         .into_iter()
@@ -355,8 +356,10 @@ fn main() {
     } else {
         println!("Couldn't get the current memory usage :(");
     }
-    let mut mini_map_filtered: HashMap<i32, Vec<structs::Minimizer_hashed>> = HashMap::with_capacity(fastq_records.len());
-    let mut mini_map_unfiltered: HashMap<i32, Vec<structs::Minimizer_hashed>> = HashMap::with_capacity(fastq_records.len());
+    //let mut mini_map_filtered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::with_capacity(fastq_records.len());
+    let mut mini_map_filtered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::default();
+    let mut mini_map_unfiltered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::default();
+    //let mut mini_map_unfiltered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::with_capacity(fastq_records.len());
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);
         println!("Current virtual memory usage: {}", usage.virtual_mem);
@@ -421,7 +424,7 @@ fn main() {
     //
     //Perform the clustering
     //
-    let mut clusters: HashMap<i32,Vec<i32>> = HashMap::new();
+    let mut clusters: FxHashMap<i32,Vec<i32>> = FxHashMap::default();
     let now3 = Instant::now();
     //annotation based clustering
     if !init_clust_rec_both_dir.is_empty(){

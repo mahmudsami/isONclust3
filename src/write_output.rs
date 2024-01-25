@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use std::fs;
 use crate::structs::{FastqRecord, FastqRecord_isoncl_init};
 use std::collections::hash_map::RandomState;
+use rustc_hash::FxHashMap;
 
 
-
-fn write_final_clusters_tsv(outfolder: String, clusters: HashMap<i32,Vec<i32>>, id_map:HashMap<i32,String>)->HashMap<String,i32>{
+fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>, id_map:HashMap<i32,String>)->HashMap<String,i32>{
     let mut header_cluster_map=HashMap::new();
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
@@ -76,7 +76,7 @@ pub fn path_exists(path: &str) -> bool {
 
 
 
-pub(crate) fn write_output(outfolder:String,clusters:&HashMap<i32,Vec<i32>>,fastq_vec:Vec<FastqRecord_isoncl_init>, id_map:HashMap<i32,String>){
+pub(crate) fn write_output(outfolder:String,clusters:&FxHashMap<i32,Vec<i32>>,fastq_vec:Vec<FastqRecord_isoncl_init>, id_map:HashMap<i32,String>){
     if !path_exists(&outfolder){
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
