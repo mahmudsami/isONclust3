@@ -90,9 +90,9 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize) -> Ve
         // Find the new minimizer
         let (curr_min, min_pos) = window_kmers.iter().min_by_key(|&&(kmer, _)| kmer).unwrap();
         //make sure that the minimal string is a new minimizer not just the previously found one
-        if  *min_pos !=prev_minimizer.0{ //&& *curr_min != prev_minimizer.1 {
+        if  *min_pos != prev_minimizer.0{ //&& *curr_min != prev_minimizer.1 {
             //add the minimizer into the vector and store the minimizer as previously detected minimizer
-            let mini =Minimizer {sequence: curr_min.to_string(),position: *min_pos };
+            let mini = Minimizer {sequence: curr_min.to_string(),position: *min_pos };
             //println!("minimizer {:?}",mini);
             minimizers.push(mini);
             prev_minimizer=(*min_pos, *curr_min);
@@ -201,16 +201,19 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
     }
     //let mut rc_vec=VecDeque::with_capacity(w+1);
     let mut window_kmers: VecDeque<(u64, usize)> = VecDeque::with_capacity(w + 1);
-
+    let mut k_mer_str;
+    let mut rc_string;
+    let mut forward_hash;
+    let mut reverse_hash;
     //we can only get a minimizer if the sequence is longer than w + k_size - 1 (else we do not even cover one full window)
     if w + k_size < seq.len() + 1{
         for i in 0..w {
-            let k_mer_str = &seq [i..i + k_size];
-            let rc_string = reverse_complement(k_mer_str).clone();
+            k_mer_str = &seq [i..i + k_size];
+            rc_string = reverse_complement(k_mer_str).clone();
 
             //generate the hashes of the kmers
-            let forward_hash=calculate_hash(&k_mer_str.to_string());
-            let reverse_hash=calculate_hash(&rc_string.to_string());
+            forward_hash = calculate_hash(&k_mer_str.to_string());
+            reverse_hash = calculate_hash(&rc_string.to_string());
             //we now want to find the canonical minimizer: we only push the smaller k-mer of k_mer_str and rc_String into the window
             if forward_hash <= reverse_hash {
                 window_kmers.push_back((forward_hash, i));
@@ -228,19 +231,24 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
         let mut binding=window_kmers.clone();
         let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
         //add the initial minimizer to the vector
-        let mini = Minimizer_hashed {sequence: *curr_min,position: *min_pos };
+        let mut mini = Minimizer_hashed {sequence: *curr_min,position: *min_pos };
         this_minimizers.push(mini.clone());
         //we always store the previous minimizer to compare to the newly found one
         let mut prev_minimizer = mini;
+        let mut new_kmer_pos;
+        let mut new_kmer_str;
+        let mut rc_string;
+        let mut forward_hash;
+        let mut reverse_hash;
         //iterate further over the sequence and generate the minimizers thereof
         for (i, new_kmer) in seq[w..].as_bytes().windows(k_size).enumerate() {
-            let new_kmer_pos = i  + w;
-            let new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
-            let rc_string = reverse_complement(new_kmer_str).clone();
+            new_kmer_pos = i  + w;
+            new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
+            rc_string = reverse_complement(new_kmer_str).clone();
             // updating  by removing first kmer from window
             window_kmers.pop_front().unwrap();
-            let forward_hash=calculate_hash(&new_kmer_str.to_string());
-            let reverse_hash=calculate_hash(&rc_string.to_string());
+            forward_hash=calculate_hash(&new_kmer_str.to_string());
+            reverse_hash=calculate_hash(&rc_string.to_string());
             if reverse_hash > forward_hash{
                 window_kmers.push_back((forward_hash, new_kmer_pos));
             }
@@ -251,13 +259,14 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
             binding = window_kmers.clone();
             let (curr_min, min_pos) = *binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
             //make sure that the minimal string is a new minimizer not just the previously found one
-            if  min_pos !=prev_minimizer.position{ //&& *curr_min != prev_minimizer.1 {
+            if  min_pos != prev_minimizer.position{ //&& *curr_min != prev_minimizer.1 {
                 //add the minimizer into the vector and store the minimizer as previously detected minimizer
-                let mini =Minimizer_hashed {sequence: curr_min,position: min_pos };
+                mini = Minimizer_hashed {sequence: curr_min,position: min_pos };
                 //println!("minimizer {:?}",mini);
                 this_minimizers.push(mini.clone());
                 prev_minimizer = mini.clone();
             }
+            rc_string.clear();
         }
     }
 }
@@ -385,13 +394,16 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
+    let mut index;
+    let mut q_value;
+    let mut probability_error;
     //for each character in quality string:
     for (i, c) in quality_interval.chars().enumerate() {
-        let index = c as usize;
+        index = c as usize;
         //q_value gives the PHRED quality score: i.e. '+' gives us 0.1
-        let q_value = d_no_min[index];
+        q_value = d_no_min[index];
         //here we get the base call accuracy
-        let probability_error= 1.0 - q_value;
+        probability_error= 1.0 - q_value;
         //TODO: if we have a position having a worse quality char than '+' maybe we should not let this minimizer be significant
         //if probability_error <0.9{
         //    significance_indicator = false;}
@@ -413,25 +425,29 @@ pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fast
     //let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
     let mut skipped_cter= 0;
+    let mut minimizer_pos;
+    let mut minimizer_range_start;
+    let mut minimizer_range_end;
+    let mut significant;
     //println!("Number of minimizers: {}",this_minimizers.len());
     for mini in this_minimizers{
         //println!("{:?}",mini);
-        let minimizer_pos= mini.position;
-        let mut minimizer_range_start= 0;
+        minimizer_pos = mini.position;
+        minimizer_range_start = 0;
         //set the start of the minimizer_range that we want to inspect
         if minimizer_pos > minimizer_range{
             //minimizer_range_start = minimizer_pos - minimizer_range;
             minimizer_range_start = minimizer_pos;
         }
 
-        let mut minimizer_range_end = fastq_sequence.len();
+        minimizer_range_end= fastq_sequence.len();
         if minimizer_pos + minimizer_range + k < minimizer_range_end{
             //minimizer_range_end = minimizer_pos + minimizer_range + k ;
             minimizer_range_end= minimizer_pos + k;
         }
-        let qualitiy_interval= &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
+        let qualitiy_interval = &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
         //println!("Quality_interval len {}",qualitiy_interval.len());
-        let significant= is_significant(qualitiy_interval, d_no_min);
+        significant= is_significant(qualitiy_interval, d_no_min);
         if significant{
             minimizers_filtered.push(mini.clone())
         }

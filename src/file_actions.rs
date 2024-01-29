@@ -141,7 +141,6 @@ pub(crate) fn parse_fastq(file: File) -> Result<Vec<structs::FastqRecord_isoncl_
     //Parses a fastq file, returns a vector of FastqRecords
     let mut reader = BufReader::new(file);
     let mut records=vec![];
-    let mut id_int=0;
     loop {
         let mut header = String::new();
         let header_read = reader.read_line(&mut header).expect("Should be contained");
@@ -174,9 +173,7 @@ pub(crate) fn parse_fastq(file: File) -> Result<Vec<structs::FastqRecord_isoncl_
         quality = quality.trim().to_owned();
         let score=0.0_f64;
         let error_rate=0.0_f64;
-        let internal_id=id_int;
         records.push(FastqRecord_isoncl_init { header, sequence,/* quality_header,*/ quality, score,error_rate});
-        id_int += 1;
     }
     Ok(records)
 }

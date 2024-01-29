@@ -390,17 +390,20 @@ fn main() {
     }
     let now2 = Instant::now();
     println!("{} s before minimizergen", now1.elapsed().as_secs());
+
+    let mut this_minimizers=vec![];
+    let mut filtered_minis = vec![];
     for fastq_record in &fastq_records{
         //println!("int id {}",int_id_cter);
         id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
         if fastq_record.sequence.len() > mini_range_len{
-            let mut this_minimizers=vec![];
+
+
             generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&fastq_record.sequence, k, window_size,&mut this_minimizers);
+            generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min,&mut filtered_minis);
             mini_map_unfiltered.insert(int_id_cter,this_minimizers.clone());
             //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
-            let mut filtered_minis = vec![];
-            generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min,&mut filtered_minis);
-            mini_map_filtered.insert(int_id_cter, filtered_minis);
+            mini_map_filtered.insert(int_id_cter, filtered_minis.clone());
             //println!("{} : {} ",int_id_cter, fastq_record.header);
             int_id_cter += 1;
         }
@@ -408,6 +411,8 @@ fn main() {
             skipped_cter+=1
             //println!("Read too short- skipped {}",fastq_record.header)
         }
+        this_minimizers.clear();
+        filtered_minis.clear();
     }
     println!("{} s for minimizer gen and filtering of minis", now2.elapsed().as_secs());
     println!("Skipped {} reads due to being too short",skipped_cter);
@@ -431,7 +436,7 @@ fn main() {
         let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
         //println!("{:?}",init_cluster_map);
         //TODO fix cluster_from initial to work with mini hashs and not the strings
-        clusters = clustering::cluster_from_initial(sorted_sign_minis, init_cluster_map);
+        clusters = clustering::cluster_from_initial(&sorted_sign_minis, init_cluster_map);
         //println!("{:?}",clusters);
     }
     //de novo clustering
