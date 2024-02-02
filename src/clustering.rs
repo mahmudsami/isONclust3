@@ -337,36 +337,40 @@ pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
 pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord>,k: usize,window_size: usize)->FxHashMap<u64, Vec<i32>>{
     //holds the respective
     let mut init_cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
+    let mut head;
+    let mut id;
+    let mut this_minimizers =vec![];
+    //let mut vec= vec![];
     //iterate over the records of initial_clustering_records
     for record in initial_clustering_records{
         //get the header of record
-        let head= record.header;
+        head = record.header;
         //transform the header (expected e.g. SIRV1 to a number (i32), here 1
-        let id= get_id_from_header(head);
+        id = get_id_from_header(head);
         //println!("{}",id);
+
         //generate the minimizers for each record and store them in this_minimizers
-        let this_minimizers= generate_sorted_fastq_new_version::get_canonical_kmer_minimizers(&record.sequence, k, window_size);
+        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&record.sequence, k, window_size, &mut this_minimizers);
         //let sub_minis= &this_minimizers[0..100];
         //println!("{:?}",sub_minis);
         //now iterate over all minimizers that we generated for this record
-        for minimizer in this_minimizers{
+        for minimizer in &this_minimizers{
             //we get the minimizer sequence from the minimizer object
-            let mini_seq= minimizer.sequence;
+            //let mini_seq= minimizer.sequence;
             //calculate the hash of the minimizer sequence
-            let mini_hash= calculate_hash(&mini_seq);
             //if the hash exists in the map: add the value (a new vector) or if the hash exists: extend the vector making up the value
             init_cluster_map
-                    .entry(mini_hash)
+                    .entry(minimizer.sequence)
                     .or_insert_with(Vec::new)
                     .retain(|&existing_id| existing_id != id);
             // Check if id was retained (not a duplicate) and push it if needed
-            let vec = init_cluster_map.get_mut(&mini_hash).unwrap();
+            let vec = init_cluster_map.get_mut(&minimizer.sequence).unwrap();
             //vec.push(id);
             if !vec.contains(&id) {
                 vec.push(id);
             }
-
         }
+        this_minimizers.clear();
     }
     //println!("{:?}",init_cluster_map);
     init_cluster_map
