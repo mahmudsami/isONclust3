@@ -46,55 +46,51 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
     }
     (shared,most_shared_cluster)
 }
-
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,min_shared_minis:f64,minimizer_hashmap: &FxHashMap<i32, Vec<structs::Minimizer_hashed>>,clusters: &mut FxHashMap<i32,Vec<i32>>){
+pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,min_shared_minis:f64,minimizer_hashmap: &FxHashMap<i32, Vec<structs::Minimizer_hashed>>,clusters:&mut FxHashMap<i32,Vec<i32>> ){
+    //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of cluster ids as a value
     let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
     //we only need cl_id if cluster 0 already exists so we start with '1'
     let mut cl_id= 1;
     let shared_perc_mini= min_shared_minis / 2.0_f64;
+    let mut sign_minis;
+    let mut id;
+    //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
+    let mut shared_mini_infos= FxHashMap::default();
+    let mut shared_mini_infos_norm= FxHashMap::default();
+    let mut minimizers= &vec![];
     //TODO: This can be heavily improved if I add a field, high_confidence, to the seed object (here minimizer) We then can only pass over the minis with high_confidence=false
     //entry represents a read in our data
-
-    let mut id;
-    let mut sign_minis;
-    let mut minimizers;
-    //shared mini_infos contains the cluster (key) as well as the number of high-confidence seeds appointed to it (value)
-    let mut shared_mini_infos= FxHashMap::default();
-    //shared mini_infos_norm contains the cluster (key) as well as the number of minimizers appointed to it (value)
-    let mut shared_mini_infos_norm=FxHashMap::default();
-    let mut most_shared_cluster;
     for entry in sorted_entries{
         id = entry.0;
         sign_minis= &entry.1;
-        minimizers = minimizer_hashmap.get(&id).unwrap();
+        minimizers= minimizer_hashmap.get(&id).unwrap();
         //if we already have at least one cluster: compare the new read to the cluster(s)
         if !(clusters.is_empty()){
             //if sign_minis.len() > min_shared_minis as usize {
-                for minimizer in sign_minis {
-                    //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
-                    if let Some(belongs_to) = cluster_map.get(&minimizer.sequence) {
-                        //iterate over belongs_to to update the counts of shared minimizers for each cluster
-                        for &belong_cluster in belongs_to {
-                            //if the minimizer is already appointed to the cluster
-                            if let Some(new_val) = shared_mini_infos.get(&belong_cluster) {
-                                //increase the counter of minimizers shared with cluster
-                                shared_mini_infos.insert(belong_cluster, *new_val + 1);
-                            } else {
-                                //add a new counter for the cluster element
-                                shared_mini_infos.insert(belong_cluster, 0);
-                            }
+            for minimizer in sign_minis {
+                //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
+                if let Some(belongs_to) = cluster_map.get(&minimizer.sequence) {
+                    //iterate over belongs_to to update the counts of shared minimizers for each cluster
+                    for &belong_cluster in belongs_to {
+                        //if the minimizer is already appointed to the cluster
+                        if let Some(new_val) = shared_mini_infos.get(&belong_cluster) {
+                            //increase the counter of minimizers shared with cluster
+                            shared_mini_infos.insert(belong_cluster, *new_val + 1);
+                        } else {
+                            //add a new counter for the cluster element
+                            shared_mini_infos.insert(belong_cluster, 0);
                         }
                     }
                 }
-            most_shared_cluster = 0;
-            let mut shared_high_confidence= false;
-            let mut shared_normal= false;
+            }
+            let mut most_shared_cluster=0;
+            let mut shared=false;
             //key: cluster_id, value: count of shared minimizers
             //TODO: sort wrt length of value and then only look at the first (best fit)
-            (shared_high_confidence,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_mini_infos, sign_minis);
-            if !shared_high_confidence{
+            (shared,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_mini_infos, sign_minis);
+            if !shared{
                 for minimizer in minimizers{
                     //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
                     if let Some(belongs_to) = cluster_map.get(&minimizer.sequence) {
@@ -111,16 +107,15 @@ pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,
                         }
                     }
                 }
-                (shared_normal,most_shared_cluster) = detect_whether_shared(shared_perc_mini, &shared_mini_infos_norm, minimizers);
-                shared_mini_infos_norm.clear();
+                (shared,most_shared_cluster) = detect_whether_shared(shared_perc_mini, &shared_mini_infos_norm, minimizers);
             }
             //if we have a cluster that we share enough minimizers with
-            if shared_high_confidence || shared_normal{
+            if shared {
                 //add the read id to read_list
-                //read_list = clusters.get_mut(&most_shared_cluster).unwrap();
-                //if !read_list.contains(&id) {
-                //    read_list.push(id);
-                //}
+                let read_list = clusters.get_mut(&most_shared_cluster).unwrap();
+                if !read_list.contains(&id) {
+                    read_list.push(id);
+                }
                 for sign_mini in sign_minis {
                     cluster_map
                         .entry(sign_mini.sequence)
@@ -170,8 +165,10 @@ pub(crate) fn cluster_de_novo(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>,
             let id_vec=vec![id];
             clusters.insert(init_id,id_vec);
         }
+        shared_mini_infos_norm.clear();
         shared_mini_infos.clear();
     }
+
 }
 
 
