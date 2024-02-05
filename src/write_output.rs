@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::fs::File;
-use std::io::{Write, BufReader, BufRead, Error};
+use std::io::{Write, BufReader, BufRead, BufWriter, Error};
 use std::path::Path;
 use std::collections::HashMap;
 use std::fs;
@@ -13,16 +13,19 @@ fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>
     let mut header_cluster_map=HashMap::new();
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
+    let mut buf_write = BufWriter::new(&f);
     println!("{} different clusters identified",clusters.len());
     //let nr_clusters=clusters.len();
     for (cl_id, r_int_ids) in clusters.into_iter(){
         //println!("cl_id {}, nr_reads {}",cl_id,r_int_ids.len());
         for r_int_id in r_int_ids{
             let read_id = id_map.get(&r_int_id).unwrap().to_string();
-            writeln!(f ,"{}\t{}", cl_id, read_id);
+            writeln!(buf_write ,"{}\t{}", cl_id, read_id);
             header_cluster_map.insert(read_id,cl_id);
         }
     }
+    // Flush the buffer to ensure all data is written to the underlying file
+    buf_write.flush().expect("Failed to flush the buffer");
     //println!("{} different clusters identified",nr_clusters);
     header_cluster_map
 }
@@ -57,9 +60,11 @@ fn write_fastq_files(outfolder: &Path, cluster_map: HashMap<i32, Vec<FastqRecord
         let filename = cl_id.to_string()+".fastq";
         let file_path = PathBuf::from(outfolder).join(filename);
         let mut f = File::create(file_path).expect("unable to create file");
+        let mut buf_write = BufWriter::new(&f);
         for record in records{
-            write!(f ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
+            write!(buf_write ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
         }
+        buf_write.flush().expect("Failed to flush the buffer");
             //let read_id=id_map.get(&r_int_id);
         //let index = test.iter().position(|&r| r == "two").unwrap();
             //
