@@ -9,7 +9,7 @@ use std::borrow::Borrow;
 use std::collections::VecDeque;
 use crate::clustering::reverse_complement;
 use crate::structs::FastqRecord_isoncl_init;
-
+use crate::write_output;
 
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
 fn compress_sequence(seq: &str) -> String {
@@ -125,17 +125,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<Fast
     });
     //filter out records that have a too high error rate
     fastq_records.retain(|record| 10.0_f64*-record.get_err_rate().log(10.0_f64) > q_threshold);
-    /*Alternative version for above line: first do a filtering step, then get rid of all entries filtered out
-    fastq_records.par_iter_mut().for_each(|record| {
-        let should_retain = 10.0_f64 * - errors.last().expect("is a f64").log10() > q_threshold;
-        if !should_retain {
-            record.header.clear();
-            record.sequence.clear();
-            record.quality.clear();
-        }
 
-    });
-    fastq_records.retain(|record| !record.header.is_empty());*/
     println!("{} reads accepted",fastq_records.len());
     //sort the vector fastq_records by scores
     fastq_records.par_sort_by(|a, b| b.get_score().partial_cmp(&a.get_score()).unwrap());
@@ -163,9 +153,9 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str ) {
     use std::time::Instant;
     let now = Instant::now();
-    let fastq_records=analyse_fastq_and_sort(k, q_threshold, in_file_path);
+    let fastq_records = analyse_fastq_and_sort(k, q_threshold, in_file_path);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
-    write_ordered_fastq(fastq_records.borrow()).expect("Could not write file");
+    write_output::write_ordered_fastq(fastq_records.borrow());
     print_statistics(fastq_records.borrow());
 }

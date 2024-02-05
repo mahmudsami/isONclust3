@@ -11,6 +11,7 @@ pub mod file_actions;
 mod clustering;
 //mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
+mod generate_sorted_fastq_for_cluster;
 use std::path::PathBuf;
 mod isONclust;
 mod structs;
@@ -281,10 +282,15 @@ fn main() {
     println!("w: {:?}", cli.w);
     println!("n: {:?}",cli.n);
     println!("outfolder {:?}",cli.outfolder);
+
     //
     // READ the files (the initial_clusters_file as well as the fastq file containing the reads)
     //
     let now1 = Instant::now();
+
+    let q_threshold=7_f64;
+    let k = cli.k;
+    generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold,&cli.fastq );
     let fastq_file = File::open(cli.fastq).unwrap();
     println!("{} s used for file input", now1.elapsed().as_secs());
     //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
@@ -314,10 +320,11 @@ fn main() {
         println!("{}",gtf_e)
     }*/
     let quality_threshold=7.0;
-    let k = cli.k;
+
     let window_size = cli.w;
     let w = window_size - k;
     let outfolder = cli.outfolder;
+
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);
         println!("Current virtual memory usage: {}", usage.virtual_mem);

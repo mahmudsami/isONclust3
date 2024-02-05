@@ -8,7 +8,8 @@ use crate::structs::{FastqRecord, FastqRecord_isoncl_init};
 use std::collections::hash_map::RandomState;
 use rustc_hash::FxHashMap;
 
-pub(crate) fn write_ordered_fastq(fastq_records:&Vec<FastqRecord_isoncl_init>)->std::io::Result<()>{
+
+pub(crate) fn write_ordered_fastq(fastq_records:&Vec<FastqRecord_isoncl_init>){
     //writes the fastq file
     let mut f = File::create("output.vtk").expect("Unable to create file");
     let mut buf_write = BufWriter::new(&f);
