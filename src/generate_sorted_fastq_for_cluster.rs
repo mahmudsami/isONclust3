@@ -144,14 +144,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<Fast
 }
 
 
-fn write_ordered_fastq(fastq_records:&Vec<FastqRecord_isoncl_init>)->std::io::Result<()>{
-    //writes the fastq file
-    let mut f = File::create("output.vtk").expect("Unable to create file");
-    for record in fastq_records {
-        write!(f, "{}  {} \n + \n {} \n", record.get_header(), record.get_sequence(),record.get_quality()).expect("Could not write file");
-    }
-    Ok(())
-}
+
 
 
 fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
