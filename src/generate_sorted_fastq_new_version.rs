@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use std::cmp::max;
 use crate::structs::{FastqRecord_isoncl_init, FastaRecord, Minimizer, Minimizer_hashed};
 use crate::clustering::{reverse_complement, calculate_hash};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 //fn get_positional_minimizers(&seq:String,k:u32,w:u32)->(str,u32){
@@ -33,9 +33,14 @@ pub fn compute_d_no_min() -> [f64; 128] {
     }
     d
 }
+fn cow_to_string(cow: Cow<'_, [u8]>) -> String {
+    String::from_utf8(cow.into_owned()).unwrap_or_else(|e| {
+        e.utf8_error().to_string()
+        // Handle the error if the conversion fails
+    })
+}
 
-
-pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
+pub fn get_canonical_kmer_minimizers_hashed(seq: Cow<'_, [u8]>, k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
     //make sure that we have suitable values for k_size and w_size (w_size should be larger)
     let mut w= 0;
     if w_size > k_size{
@@ -47,19 +52,19 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
     }
     //let mut rc_vec=VecDeque::with_capacity(w+1);
     let mut window_kmers: VecDeque<(u64, usize)> = VecDeque::with_capacity(w + 1);
-    let mut k_mer_str;
+    let mut k_mer_str: &str;
     let mut rc_string;
     let mut forward_hash;
     let mut reverse_hash;
+    //let full_seq=cow_to_string(seq.clone());
     //we can only get a minimizer if the sequence is longer than w + k_size - 1 (else we do not even cover one full window)
     if w + k_size < seq.len() + 1{
         for i in 0..w {
-            k_mer_str = &seq [i..i + k_size];
-            rc_string = reverse_complement(k_mer_str).clone();
-
+            k_mer_str = std::str::from_utf8(&seq[i..i + k_size]).unwrap();
+            rc_string = reverse_complement(&k_mer_str);
             //generate the hashes of the kmers
-            forward_hash = calculate_hash(&k_mer_str.to_string());
-            reverse_hash = calculate_hash(&rc_string.to_string());
+            forward_hash = calculate_hash(&k_mer_str);
+            reverse_hash = calculate_hash(&rc_string);
             //we now want to find the canonical minimizer: we only push the smaller k-mer of k_mer_str and rc_String into the window
             if forward_hash <= reverse_hash {
                 window_kmers.push_back((forward_hash, i));
@@ -67,7 +72,6 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
             else{
                 window_kmers.push_back((reverse_hash, i))
             }
-
         }
     }
     //println!("kmers in window: {:?}", window_kmers);
@@ -87,14 +91,14 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
         let mut forward_hash;
         let mut reverse_hash;
         //iterate further over the sequence and generate the minimizers thereof
-        for (i, new_kmer) in seq[w..].as_bytes().windows(k_size).enumerate() {
+        for (i, new_kmer) in seq[w..].windows(k_size).enumerate() {
             new_kmer_pos = i  + w;
             new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
-            rc_string = reverse_complement(new_kmer_str).clone();
+            rc_string = reverse_complement(new_kmer_str);
             // updating  by removing first kmer from window
             window_kmers.pop_front().unwrap();
-            forward_hash=calculate_hash(&new_kmer_str.to_string());
-            reverse_hash=calculate_hash(&rc_string.to_string());
+            forward_hash = calculate_hash(&new_kmer_str);
+            reverse_hash = calculate_hash(&rc_string);
             if reverse_hash > forward_hash{
                 window_kmers.push_back((forward_hash, new_kmer_pos));
             }
@@ -129,7 +133,7 @@ fn average(numbers: &[f64]) -> f64 {
 /// Input: quality_interval: the quality values of the area we want to check
 /// Output: significance_indicator: a bool stating whether the minimizer is significant( true: yes, false: no)
 ///
-pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
+pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128])->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
@@ -137,8 +141,8 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
     let mut q_value;
     let mut probability_error;
     //for each character in quality string:
-    for (i, c) in quality_interval.chars().enumerate() {
-        index = c as usize;
+    for c in quality_interval {
+        index = c.to_ascii_lowercase() as usize;
         //q_value gives the PHRED quality score: i.e. '+' gives us 0.1
         q_value = d_no_min[index];
         //here we get the base call accuracy
@@ -146,7 +150,6 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
         qualities.push(probability_error);
         quality *= probability_error
     }
-
     let quality_threshold=0.9_f64.powi(quality_interval.len() as i32);
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
     if quality > quality_threshold {
@@ -157,7 +160,7 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
 
 
 //filter out minimizers for which the quality of the minimizer_impact range is too bad
-pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>) {
+pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fastq_sequence: Cow<'_, [u8]>, fastq_quality:&[u8], w: usize, k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>) {
     //let mut minimizers_filtered = vec![];
     let minimizer_range = w - 1;
     let mut skipped_cter= 0;
@@ -175,7 +178,6 @@ pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fast
             //minimizer_range_start = minimizer_pos - minimizer_range;
             minimizer_range_start = minimizer_pos;
         }
-
         minimizer_range_end = fastq_sequence.len();
         if minimizer_pos +  k < minimizer_range_end{
             //minimizer_range_end = minimizer_pos + minimizer_range + k ;
@@ -191,9 +193,6 @@ pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fast
             skipped_cter += 1;
         }
     }
-    //println!("{} minimizers filtered out due to bad quality", skipped_cter);
-    //println!("Length after filter: {}",minimizers_filtered.len());
-    //minimizers_filtered
 }
 
 

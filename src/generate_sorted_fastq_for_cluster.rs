@@ -150,12 +150,12 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str ) {
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String ) {
     use std::time::Instant;
     let now = Instant::now();
     let fastq_records = analyse_fastq_and_sort(k, q_threshold, in_file_path);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
-    write_output::write_ordered_fastq(fastq_records.borrow());
-    print_statistics(fastq_records.borrow());
+    write_output::write_ordered_fastq(&fastq_records,outfolder);
+    //print_statistics(fastq_records.borrow());
 }
