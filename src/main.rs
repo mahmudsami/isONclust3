@@ -14,7 +14,7 @@ mod generate_sorted_fastq_new_version;
 use std::path::PathBuf;
 mod isONclust;
 mod structs;
-use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
+use crate::structs::{FastaRecord, FastqRecord_isoncl_init, Minimizer_hashed};
 use std::thread;
 use crate::clustering::calculate_hash;
 extern crate rayon;
@@ -246,6 +246,11 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
     }
 
 }*/
+fn print_entries(sorted_sign_minis: &Vec<(i32,Vec<Minimizer_hashed>)>,id_map: &HashMap<i32,String>) {
+    for entry in sorted_sign_minis.iter().take(20){
+        print!("{}",id_map.get(&entry.0).unwrap());
+    }
+}
 
 
 #[derive(Parser,Debug)]
@@ -404,6 +409,8 @@ fn main() {
     //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers -> least amount of significant minimizers
     let sorted_sign_minis=get_sorted_entries(mini_map_filtered);
     println!("{} s for sorting of reads", now5.elapsed().as_secs());
+    //print_entries(&sorted_sign_minis,&id_map);
+
     //
     //Perform the clustering
     //
