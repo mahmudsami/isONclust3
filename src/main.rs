@@ -13,7 +13,7 @@ mod clustering;
 mod generate_sorted_fastq_new_version;
 mod generate_sorted_fastq_for_cluster;
 use std::path::PathBuf;
-mod isONclust;
+//mod isONclust;
 mod structs;
 use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
 use std::thread;
