@@ -11,6 +11,7 @@ use crate::clustering::reverse_complement;
 use crate::structs::FastqRecord_isoncl_init;
 use crate::write_output;
 
+
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
 fn compress_sequence(seq: &str) -> String {
     //compresses the sequence seq by keeping only the first character of each consecutive group of equal characters. The resulting compressed sequence is stored in the variable seq_hpol_comp.
@@ -30,27 +31,29 @@ fn compress_sequence(seq: &str) -> String {
 
 
 fn expected_number_errornous_kmers(quality_string: &str, k: usize, d:&[f64;128]) -> f64 {
-    //computes the expeced number of errornous kmers for a read by analysing the quality entry
+    //computes the expected number of errornous kmers for a read by analysing the quality entry
     let prob_error: Vec<f64> = quality_string.chars().map(|char_| d[char_ as u8 as usize]).collect();
     let mut sum_of_expectations = 0.0;
-    let mut qurrent_prob_no_error = 1.0;
+    let mut current_prob_no_error = 1.0;
+    //holds k nucleotides to represent a kmer
     let mut window: VecDeque<f64> = VecDeque::with_capacity(k);
-
+    //iterates over the quality values
     for (i, &p_e) in prob_error.iter().enumerate() {
-        qurrent_prob_no_error *= 1.0 - p_e;
+        //the probability that we do not have an error is mulitplied by the probability that we did not have an error at position p_e
+        current_prob_no_error *= 1.0 - p_e;
 
         if i >= k {
             let p_to_leave = window.pop_front().unwrap();
-            qurrent_prob_no_error /= p_to_leave;
+            current_prob_no_error /= p_to_leave;
         }
 
-        sum_of_expectations += qurrent_prob_no_error;
+        sum_of_expectations += current_prob_no_error;
 
         if i >= k - 1 {
             window.push_back(1.0 - p_e);
         }
     }
-
+    //
     (quality_string.len() - k + 1) as f64 - sum_of_expectations
 }
 
@@ -98,8 +101,6 @@ fn compute_d_no_min() -> [f64; 128] {
 
 
 
-
-
 fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<FastqRecord_isoncl_init>{
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
@@ -114,12 +115,13 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<Fast
     //compute d_no_min and d, two arrays that we use for the calculations
     let d_no_min=compute_d_no_min();
     let d =compute_d();
+    
     //iterate over all fastq_records and calculate error_rate as well as score
     fastq_records.par_iter_mut().for_each(|fastq_record| {
         //calculate the error rate and store it in vector errors
         fastq_record.set_error_rate( calculate_error_rate(&fastq_record.get_quality(), &d_no_min));
         let exp_errors_in_kmers = expected_number_errornous_kmers(&fastq_record.get_quality(), k, &d);
-        let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers/ (fastq_record.get_sequence().len() - k +1) as f64;
+        let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers / (fastq_record.get_sequence().len() - k +1) as f64;
         //calculate the final score and add it to fastq_record (we have a dedicated field for that that was initialized with 0.0)
         fastq_record.set_score( p_no_error_in_kmers  * ((fastq_record.get_sequence().len() - k +1) as f64))
     });
@@ -151,7 +153,7 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 
 
 pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String ) {
-    use std::time::Instant;
+
     let now = Instant::now();
     let fastq_records = analyse_fastq_and_sort(k, q_threshold, in_file_path);
     let elapsed = now.elapsed();
