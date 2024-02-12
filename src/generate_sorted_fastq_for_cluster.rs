@@ -338,13 +338,9 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<Fast
         //let window_size=
         get_canonical_kmer_minimizers_hashed(fastq_record.get_sequence(), k, window_size,&mut this_minimizers);
         filter_minimizers_by_quality(&this_minimizers,fastq_record.get_sequence(), &fastq_record.get_quality(),w,k,d_no_min,&mut filtered_minis);
-        //get_kmer_minimizers(fastq_record.get_sequence(),13,33,minis);
         //calculate the error rate and store it in vector errors
         fastq_record.set_error_rate( calculate_error_rate(&fastq_record.get_quality(), &d_no_min));
-        //let exp_errors_in_kmers = expected_number_errornous_kmers(&fastq_record.get_quality(), k, &d);
-        //let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers / (fastq_record.get_sequence().len() - k +1) as f64;
         //calculate the final score and add it to fastq_record (we have a dedicated field for that that was initialized with 0.0)
-        //fastq_record.set_score( p_no_error_in_kmers  * ((fastq_record.get_sequence().len() - k +1) as f64))
         fastq_record.set_score(filtered_minis.len() as f64)
     });
     //filter out records that have a too high error rate
