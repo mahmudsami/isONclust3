@@ -22,7 +22,7 @@ extern crate rayon;
 extern crate clap;
 mod write_output;
 use memory_stats::memory_stats;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap,FxHashSet};
 extern crate needletail;
 use needletail::{parse_fastx_file, Sequence, FastxReader};
 use std::io::Read;
@@ -252,6 +252,11 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
 
 }*/
 
+use std::convert::TryFrom;
+
+fn convert_cl_id(v: usize) -> Option<i32> {
+    i32::try_from(v).ok()
+}
 
 #[derive(Parser,Debug)]
 #[command(name = "isONclust3")]
@@ -297,7 +302,7 @@ fn main() {
     let window_size = cli.w;
     let w = window_size - k;
     let outfolder = cli.outfolder;
-
+    let mini_range_len = k;
 
     println!("{} s used for file input", now1.elapsed().as_secs());
     //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
@@ -310,11 +315,39 @@ fn main() {
 
     let gtf_path = cli.gtf.as_deref();
     //let mut initial_clustering_records: Vec<_>=vec![];
-    let mut init_clust_rec_both_dir = vec![];
+    //let mut init_clust_rec_both_dir = vec![];
+    let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
+    let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
+    //let mut cl_name_map = FxHashMap::default();
     if let Some(clustering_path) = initial_clustering_path {
+        let mut identifier = 1;
         if initial_clustering_path.is_some() {
             //let clustering_path = initial_clustering_path.unwrap();
-            init_clust_rec_both_dir = file_actions::parse_fasta(clustering_path).unwrap();
+            let mut reader = parse_fastx_file(&clustering_path).expect("valid path/file");
+            //iterate over each read int the fasta file
+            while let Some(record) = reader.next() {
+                let seq_rec = record.expect("invalid record");
+                let header = seq_rec.id();
+                let header_str = match std::str::from_utf8(header) {
+                    Ok(v) => v,
+                    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                };
+                let header_new = header_str.to_string();
+                let sequence = seq_rec.seq();
+                //make the cluster identifiable just to make sure
+                //cl_name_map.insert(identifier, header_new);
+                if sequence.len() > mini_range_len {
+                    let mut this_minimizers = vec![];
+                    //generate the minimizers for this gene family
+                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence.clone(), k, window_size, &mut this_minimizers);
+                    //fill up the init_cluster_map, a FxHashMap having the Minimizer hash as key and a vector of given clusters as value
+                    clustering::generate_initial_cluster_map(&this_minimizers, &mut cluster_map,identifier);
+                    let id_vec=vec![];
+                    clusters.insert(identifier,id_vec);
+                }
+                identifier +=1;
+            }
+
             //init_clust_rec_both_dir = clustering::add_rev_comp_seqs_annotation(initial_clustering_records);
         }
         let mut gtf_entries = vec![];
@@ -323,6 +356,8 @@ fn main() {
             println!("gtf file parsed")
         }
     }
+    println!("{:?}",clusters);
+    println!("{:?}",cluster_map);
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);
         println!("Current virtual memory usage: {}", usage.virtual_mem);
@@ -361,7 +396,7 @@ fn main() {
     let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
     //let d =compute_d();
     //TODO: only use the actual kmers position nothing surrounding
-    let mini_range_len = k;
+
     println!("Mini range len: {}", mini_range_len);
     //quality_threshold gives at what point minimizers are too low quality to be used in our algo
     //let filtered_records=filter_fastq_records(fastq_records,d_no_min,quality_threshold,k,d);
@@ -379,11 +414,11 @@ fn main() {
     //outfolder+"sorted.fastq"
     let mut identifier = 0;
     let min_shared_minis = 0.8;
-    let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
+
     let mut reader = parse_fastx_file(&filename).expect("valid path/file");
-    let mut cluster_map = FxHashMap::default();
+    //let mut cluster_map = FxHashMap::default();
     let mut id_map = FxHashMap::default();
-    let mut cl_id=1;
+    let mut cl_id=convert_cl_id(clusters.len()).expect("If this fails, we have too many initial clusters")+1;
     println!("{} s before minimizergen", now1.elapsed().as_secs());
     while let Some(record) = reader.next() {
         let seq_rec = record.expect("invalid record");
@@ -405,20 +440,23 @@ fn main() {
             generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers, sequence, quality, w, k, d_no_min, &mut filtered_minis);
             //clustering::cluster_de_novo(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, identifier);
             //annotation based clustering
-            if !init_clust_rec_both_dir.is_empty() {
-                 //let init_cluster_map = clustering::get_initial_clustering(init_clust_rec_both_dir, k, window_size);
-                    //clusters = clustering::cluster_from_initial(&sorted_sign_minis, init_cluster_map);
-                    //println!("{:?}",clusters);
+            if initial_clustering_path.is_some() {
+                //println!("Annotation based clustering");
+                clustering::cluster_de_novo(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, identifier, &mut cl_id);
+
                 }
                 //de novo clustering
                 else {
+                    //println!("De_novo clustering");
                     clustering::cluster_de_novo(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, identifier, &mut cl_id);
                 }
                 identifier += 1;
             } else {
                 skipped_cter += 1
         }
+
     }
+    println!("{} reads used for clustering",identifier);
     println!("{} s for minimizer gen and filtering of minis", now2.elapsed().as_secs());
     println!("Skipped {} reads due to being too short", skipped_cter);
     if let Some(usage) = memory_stats() {
@@ -428,12 +466,9 @@ fn main() {
         println!("Couldn't get the current memory usage :(");
     }
     let now5 = Instant::now();
-        //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers -> least amount of significant minimizers
-        //let sorted_sign_minis=get_sorted_entries(mini_map_filtered);
+
     println!("{} s for sorting of reads", now5.elapsed().as_secs());
-        //
-        //Perform the clustering
-        //
+
 
     let now3 = Instant::now();
 

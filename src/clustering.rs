@@ -162,91 +162,7 @@ pub(crate) fn cluster_de_novo(sign_minis: &Vec<Minimizer_hashed>,min_shared_mini
 
 
 
-fn get_final_cl_init(this_clusters: Vec<&Vec<i32>>) -> i32 {
-    //let mut final_cl=vec![];
-    let mut clustering: FxHashMap<i32,f32> = FxHashMap::default();
-    for tcl in this_clusters{
-        //println!("{:?}",tcl);
-        if tcl.len()==1{
-            let tcl_elem= tcl.first().unwrap();
-            //println!("tcl elem {}",tcl_elem);
-            if clustering.contains_key(tcl_elem){
-                let mut elem= clustering.get_mut(tcl_elem).unwrap();
-                *elem += 1.0;
-            }
-            else{
-                clustering.insert(*tcl_elem,1.0);
-            }
-        }
-    }
-    let mut max_val:f32 = 0.0;
-    let mut max_clust=0;
-    let mut max_eq=0;
-    for (key,val) in clustering{
-        if val>max_val{
-            max_val=val;
-            max_clust=key;
-            max_eq=0;
-        }
-        if val==max_val{
-            max_eq=key;
-        }
-    }
-    if !max_eq==0{
-        println!("Not a singular cluster: {},{}", max_clust,max_eq)
-    }
-    if max_val<10.0{
-        //println!("low support {}",max_val);
-    }
 
-    max_clust
-}
-
-
-/*
-//clustering method for the case that we have an annotation to compare our reads against
-pub(crate) fn cluster_from_initial(sorted_entries: &Vec<(i32,Vec<Minimizer_hashed>)>, initial_clusters: FxHashMap<u64, Vec<i32>>) ->FxHashMap<i32, Vec<i32>>{
-    //the hashmap containing the clusters we found
-    let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
-    for sorted_entry in sorted_entries{
-        let mut this_clusters= vec![];
-        for mini in &sorted_entry.1{
-            let this_mini_hash= mini.sequence;
-            if initial_clusters.contains_key(&this_mini_hash){
-                let value= initial_clusters.get(&this_mini_hash).unwrap();
-                //this_clusters.append(&mut value.clone());
-                //we append the read to this
-                if !value.is_empty() {
-                    this_clusters.push(value);
-                }
-
-            }
-        }
-        let final_cl = get_final_cl_init(this_clusters);
-        if let std::collections::hash_map::Entry::Vacant(e) = clusters.entry(final_cl) {
-             let mut id_vec=vec![sorted_entry.0];
-            e.insert(id_vec);
-        } else {
-            let mut id_vec=clusters.get_mut(&final_cl).unwrap();
-             id_vec.push(sorted_entry.0);
-         }
-
-
-
-        if clusters.contains_key(&final_cl){
-            let mut id_vec=clusters.get_mut(&final_cl).unwrap();
-            id_vec.push(sorted_entry.0)
-        }
-        else {
-            let mut id_vec=vec![sorted_entry.0];
-            clusters.insert(final_cl,id_vec);
-        }
-
-    }
-    //println!("{:?}",clusters);
-    clusters
-    }
-*/
 
 
 pub(crate) fn add_rev_comp_seqs_annotation(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
@@ -318,14 +234,27 @@ pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
     t.hash(&mut s);
     s.finish()
 }
-
-/*
-pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord>,k: usize,window_size: usize)->FxHashMap<u64, Vec<i32>>{
+pub(crate) fn generate_initial_cluster_map(this_minimizers: &Vec<Minimizer_hashed>, init_cluster_map: &mut FxHashMap<u64, Vec<i32>>,identifier: i32){
+    for minimizer in this_minimizers{
+        init_cluster_map
+            .entry(minimizer.sequence)
+            .or_insert_with(Vec::new)
+            .retain(|&existing_id| existing_id != identifier);
+        // Check if id was retained (not a duplicate) and push it if needed
+        let vec = init_cluster_map.get_mut(&minimizer.sequence).unwrap();
+        //vec.push(id);
+        if !vec.contains(&identifier) {
+            vec.push(identifier);
+        }
+    }
+}
+//generates a mapping of minimizers to the reference genes (i.e. how many minimizers are shared with which cluster (stored in init_cluster_map))
+/*pub(crate) fn generate_initial_clusters(initial_clustering_records: Vec<FastaRecord>,k: usize,window_size: usize,init_cluster_map:&mut FxHashMap<u64, Vec<i32>>){
     //holds the respective
-    let mut init_cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
+
     //let mut head;
-    //let mut id;
-    //let mut this_minimizers =vec![];
+    let mut id;
+    let mut this_minimizers:Vec<Minimizer_hashed> =vec![];
     //let mut vec= vec![];
     //iterate over the records of initial_clustering_records
     for record in initial_clustering_records{
@@ -336,7 +265,7 @@ pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord
         //println!("{}",id);
 
         //generate the minimizers for each record and store them in this_minimizers
-        //generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&record.sequence, k, window_size, &mut this_minimizers);
+        generate_sorted_fastq_new_version::canonical_minimizers_hashed_old(&record.sequence, k, window_size, &mut this_minimizers);
         //let sub_minis= &this_minimizers[0..100];
         //println!("{:?}",sub_minis);
         //now iterate over all minimizers that we generated for this record
@@ -360,8 +289,8 @@ pub(crate) fn get_initial_clustering(initial_clustering_records: Vec<FastaRecord
     }
     //println!("{:?}",init_cluster_map);
     init_cluster_map
-}
-*/
+}*/
+
 
 
 #[cfg(test)]

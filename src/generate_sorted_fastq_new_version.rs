@@ -8,19 +8,8 @@ use crate::clustering::{reverse_complement, calculate_hash};
 use std::borrow::{Borrow, Cow};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-//fn get_positional_minimizers(&seq:String,k:u32,w:u32)->(str,u32){
-//    let window: VecDeque<u32> = VecDeque::new();
-//    OK(mini_seq,mini_pos)
-//}
 
 
-
-/*
-/// Computes the Probability of incorrect base call for the quality scores we receive from the fastq format
-/// #Returns:
-///            d[i]: Probability of incorrect base call for ith character
-///
-*/
 
 pub fn compute_d_no_min() -> [f64; 128] {
     let mut d = [0.0; 128];
@@ -33,12 +22,17 @@ pub fn compute_d_no_min() -> [f64; 128] {
     }
     d
 }
+
+
+
 fn cow_to_string(cow: Cow<'_, [u8]>) -> String {
     String::from_utf8(cow.into_owned()).unwrap_or_else(|e| {
         e.utf8_error().to_string()
         // Handle the error if the conversion fails
     })
 }
+
+
 
 pub fn get_canonical_kmer_minimizers_hashed(seq: Cow<'_, [u8]>, k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
     //make sure that we have suitable values for k_size and w_size (w_size should be larger)
