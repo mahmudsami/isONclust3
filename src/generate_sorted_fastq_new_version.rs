@@ -4,10 +4,19 @@ use rayon::prelude::*;
 //use crate::file_actions::FastqRecord_isoncl_init;
 use std::cmp::max;
 use crate::structs::{FastqRecord_isoncl_init, FastaRecord, Minimizer, Minimizer_hashed};
-use crate::clustering::{reverse_complement, calculate_hash};
+use crate::clustering::reverse_complement;
 use std::borrow::{Borrow, Cow};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
+
+
+//takes an object T and hashes it via DefaultHasher. Used to improve search for minimizers in the data
+pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
 
 
 

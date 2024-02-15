@@ -218,8 +218,8 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
             rc_string = clustering::reverse_complement(k_mer_str).clone();
 
             //generate the hashes of the kmers
-            forward_hash = clustering::calculate_hash(&k_mer_str.to_string());
-            reverse_hash = clustering::calculate_hash(&rc_string.to_string());
+            forward_hash = generate_sorted_fastq_new_version::calculate_hash(&k_mer_str.to_string());
+            reverse_hash = generate_sorted_fastq_new_version::calculate_hash(&rc_string.to_string());
             //we now want to find the canonical minimizer: we only push the smaller k-mer of k_mer_str and rc_String into the window
             if forward_hash <= reverse_hash {
                 window_kmers.push_back((forward_hash, i));
@@ -253,8 +253,8 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
             rc_string = clustering::reverse_complement(new_kmer_str).clone();
             // updating  by removing first kmer from window
             window_kmers.pop_front().unwrap();
-            forward_hash=clustering::calculate_hash(&new_kmer_str.to_string());
-            reverse_hash=clustering::calculate_hash(&rc_string.to_string());
+            forward_hash=generate_sorted_fastq_new_version::calculate_hash(&new_kmer_str.to_string());
+            reverse_hash=generate_sorted_fastq_new_version::calculate_hash(&rc_string.to_string());
             if reverse_hash > forward_hash{
                 window_kmers.push_back((forward_hash, new_kmer_pos));
             }

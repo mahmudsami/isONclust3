@@ -48,7 +48,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
     (shared,most_shared_cluster)
 }
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster_de_novo(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,minimizers: &Vec<Minimizer_hashed>,clusters:&mut FxHashMap<i32,Vec<i32>>,cluster_map: &mut FxHashMap<u64, Vec<i32>>, id: i32,  cl_id: &mut i32 ){
+pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,minimizers: &Vec<Minimizer_hashed>,clusters:&mut FxHashMap<i32,Vec<i32>>,cluster_map: &mut FxHashMap<u64, Vec<i32>>, id: i32,  cl_id: &mut i32 ){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of cluster ids as a value
     //we only need cl_id if cluster 0 already exists so we start with '1'
@@ -161,79 +161,6 @@ pub(crate) fn cluster_de_novo(sign_minis: &Vec<Minimizer_hashed>,min_shared_mini
 }
 
 
-
-
-
-
-pub(crate) fn add_rev_comp_seqs_annotation(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
-    //Adds the reverse_compliment of the annotation
-    //INPUT:   initial_clustering_records: The annotation
-    //
-    // OUTPUT:     both_dir_records: the records in both directions
-    let mut both_dir_records =vec![];
-    let mut init_len=initial_clustering_records.len();
-    for record in initial_clustering_records{
-        init_len += 1;
-        //let reversed: String = record.sequence.chars().rev().collect();
-        let reversed=reverse_complement(&record.sequence);
-        let head = record.header.clone();
-        both_dir_records.push(record.clone());
-        let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
-        //println!("{}, {}",head,rev_record);
-        both_dir_records.push(rev_record)
-    }
-
-    both_dir_records
-}
-
-
-pub(crate) fn add_rev_comp_seqs(initial_clustering_records:Vec<FastaRecord>) ->Vec<FastaRecord>{
-    let mut both_dir_records =vec![];
-    let mut init_len=initial_clustering_records.len();
-    //iterate over the records in initial_clustering_records
-    for record in initial_clustering_records{
-        init_len += 1;
-        //let reversed: String = record.sequence.chars().rev().collect();
-        let reversed=reverse_complement(&record.sequence);
-        let head = record.header.clone();
-        //add the forward direction to both_dir_records
-        both_dir_records.push(record.clone());
-        //generate a new record
-        let rev_record= FastaRecord{ sequence: reversed, header: init_len.to_string()};
-        println!("{}, {}",head,rev_record);
-        //add the reversed reads to both_dir_records
-        both_dir_records.push(rev_record)
-    }
-    both_dir_records
-}
-
-
-
-//if we have an annotation file we are interested to take the cluster number from the header of the respective read
-fn get_id_from_header(head: String) -> i32 {
-    // Attempt to parse the extracted number as i32
-    let number_part: String = head.chars().filter(|c| c.is_ascii_digit()).collect();
-    let parsed_number: Result<i32, _> = number_part.parse();
-
-    match parsed_number {
-        Ok(parsed) => {
-            // Successfully parsed the number
-            parsed
-        }
-        Err(_) => {
-            println!("Failed to parse the extracted number as i32.");
-            1 // Default value when parsing fails
-        }
-    }
-}
-
-
-//takes an object T and hashes it via DefaultHasher. Used to improve search for minimizers in the data
-pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
-}
 pub(crate) fn generate_initial_cluster_map(this_minimizers: &Vec<Minimizer_hashed>, init_cluster_map: &mut FxHashMap<u64, Vec<i32>>,identifier: i32){
     for minimizer in this_minimizers{
         init_cluster_map
@@ -248,49 +175,6 @@ pub(crate) fn generate_initial_cluster_map(this_minimizers: &Vec<Minimizer_hashe
         }
     }
 }
-//generates a mapping of minimizers to the reference genes (i.e. how many minimizers are shared with which cluster (stored in init_cluster_map))
-/*pub(crate) fn generate_initial_clusters(initial_clustering_records: Vec<FastaRecord>,k: usize,window_size: usize,init_cluster_map:&mut FxHashMap<u64, Vec<i32>>){
-    //holds the respective
-
-    //let mut head;
-    let mut id;
-    let mut this_minimizers:Vec<Minimizer_hashed> =vec![];
-    //let mut vec= vec![];
-    //iterate over the records of initial_clustering_records
-    for record in initial_clustering_records{
-        //get the header of record
-        head = record.header;
-        //transform the header (expected e.g. SIRV1 to a number (i32), here 1
-        id = get_id_from_header(head);
-        //println!("{}",id);
-
-        //generate the minimizers for each record and store them in this_minimizers
-        generate_sorted_fastq_new_version::canonical_minimizers_hashed_old(&record.sequence, k, window_size, &mut this_minimizers);
-        //let sub_minis= &this_minimizers[0..100];
-        //println!("{:?}",sub_minis);
-        //now iterate over all minimizers that we generated for this record
-        for minimizer in &this_minimizers{
-            //we get the minimizer sequence from the minimizer object
-            //let mini_seq= minimizer.sequence;
-            //calculate the hash of the minimizer sequence
-            //if the hash exists in the map: add the value (a new vector) or if the hash exists: extend the vector making up the value
-            init_cluster_map
-                    .entry(minimizer.sequence)
-                    .or_insert_with(Vec::new)
-                    .retain(|&existing_id| existing_id != id);
-            // Check if id was retained (not a duplicate) and push it if needed
-            let vec = init_cluster_map.get_mut(&minimizer.sequence).unwrap();
-            //vec.push(id);
-            if !vec.contains(&id) {
-                vec.push(id);
-            }
-        }
-        this_minimizers.clear();
-    }
-    //println!("{:?}",init_cluster_map);
-    init_cluster_map
-}*/
-
 
 
 #[cfg(test)]
