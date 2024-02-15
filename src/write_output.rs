@@ -8,6 +8,7 @@ use crate::structs::{FastqRecord, FastqRecord_isoncl_init};
 use std::collections::hash_map::RandomState;
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
+use crate::file_actions;
 
 
 pub(crate) fn write_ordered_fastq(fastq_records:&Vec<FastqRecord_isoncl_init>, outfolder: &String){
@@ -86,7 +87,9 @@ pub fn path_exists(path: &str) -> bool {
 
 
 
-pub(crate) fn write_output(outfolder:String,clusters:&FxHashMap<i32,Vec<i32>>,fastq_vec:Vec<FastqRecord_isoncl_init>, id_map:FxHashMap<i32,String>){
+pub(crate) fn write_output(outfolder:String,clusters:&FxHashMap<i32,Vec<i32>>,fastq:String, id_map:FxHashMap<i32,String>){
+    let fastq_file = File::open(fastq).unwrap();
+    let fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
     if !path_exists(&outfolder){
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
@@ -97,6 +100,6 @@ pub(crate) fn write_output(outfolder:String,clusters:&FxHashMap<i32,Vec<i32>>,fa
     //convert_infos_for_writing(id_map.clone(), clusters.clone(), fastq_vec);
     let mut header_cluster_map=FxHashMap::default();
     write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone(), header_cluster_map.clone());
-    let cluster_hashmap_fastq_record = create_final_ds(header_cluster_map, fastq_vec);
+    let cluster_hashmap_fastq_record = create_final_ds(header_cluster_map, fastq_records);
     write_fastq_files(&fastq_path, cluster_hashmap_fastq_record);
 }
