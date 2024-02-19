@@ -29,10 +29,10 @@ pub(crate) struct GtfEntry {
     pub feature: String,
     pub start: usize,
     pub end: usize,
-    pub score: f64,
+    //pub score: f64,
     pub strand: bool,
-    pub frame: i8,
-    pub attribute: String
+    //pub frame: i8,
+    //pub attribute: String
 }
 impl fmt::Display for GtfEntry {
     // enables displaying the fasta record
@@ -40,6 +40,21 @@ impl fmt::Display for GtfEntry {
         write!(f, "{}, {}, {}", self.seqname, self.source, self.feature)
     }
 }
+
+
+pub(crate) struct Coord_obj{
+    pub startpos: u64,
+    pub endpos: u64
+}
+impl fmt::Display for Coord_obj {
+    // enables displaying the fasta record
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}, {}", self.startpos, self.endpos)
+    }
+}
+
+
+
 
 #[derive(Clone)]
 pub(crate) struct FastaRecord {

@@ -12,6 +12,7 @@ mod clustering;
 //mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
 mod generate_sorted_fastq_for_cluster;
+mod gtf_handling;
 use std::path::PathBuf;
 //mod isONclust;
 mod structs;
@@ -252,6 +253,7 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
 }*/
 
 use std::convert::TryFrom;
+use crate::gtf_handling::resolve_gtf;
 
 fn convert_cl_id(v: usize) -> Option<i32> {
     i32::try_from(v).ok()
@@ -305,10 +307,14 @@ fn main() {
     //makes the read  identifiable and gives us the possiblility to only use ids during the clustering step
     let mut id_map = FxHashMap::default();
     let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
+    let gtf_path = cli.gtf.as_deref();
 
     {//main scope (holds all the data structures that we can delete when the clustering is done
-        //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
+
         let initial_clustering_path = cli.init_cl.as_deref();
+        resolve_gtf(gtf_path,initial_clustering_path,outfolder.clone());
+        //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
+
         //let noncanonical= cli.noncanonical.as_deref();
         //let mut noncanonical=false;
         //if noncanonical.is_some(){
@@ -326,12 +332,7 @@ fn main() {
             println!("Couldn't get the current memory usage :(");
         }
 
-        //let gtf_path = cli.gtf.as_deref();
-        //let mut gtf_entries = vec![];
-        //if let Some(gtf_path_u) = gtf_path {
-        //    gtf_entries = file_actions::parse_gtf(gtf_path_u).unwrap();
-        //    println!("gtf file parsed")
-        //}
+
 
 
 

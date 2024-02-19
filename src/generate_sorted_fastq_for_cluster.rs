@@ -14,7 +14,6 @@ use crate::generate_sorted_fastq_new_version;
 use crate::write_output::path_exists;
 use std::fs;
 
-
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
 fn compress_sequence(seq: &str) -> String {
     //compresses the sequence seq by keeping only the first character of each consecutive group of equal characters. The resulting compressed sequence is stored in the variable seq_hpol_comp.

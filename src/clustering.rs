@@ -37,10 +37,10 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
         nr_minis = minimizers.len();
         shared_perc = calculate_shared_perc(nr_minis,*value);
         //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
-        if shared_perc > min_shared_minis && shared_perc > most_shared{
+        if shared_perc > min_shared_minis && shared_perc > most_shared && *value >= 5 {
             most_shared = shared_perc;
             most_shared_cluster = *key;
-            if !shared{
+            if !shared {
                 shared = true;
             }
         }
