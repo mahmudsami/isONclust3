@@ -136,7 +136,7 @@ fn average(numbers: &[f64]) -> f64 {
 /// Input: quality_interval: the quality values of the area we want to check
 /// Output: significance_indicator: a bool stating whether the minimizer is significant( true: yes, false: no)
 ///
-pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128])->bool{
+pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128],quality_threshold: &f64)->bool{
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
@@ -153,9 +153,9 @@ pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128])->bool{
         qualities.push(probability_error);
         quality *= probability_error
     }
-    let quality_threshold=0.9_f64.powi(quality_interval.len() as i32);
+
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
-    if quality > quality_threshold {
+    if quality > *quality_threshold {
         significance_indicator = true;
     }
     significance_indicator
@@ -163,32 +163,17 @@ pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128])->bool{
 
 
 //filter out minimizers for which the quality of the minimizer_impact range is too bad
-pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>,fastq_sequence: Cow<'_, [u8]>, fastq_quality:&[u8], w: usize, k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>) {
-    //let mut minimizers_filtered = vec![];
-    let minimizer_range = w - 1;
+pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_quality:&[u8], k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>, quality_threshold: &f64) {
     let mut skipped_cter= 0;
-    let mut minimizer_pos;
     let mut minimizer_range_start;
-    let mut minimizer_range_end;
     let mut significant;
     //println!("Number of minimizers: {}",this_minimizers.len());
     for mini in this_minimizers{
-        //println!("{:?}",mini);
-        minimizer_pos = mini.position;
-        minimizer_range_start = 0;
-        //set the start of the minimizer_range that we want to inspect
-        if minimizer_pos > minimizer_range{
-            //minimizer_range_start = minimizer_pos - minimizer_range;
-            minimizer_range_start = minimizer_pos;
-        }
-        minimizer_range_end = fastq_sequence.len();
-        if minimizer_pos +  k < minimizer_range_end{
-            //minimizer_range_end = minimizer_pos + minimizer_range + k ;
-            minimizer_range_end = minimizer_pos + k;
-        }
-        let qualitiy_interval = &fastq_quality[minimizer_pos..minimizer_range_end - 1];
+        minimizer_range_start = mini.position;
+        let qualitiy_interval = &fastq_quality[minimizer_range_start..minimizer_range_start + k];
         //println!("Quality_interval len {}",qualitiy_interval.len());
-        significant = is_significant(qualitiy_interval, d_no_min);
+        significant = is_significant(qualitiy_interval, d_no_min, quality_threshold);
+        //println!("Quality intervallen {}",qualitiy_interval.len());
         if significant{
             minimizers_filtered.push(mini.clone())
         }

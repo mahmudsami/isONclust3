@@ -165,7 +165,8 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize, mut m
     }
 
 }
-pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
+
+pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_threshold: &f64, significance_indicator:&mut bool){
     let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
@@ -186,12 +187,11 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128])->bool{
         quality *= probability_error
     }
 
-    let quality_threshold=0.9_f64.powi(quality_interval.len() as i32);
+
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
-    if quality > quality_threshold {
+    if quality > *quality_threshold {
         significance_indicator = true;
     }
-    significance_indicator
 }
 
 pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: usize, this_minimizers: &mut Vec<usize>)  {
@@ -275,33 +275,14 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: us
         }
     }
 }
-pub fn filter_minimizers_by_quality(this_minimizers: &Vec<usize>,fastq_sequence: &str, fastq_quality:&str, w: usize, k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<usize>) {
-    //let mut minimizers_filtered = vec![];
-    let minimizer_range = w - 1;
+pub fn filter_minimizers_by_quality(this_minimizers: &Vec<usize>, fastq_quality:&str, k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<usize>, quality_threshold: &f64) {
     let mut skipped_cter= 0;
-    let mut minimizer_pos;
     let mut minimizer_range_start;
-    let mut minimizer_range_end;
-    let mut significant;
-    //println!("Number of minimizers: {}",this_minimizers.len());
+    let mut significant= false;
     for mini in this_minimizers{
-        //println!("{:?}",mini);
-        minimizer_pos = *mini;
-        minimizer_range_start = 0;
-        //set the start of the minimizer_range that we want to inspect
-        if minimizer_pos > minimizer_range {
-            //minimizer_range_start = minimizer_pos - minimizer_range;
-            minimizer_range_start = minimizer_pos;
-        }
-
-        minimizer_range_end= fastq_sequence.len();
-        if minimizer_pos + minimizer_range + k < minimizer_range_end{
-            //minimizer_range_end = minimizer_pos + minimizer_range + k ;
-            minimizer_range_end= minimizer_pos + k;
-        }
-        let qualitiy_interval = &fastq_quality[minimizer_range_start..minimizer_range_end - 1];
-        //println!("Quality_interval len {}",qualitiy_interval.len());
-        significant= is_significant(qualitiy_interval, d_no_min);
+        minimizer_range_start = *mini;
+        let qualitiy_interval = &fastq_quality[minimizer_range_start..minimizer_range_start+k];
+        is_significant(qualitiy_interval, d_no_min, quality_threshold,&mut significant);
         if significant{
             minimizers_filtered.push(mini.clone())
         }
@@ -313,7 +294,7 @@ pub fn filter_minimizers_by_quality(this_minimizers: &Vec<usize>,fastq_sequence:
     //println!("Length after filter: {}",minimizers_filtered.len());
     //minimizers_filtered
 }
-fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<FastqRecord_isoncl_init>{
+fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str,quality_threshold: &f64, window_size: usize )->Vec<FastqRecord_isoncl_init>{
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
@@ -323,31 +304,27 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<Fast
     println!("{} reads recorded",fastq_records.len());
     //filter fastq_records: We only keep reads having a sequence length>2*k and that do not have a shorter compression than k
     fastq_records.retain(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );
+    //Test does not function yet: fastq_records.into_par_iter().filter(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );
     println!("{} reads accepted",fastq_records.len());
     //compute d_no_min and d, two arrays that we use for the calculations
-    let d_no_min=compute_d_no_min();
-    let d =compute_d();
-
-    let window_size=20;
-    let w=7;
+    let d_no_min= compute_d_no_min();
     //iterate over all fastq_records and calculate error_rate as well as score
-    fastq_records.par_iter_mut().for_each(|fastq_record| {
+    fastq_records.iter_mut().for_each(|fastq_record| {//TODo replace with par_iter_mut again
         let mut this_minimizers=vec![];
         let mut filtered_minis = vec![];
-        //let window_size=
         get_canonical_kmer_minimizers_hashed(fastq_record.get_sequence(), k, window_size,&mut this_minimizers);
-        filter_minimizers_by_quality(&this_minimizers,fastq_record.get_sequence(), &fastq_record.get_quality(),w,k,d_no_min,&mut filtered_minis);
+        filter_minimizers_by_quality(&this_minimizers, &fastq_record.get_quality(),k,d_no_min,&mut filtered_minis, quality_threshold);
         //calculate the error rate and store it in vector errors
         fastq_record.set_error_rate( calculate_error_rate(&fastq_record.get_quality(), &d_no_min));
         //calculate the final score and add it to fastq_record (we have a dedicated field for that that was initialized with 0.0)
         fastq_record.set_score(filtered_minis.len() as f64)
     });
     //filter out records that have a too high error rate
-    fastq_records.retain(|record| 10.0_f64*-record.get_err_rate().log(10.0_f64) > q_threshold);
+    fastq_records.retain(|record| 10.0_f64 * -record.get_err_rate().log(10.0_f64) > q_threshold);
 
     println!("{} reads accepted",fastq_records.len());
     //sort the vector fastq_records by scores
-    fastq_records.par_sort_by(|a, b| b.get_score().partial_cmp(&a.get_score()).unwrap());
+    fastq_records.sort_by(|a, b| b.get_score().partial_cmp(&a.get_score()).unwrap());//TODO: replace by par_sort_by
     //fastq_records.reverse();
     fastq_records
 }
@@ -369,10 +346,10 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String ) {
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String, quality_threshold:&f64,window_size: usize) {
 
     let now = Instant::now();
-    let fastq_records = analyse_fastq_and_sort(k, q_threshold, in_file_path);
+    let fastq_records = analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
     if !path_exists(&outfolder){

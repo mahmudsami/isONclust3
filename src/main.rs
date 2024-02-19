@@ -1,3 +1,5 @@
+//#![allow(warnings)]
+
 use std::fs::File;
 use std::collections::{HashMap, HashSet, VecDeque};
 use rayon::prelude::*;
@@ -26,6 +28,10 @@ use rustc_hash::{FxHashMap,FxHashSet};
 extern crate needletail;
 use needletail::{parse_fastx_file, Sequence, FastxReader};
 use std::io::Read;
+
+
+
+
 
 
 fn compute_d() -> [f64; 128] {
@@ -270,10 +276,10 @@ struct Cli {
     fastq: String,
     #[arg(long, short,help="Path to initial clusters (stored in fastq format)")]
     init_cl: Option<String>,
-    #[arg(short, default_value_t = 13, help="Kmer length")]
-    k: usize,
-    #[arg(short, default_value_t = 20)]
-    w: usize,
+    /*#[arg(short,  help="Kmer length")]
+    k: Option<usize>,
+    #[arg(short, help=" window size")]
+    w: Option<usize>,*/
     #[arg(long, short, help="Path to outfolder")]
     outfolder: String,
     #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
@@ -282,8 +288,10 @@ struct Cli {
     gtf: Option<String>,
     #[arg(long,help="Path to gtf file (optional parameter)")]
     noncanonical: Option<bool>,
+    #[arg(long,help="Run mode of isONclust (pacbio or ont")]
+    mode: String,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
-    
+
 }
 
 fn main() {
@@ -293,15 +301,33 @@ fn main() {
 
 
     let cli = Cli::parse();
-    println!("k: {:?}", cli.k);
-    println!("w: {:?}", cli.w);
+    //println!("k: {:?}", cli.k);
+    //println!("w: {:?}", cli.w);
     println!("n: {:?}", cli.n);
     println!("outfolder {:?}", cli.outfolder);
 
     let now1 = Instant::now();
+    let mode = cli.mode;
+    let mut k;
+    let mut w;
+    let mut quality_threshold;
 
-    let k = cli.k;
-    let window_size = cli.w;
+    if mode=="ont"{
+        k = 13;
+        w = 20;
+        quality_threshold = 0.9_f64.powi(k as i32);
+    }
+    else{
+        k = 15;
+        w = 50;
+        quality_threshold = 0.97_f64.powi(k as i32);
+    }
+
+
+    println!("k: {:?}", k);
+    println!("w: {:?}", w);
+    //let k = cli.k;
+    let window_size = w;
     let w = window_size - k;
     let outfolder = cli.outfolder;
     //makes the read  identifiable and gives us the possiblility to only use ids during the clustering step
@@ -312,7 +338,7 @@ fn main() {
     {//main scope (holds all the data structures that we can delete when the clustering is done
 
         let initial_clustering_path = cli.init_cl.as_deref();
-        resolve_gtf(gtf_path,initial_clustering_path,outfolder.clone());
+        //resolve_gtf(gtf_path,initial_clustering_path,outfolder.clone());
         //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 
         //let noncanonical= cli.noncanonical.as_deref();
@@ -323,7 +349,6 @@ fn main() {
 
         //holds the mapping of which minimizer belongs to what clusters
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
-
         //let mut cl_name_map = FxHashMap::default();
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -331,9 +356,6 @@ fn main() {
         } else {
             println!("Couldn't get the current memory usage :(");
         }
-
-
-
 
 
         //GENERATION OF ANNOTATION-BASED CLUSTERS
@@ -347,7 +369,7 @@ fn main() {
                 //parse the fasta file containing the information
                 let mut reader = parse_fastx_file(&clustering_path).expect("valid path/file");
                 //iterate over each read int the fasta file
-                while let Some(record) = reader.next() {
+                while let Some(record) = reader.next(){
                     //retreive the current record
                     let seq_rec = record.expect("invalid record");
                     //in the next lines we make sure that we have a proper header and store it as string
@@ -373,7 +395,7 @@ fn main() {
                         let id_vec= vec![];
                         clusters.insert(cl_id,id_vec);
                         //increase the cl_id
-                        cl_id +=1;
+                        cl_id += 1;
                     }
 
                 }
@@ -400,7 +422,7 @@ fn main() {
         let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, window_size);
         println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -419,6 +441,7 @@ fn main() {
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
             let min_shared_minis = 0.8;
             //parse the file and do for each read in it:
+            //let mut reader =
             let mut reader = parse_fastx_file(&filename).expect("valid path/file");
             while let Some(record) = reader.next() {
                 let seq_rec = record.expect("invalid record");
@@ -437,7 +460,7 @@ fn main() {
                     let mut this_minimizers = vec![];
                     let mut filtered_minis = vec![];
                     generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence.clone(), k, window_size, &mut this_minimizers);
-                    generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers, sequence, quality, w, k, d_no_min, &mut filtered_minis);
+                    generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
                     //perform the clustering step
                     clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
                     read_id += 1;
