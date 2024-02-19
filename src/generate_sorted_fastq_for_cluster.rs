@@ -167,7 +167,6 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize, mut m
 }
 
 pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_threshold: &f64, significance_indicator:&mut bool){
-    let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
     let mut index;
@@ -179,7 +178,7 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_thresho
         //q_value gives the PHRED quality score: i.e. '+' gives us 0.1
         q_value = d_no_min[index];
         //here we get the base call accuracy
-        probability_error= 1.0 - q_value;
+        probability_error = 1.0 - q_value;
         //TODO: if we have a position having a worse quality char than '+' maybe we should not let this minimizer be significant
         //if probability_error <0.9{
         //    significance_indicator = false;}
@@ -190,7 +189,7 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_thresho
 
     //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
     if quality > *quality_threshold {
-        significance_indicator = true;
+        *significance_indicator = true;
     }
 }
 
