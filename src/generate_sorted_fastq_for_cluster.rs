@@ -179,15 +179,9 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_thresho
         q_value = d_no_min[index];
         //here we get the base call accuracy
         probability_error = 1.0 - q_value;
-        //TODO: if we have a position having a worse quality char than '+' maybe we should not let this minimizer be significant
-        //if probability_error <0.9{
-        //    significance_indicator = false;}
         qualities.push(probability_error);
         quality *= probability_error
     }
-
-
-    //TODO: let quality be dependent on length of quality_interval (e.g. 1*E-len)
     if quality > *quality_threshold {
         *significance_indicator = true;
     }
@@ -293,13 +287,13 @@ pub fn filter_minimizers_by_quality(this_minimizers: &Vec<usize>, fastq_quality:
     //println!("Length after filter: {}",minimizers_filtered.len());
     //minimizers_filtered
 }
-fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str,quality_threshold: &f64, window_size: usize )->Vec<FastqRecord_isoncl_init>{
+fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_threshold: &f64, window_size: usize, fastq_records: &mut Vec<FastqRecord_isoncl_init>){
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
     //read the fastq file and store the result in fastq_records (a vector of FastqRecord_isoncl_init)
     let fastq_file = File::open(in_file_path).unwrap();
-    let mut fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
+    file_actions::parse_fastq(fastq_file, fastq_records);
     println!("{} reads recorded",fastq_records.len());
     //filter fastq_records: We only keep reads having a sequence length>2*k and that do not have a shorter compression than k
     fastq_records.retain(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );
@@ -325,10 +319,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str,quality_th
     //sort the vector fastq_records by scores
     fastq_records.sort_by(|a, b| b.get_score().partial_cmp(&a.get_score()).unwrap());//TODO: replace by par_sort_by
     //fastq_records.reverse();
-    fastq_records
 }
-
-
 
 
 
@@ -348,7 +339,8 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String, quality_threshold:&f64,window_size: usize) {
 
     let now = Instant::now();
-    let fastq_records = analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size);
+    let mut fastq_records=vec![];
+    analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size,&mut fastq_records);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
     if !path_exists(&outfolder){

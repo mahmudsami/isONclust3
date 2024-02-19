@@ -56,10 +56,10 @@ fn shorten_header(header:&str)-> &str{
 
 
 
-pub(crate) fn parse_fastq(file: File) -> Result<Vec<structs::FastqRecord_isoncl_init>, Box<dyn Error>> {
+pub(crate) fn parse_fastq(file: File,records: &mut Vec<structs::FastqRecord_isoncl_init>){
     //Parses a fastq file, returns a vector of FastqRecords
     let mut reader = BufReader::new(file);
-    let mut records=vec![];
+    //let mut records=vec![];
     loop {
         let mut header = String::new();
         let header_read = reader.read_line(&mut header).expect("Should be contained");
@@ -94,7 +94,6 @@ pub(crate) fn parse_fastq(file: File) -> Result<Vec<structs::FastqRecord_isoncl_
         let error_rate=0.0_f64;
         records.push(FastqRecord_isoncl_init { header, sequence,/* quality_header,*/ quality, score,error_rate});
     }
-    Ok(records)
 }
 
 /*pub(crate) fn parse_fastq(file: File) -> (Vec<FastqRecord_isoncl_init>, HashMap<i32,String>) {

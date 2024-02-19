@@ -89,7 +89,8 @@ pub fn path_exists(path: &str) -> bool {
 
 pub(crate) fn write_output(outfolder:String,clusters:&FxHashMap<i32,Vec<i32>>,fastq:String, id_map:FxHashMap<i32,String>){
     let fastq_file = File::open(fastq).unwrap();
-    let fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
+    let mut fastq_records=vec![];
+    file_actions::parse_fastq(fastq_file,&mut fastq_records);
     if !path_exists(&outfolder){
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
