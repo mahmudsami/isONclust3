@@ -15,7 +15,7 @@ mod clustering;
 mod generate_sorted_fastq_new_version;
 mod generate_sorted_fastq_for_cluster;
 mod gtf_handling;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 //mod isONclust;
 mod structs;
 use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
@@ -25,10 +25,12 @@ extern crate clap;
 mod write_output;
 use memory_stats::memory_stats;
 use rustc_hash::{FxHashMap,FxHashSet};
-extern crate needletail;
-use needletail::{parse_fastx_file, Sequence, FastxReader};
-use std::io::Read;
 
+use std::io::Read;
+use bio::io::fastq;
+use bio::io::fasta;
+use bio::io::fasta::FastaRead;
+use bio::io::fastq::FastqRead;
 
 
 
@@ -367,17 +369,20 @@ fn main() {
         if let Some(clustering_path) = initial_clustering_path {
             if initial_clustering_path.is_some() {
                 //parse the fasta file containing the information
-                let mut reader = parse_fastx_file(&clustering_path).expect("valid path/file");
+                //let mut reader = parse_fastx_file(&clustering_path).expect("valid path/file");
                 //iterate over each read int the fasta file
-                while let Some(record) = reader.next(){
+                //while let Some(record) = reader.next(){
+                let mut reader = fasta::Reader::from_file(Path::new(&clustering_path)).expect("We expect the file to exist");
+                //let mut reader = parse_fastx_file(&filename).expect("valid path/file");
+                for record in reader.records().into_iter(){
                     //retreive the current record
                     let seq_rec = record.expect("invalid record");
                     //in the next lines we make sure that we have a proper header and store it as string
-                    let header = seq_rec.id();
-                    let header_str = match std::str::from_utf8(header) {
-                        Ok(v) => v,
-                        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-                    };
+                    let header_str = seq_rec.id();
+                    //let header_str = match std::str::from_utf8(header) {
+                    //    Ok(v) => v,
+                    //    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                    //};
                     let header_new = header_str.to_string();
                     //retreive the sequence of the read
                     let sequence = seq_rec.seq();
@@ -388,7 +393,7 @@ fn main() {
                         //this_minimizers stores the minimizers generated for the current cluster read
                         let mut this_minimizers = vec![];
                         //generate the minimizers for this gene family
-                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence.clone(), k, window_size, &mut this_minimizers);
+                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
                         //fill up the cluster_map, a FxHashMap having the Minimizer hash as key and a vector of  clusters the minimizer was found in as value
                         clustering::generate_initial_cluster_map(&this_minimizers, &mut cluster_map,cl_id);
                         //we add an empty vector to clusters for each of the clusters we found in the annotation file
@@ -441,25 +446,27 @@ fn main() {
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
             let min_shared_minis = 0.8;
             //parse the file and do for each read in it:
-            //let mut reader =
-            let mut reader = parse_fastx_file(&filename).expect("valid path/file");
-            while let Some(record) = reader.next() {
+
+            let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
+            //let mut reader = parse_fastx_file(&filename).expect("valid path/file");
+            for record in reader.records().into_iter(){
+            //while let Some(record) = reader.next() {
                 let seq_rec = record.expect("invalid record");
-                let header = seq_rec.id();
-                let header_str = match std::str::from_utf8(header) {
-                    Ok(v) => v,
-                    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-                };
-                let header_new = header_str.to_string();
+                let header_new = seq_rec.id();
+                //let header_str = match std::str::from_utf8(header) {
+                //    Ok(v) => v,
+                //    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                //};
+                //let header_new = header_str.to_string();
                 let sequence = seq_rec.seq();
 
-                let quality = seq_rec.qual().expect("We also should have a quality");
+                let quality = seq_rec.qual();//.expect("We also should have a quality");
                 //add the read id and the real header to id_map
-                id_map.insert(read_id, header_new);
+                id_map.insert(read_id, header_new.to_string());
                 if sequence.len() > k {
                     let mut this_minimizers = vec![];
                     let mut filtered_minis = vec![];
-                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence.clone(), k, window_size, &mut this_minimizers);
+                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
                     generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
                     //perform the clustering step
                     clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);

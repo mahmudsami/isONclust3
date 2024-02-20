@@ -43,7 +43,7 @@ fn cow_to_string(cow: Cow<'_, [u8]>) -> String {
 
 
 
-pub fn get_canonical_kmer_minimizers_hashed(seq: Cow<'_, [u8]>, k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
+pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
     //make sure that we have suitable values for k_size and w_size (w_size should be larger)
     let mut w= 0;
     if w_size > k_size{

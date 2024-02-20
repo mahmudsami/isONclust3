@@ -13,6 +13,7 @@ use crate::write_output;
 use crate::generate_sorted_fastq_new_version;
 use crate::write_output::path_exists;
 use std::fs;
+use bio::io::fastq;
 
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
 fn compress_sequence(seq: &str) -> String {
@@ -166,7 +167,8 @@ pub fn get_kmer_minimizers<'a>(seq: &'a str, k_size: usize, w_size: usize, mut m
 
 }
 
-pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_threshold: &f64, significance_indicator:&mut bool){
+pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_threshold: &f64)->bool{
+    let mut significance_indicator= false;
     let mut qualities :Vec<f64> = vec![];
     let mut quality = 1.0;
     let mut index;
@@ -183,8 +185,9 @@ pub fn is_significant(quality_interval: &str, d_no_min:[f64;128],quality_thresho
         quality *= probability_error
     }
     if quality > *quality_threshold {
-        *significance_indicator = true;
+        significance_indicator = true;
     }
+    significance_indicator
 }
 
 pub fn get_canonical_kmer_minimizers_hashed(seq: &str, k_size: usize, w_size: usize, this_minimizers: &mut Vec<usize>)  {
@@ -275,7 +278,7 @@ pub fn filter_minimizers_by_quality(this_minimizers: &Vec<usize>, fastq_quality:
     for mini in this_minimizers{
         minimizer_range_start = *mini;
         let qualitiy_interval = &fastq_quality[minimizer_range_start..minimizer_range_start+k];
-        is_significant(qualitiy_interval, d_no_min, quality_threshold,&mut significant);
+        significant = is_significant(qualitiy_interval, d_no_min, quality_threshold);
         if significant{
             minimizers_filtered.push(mini.clone())
         }
@@ -292,6 +295,8 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
     //read the fastq file and store the result in fastq_records (a vector of FastqRecord_isoncl_init)
+    let d_no_min= compute_d_no_min();
+    //let mut reader = fastq::Reader::new(in_file_path);
     let fastq_file = File::open(in_file_path).unwrap();
     file_actions::parse_fastq(fastq_file, fastq_records);
     println!("{} reads recorded",fastq_records.len());
@@ -300,8 +305,9 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
     //Test does not function yet: fastq_records.into_par_iter().filter(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );
     println!("{} reads accepted",fastq_records.len());
     //compute d_no_min and d, two arrays that we use for the calculations
-    let d_no_min= compute_d_no_min();
+
     //iterate over all fastq_records and calculate error_rate as well as score
+    //while let Some(Ok(record)) = records.next() {
     fastq_records.iter_mut().for_each(|fastq_record| {//TODo replace with par_iter_mut again
         let mut this_minimizers=vec![];
         let mut filtered_minis = vec![];

@@ -43,8 +43,8 @@ fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>
 
 
 
-fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq_vec: Vec<FastqRecord_isoncl_init>)->FxHashMap<i32,Vec<FastqRecord_isoncl_init>>{
-    let mut cluster_map= FxHashMap::default();
+fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq_vec: Vec<FastqRecord_isoncl_init>, cluster_map: &mut FxHashMap<i32,Vec<FastqRecord_isoncl_init>>){
+    //let mut cluster_map= FxHashMap::default();
     for read in fastq_vec{
         let id =read.header.clone();
         //println!("id {}",id);
@@ -59,7 +59,6 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq_vec: Vec<Fas
             }
         }
     }
-    cluster_map
 }
 
 
@@ -99,8 +98,9 @@ pub(crate) fn write_output(outfolder:String,clusters:&FxHashMap<i32,Vec<i32>>,fa
         let result_dir=fs::create_dir(fastq_path.clone());
     }
     //convert_infos_for_writing(id_map.clone(), clusters.clone(), fastq_vec);
-    let mut header_cluster_map=FxHashMap::default();
+    let mut header_cluster_map= FxHashMap::default();
     write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone(), header_cluster_map.clone());
-    let cluster_hashmap_fastq_record = create_final_ds(header_cluster_map, fastq_records);
+    let mut cluster_hashmap_fastq_record= FxHashMap::default();
+    create_final_ds(header_cluster_map, fastq_records,&mut cluster_hashmap_fastq_record);
     write_fastq_files(&fastq_path, cluster_hashmap_fastq_record);
 }
