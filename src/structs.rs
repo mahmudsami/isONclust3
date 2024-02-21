@@ -41,7 +41,7 @@ impl fmt::Display for GtfEntry {
     }
 }
 
-
+#[derive(Debug)]
 pub(crate) struct Coord_obj{
     pub startpos: u64,
     pub endpos: u64

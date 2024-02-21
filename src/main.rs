@@ -198,7 +198,6 @@ fn main() {
     println!("w: {:?}", w);
     //let k = cli.k;
     let window_size = w;
-    let w = window_size - k;
     let outfolder = cli.outfolder;
     //makes the read  identifiable and gives us the possibility to only use ids during the clustering step
     let mut id_map = FxHashMap::default();
@@ -210,7 +209,7 @@ fn main() {
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
 
         let initial_clustering_path = cli.init_cl.as_deref();
-        //resolve_gtf(gtf_path,initial_clustering_path,&mut clusters,&mut cluster_map);
+        resolve_gtf(gtf_path,initial_clustering_path,&mut clusters,&mut cluster_map);
         //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 
         //let noncanonical= cli.noncanonical.as_deref();
@@ -235,7 +234,7 @@ fn main() {
         //cl_id is used to appoint a cluster id to a cluster
         let mut cl_id = 0;
         //initial clusters were given (annotation based clustering)-> we generate the initial clusters
-        if let Some(clustering_path) = initial_clustering_path {
+        /*if let Some(clustering_path) = initial_clustering_path {
             if initial_clustering_path.is_some() {
                 //parse the fasta file containing the information
                 //let mut reader = parse_fastx_file(&clustering_path).expect("valid path/file");
@@ -269,7 +268,7 @@ fn main() {
                 }
             }
 
-        }
+        }*/
         println!("{} s used for parsing the initial clustering file", now1.elapsed().as_secs());
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -308,22 +307,13 @@ fn main() {
             let mut read_id = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
             let min_shared_minis = 0.8;
-            //parse the file and do for each read in it:
-
+            //parse the file:
             let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
-            //let mut reader = parse_fastx_file(&filename).expect("valid path/file");
             for record in reader.records().into_iter(){
-            //while let Some(record) = reader.next() {
                 let seq_rec = record.expect("invalid record");
                 let header_new = seq_rec.id();
-                //let header_str = match std::str::from_utf8(header) {
-                //    Ok(v) => v,
-                //    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-                //};
-                //let header_new = header_str.to_string();
                 let sequence = seq_rec.seq();
-
-                let quality = seq_rec.qual();//.expect("We also should have a quality");
+                let quality = seq_rec.qual();
                 //add the read id and the real header to id_map
                 id_map.insert(read_id, header_new.to_string());
                 if sequence.len() > k {
@@ -344,8 +334,6 @@ fn main() {
             println!("{} reads used for clustering",read_id);
             println!("Skipped {} reads due to being too short", skipped_cter);
         }
-
-
 
         println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
         if let Some(usage) = memory_stats() {
