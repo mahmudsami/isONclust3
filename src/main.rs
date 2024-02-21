@@ -3,6 +3,7 @@
 use std::fs::File;
 use std::collections::{HashMap, HashSet, VecDeque};
 use rayon::prelude::*;
+extern crate rayon;
 use std::time::Instant;
 use std::time::Duration;
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
@@ -20,16 +21,17 @@ use std::path::{PathBuf, Path};
 mod structs;
 use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
 use std::thread;
-extern crate rayon;
+
 extern crate clap;
 mod write_output;
 use memory_stats::memory_stats;
 use rustc_hash::{FxHashMap,FxHashSet};
 
 use std::io::Read;
-use bio::io::fastq;
+
 use bio::io::fasta;
 use bio::io::fasta::FastaRead;
+use bio::io::fastq;
 use bio::io::fastq::FastqRead;
 
 
@@ -332,15 +334,17 @@ fn main() {
     let window_size = w;
     let w = window_size - k;
     let outfolder = cli.outfolder;
-    //makes the read  identifiable and gives us the possiblility to only use ids during the clustering step
+    //makes the read  identifiable and gives us the possibility to only use ids during the clustering step
     let mut id_map = FxHashMap::default();
     let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
     let gtf_path = cli.gtf.as_deref();
 
     {//main scope (holds all the data structures that we can delete when the clustering is done
+        //holds the mapping of which minimizer belongs to what clusters
+        let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
 
         let initial_clustering_path = cli.init_cl.as_deref();
-        //resolve_gtf(gtf_path,initial_clustering_path,outfolder.clone());
+        //resolve_gtf(gtf_path,initial_clustering_path,&mut clusters,&mut cluster_map);
         //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 
         //let noncanonical= cli.noncanonical.as_deref();
@@ -349,8 +353,7 @@ fn main() {
         //    noncanonical=true;
         //}
 
-        //holds the mapping of which minimizer belongs to what clusters
-        let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
+
         //let mut cl_name_map = FxHashMap::default();
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -377,17 +380,11 @@ fn main() {
                 for record in reader.records().into_iter(){
                     //retreive the current record
                     let seq_rec = record.expect("invalid record");
-                    //in the next lines we make sure that we have a proper header and store it as string
-                    let header_str = seq_rec.id();
-                    //let header_str = match std::str::from_utf8(header) {
-                    //    Ok(v) => v,
-                    //    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-                    //};
-                    let header_new = header_str.to_string();
-                    //retreive the sequence of the read
                     let sequence = seq_rec.seq();
+                    //in the next lines we make sure that we have a proper header and store it as string
+                    //let header_str = seq_rec.id().to_string();
                     //make the cluster identifiable for later use
-                    //cl_name_map.insert(identifier, header_new);
+                    //cl_name_map.insert(identifier, header_str);
                     //we make sure that the sequence is not smaller than k
                     if sequence.len() > k {
                         //this_minimizers stores the minimizers generated for the current cluster read

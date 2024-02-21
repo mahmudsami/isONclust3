@@ -11,12 +11,21 @@ use std::borrow::Cow;
 use crate::file_actions;
 
 
-pub(crate) fn write_ordered_fastq(fastq_records:&Vec<FastqRecord_isoncl_init>, outfolder: &String){
+pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
     //writes the fastq file
+    let fastq_file = File::open(fastq).unwrap();
+    let mut fastq_records=FxHashMap::default();
+    file_actions::parse_fastq_hashmap(fastq_file,&mut fastq_records);
     let mut f = File::create(outfolder.to_owned()+"/sorted.fastq").expect("Unable to create file");
     let mut buf_write = BufWriter::new(&f);
-    for record in fastq_records {
-        write!(buf_write, "@{}\n{}\n+\n{}\n", record.get_header(), record.get_sequence(),record.get_quality()).expect("Could not write file");
+    //for record in fastq_records {
+    for score_tup in score_vec.into_iter(){
+        let this_header = id_map.get(&score_tup.0).unwrap();
+        let record= fastq_records.get(this_header).unwrap();
+        if &record.header==this_header{
+            write!(buf_write, "@{}\n{}\n+\n{}\n", record.get_header(), record.get_sequence(),record.get_quality()).expect("Could not write file");
+        }
+
     }
     buf_write.flush().expect("Failed to flush the buffer");
 }

@@ -1,162 +1,124 @@
 use crate::structs::{GtfEntry, FastaRecord, Coord_obj};
 use std::fs::File;
-use std::io::{BufReader, BufRead};
+use std::io::{BufReader, BufRead, Read};
 use std::str::FromStr;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use bio::io::gff;
 use bio::io::gff::{GffType, Record};
 use bio::io::gff::GffType::GFF3;
-
-fn gtf_parse_strand(entry:String) -> bool {
-    let return_bool:bool;
-    let char_vec:Vec<char>=entry.chars().collect();
-    if char_vec.len()!=1{
-        panic!("Expected String to be of length 1, but got {}",entry);
-
-    }
-    else {
-        let char=char_vec[0];
-        if char=='+'{
-            return_bool=true
-        }
-        else if char=='-' {
-            return_bool=false
-        }
-        else {
-            panic!("Expected '+' or '-' in this field but got {}",char)
-        }
-    }
-    return_bool
-}
+use rayon::prelude::*;
+use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
+use std::path::Path;
+use bio::io::fasta;
+use bio::io::fasta::FastaRead;
+extern crate rayon;
 
 
-fn gtf_parse_frame(entry:String) -> i8 {
-    entry.parse::<i8>().unwrap()
-}
 
-fn gtf_parse_score(entry:&str) ->f64 {
-    let score:f64=f64::from_str(entry).unwrap();
-    /*if entry=="."{
-        score=0.0;
-    }
-    else{
-        score;
-    }*/
-    score
-}
-
-fn get_coords(rec: Record, mut coords: &mut FxHashMap<String,Vec<Coord_obj>>){
+fn get_coords(rec: Record, mut coords: &mut FxHashMap<&str,FxHashMap<i32,Vec<Coord_obj>>>,gene_id:i32){
     if rec.feature_type() == "exon"{
-        if let Some(x) = coords.get_mut(rec.seqname()) {
-            x.push(Coord_obj{startpos: *rec.start(),endpos: *rec.end() });
-        }
-        else{
+
+        /*else{
             let mut coord_vec=vec![];
             coord_vec.push(Coord_obj{startpos: *rec.start(),endpos: *rec.end() });
-            coords.insert(rec.seqname().to_string(), coord_vec);
-        }
-    }
-}
-/*fn get_coords( gtf_entries: Vec<GtfEntry>,mut coords: &mut FxHashMap<String,Vec<Coord_obj>>){
-    for entry in gtf_entries{
-        if let Some(x) = coords.get_mut(entry.seqname.as_str()) {
-            x.push(Coord_obj{startpos: entry.start,endpos: entry.end });
-        }
-        else{
-            let mut coord_vec=vec![];
-            coord_vec.push(Coord_obj{startpos: entry.start,endpos: entry.end });
-            coords.insert(entry.seqname,coord_vec);
-        }
-    }
-}*/
-
-
-fn get_reads(ref_rec_head: String, ref_rec_seq: String, coords: FxHashMap<String,Vec<Coord_obj>>,new_seqs: Vec<FastaRecord>){
-
-}
-
-
-fn lineToGTF(line:&str) -> GtfEntry {
-    let bound_line=line.to_string();
-    let splitline: Vec<&str> = bound_line.split('\t').collect();
-    let seqname=splitline[0];
-    let source=splitline[1];
-    let feature=splitline[2];
-    let start:usize =splitline[3].trim()
-        .parse()
-        .expect("Wanted a number");
-    let end:usize =splitline[4].trim()
-        .parse()
-        .expect("Wanted a number");
-    //println!("seqname: {},float: {}",splitline[0],splitline[5]);
-    //let score: f64  = gtf_parse_score(splitline[5]);
-    let strand: bool = gtf_parse_strand(splitline[6].to_string());
-    //let frame: i8 = gtf_parse_frame(splitline[7].to_string());
-    //let attribute = splitline[8];
-    let gtf_entry = GtfEntry{
-        seqname: seqname.to_string(),
-        source: source.to_string(),
-        feature: feature.to_string(),
-        start,
-        end,
-        //score,
-        strand,
-        //frame,
-        //attribute: attribute.to_string()
-    };
-    gtf_entry
-}
-
-
-fn parse_gtf(file_path:&str, mut gtfRecords: &mut Vec<GtfEntry>){
-    let file = File::open(file_path).expect("The gtf file was not found");
-    let reader = BufReader::new(file);
-    for line in reader.lines() {
-        if !line.as_ref().unwrap().starts_with("#"){
-            let gtf_entry = lineToGTF(line.unwrap().as_str());
-            gtfRecords.push(gtf_entry)
-        }
+            coords.insert(gene_id, coord_vec);
+        }*/
     }
 }
 
 
-pub(crate) fn resolve_gtf_old(gtf_path: Option<&str>, fastq_path: Option<&str>, outfolder: String){
-    let mut gtfRecords =vec![];
-    let reference_records: Vec<FastaRecord>=vec![];
-    //let mut gtf_entries = vec![];
-    let mut coords:FxHashMap<String,Vec<Coord_obj>>=FxHashMap::default();
-    if let Some(gtf_path_u) = gtf_path {
-        parse_gtf(gtf_path_u, &mut gtfRecords);
-        println!("gtf file parsed")
+
+
+fn parse_fasta_and_gen_clusters(fasta_path: Option<&str>, coords: FxHashMap<String,FxHashMap<i32,Vec<Coord_obj>>>){
+    println!("parse_fasta");
+    let path=fasta_path.unwrap();
+    let mut reader = fasta::Reader::from_file(Path::new(path)).expect("We expect the file to exist");
+    //let mut reader = parse_fastx_file(&filename).expect("valid path/file");
+    for key in coords.keys(){
+        println!("KEY {}",key)
     }
-    //get_coords(gtfRecords,&mut coords);
-    for coord in &coords{
-        for coord_e in coord.1{
-            println!("{}: {}", coord.0, coord_e)
+    for record in reader.records().into_iter() {
+        //retreive the current record
+        println!("It over records");
+        let seq_rec = record.expect("invalid record");
+        let sequence = seq_rec.seq();
+        let local_seq= std::str::from_utf8(sequence).expect("The genomic sequence should be utf8").to_string();
+        //in the next lines we make sure that we have a proper header and store it as string
+        let id = seq_rec.id().to_string().split(' ').collect::<Vec<_>>()[0].to_string();
+        println!("ID {}",id);
+        //println!("GOTIT {:?}",coords.get(id.as_str()).expect("He").keys());
+        if let Some(gene_map) = coords.get(id.as_str()) {
+            println!("GM {:?}",gene_map.keys());
+            for (gene_id, exon_coords) in gene_map {
+                println!("gID {}",gene_id);
+                //print!("{}",exon_coords.into_iter());
+                for exon_coord in exon_coords{
+                    let exon_seq = &local_seq[6..90];
+                    println!("start: {}, end: {}",exon_coord.startpos,exon_coord.endpos);
+
+                    println!("ID {}, GID, {}, Exon sequence, {}",id,gene_id, exon_seq);
+                }
+            }
         }
     }
-
-    //reference_records.iter().for_each(|reference_record| {
-    //    get_coords(*reference_record.header,reference_record.sequence, gtf_coords);
-    //});
 }
-pub(crate) fn resolve_gtf(gtf_path: Option<&str>, fastq_path: Option<&str>, outfolder: String) {
-    println!("Resolving GFF file ");
-    let mut reader = gff::Reader::from_file(gtf_path.unwrap(),GFF3);
-    let mut coords: FxHashMap<String,Vec<Coord_obj>> = FxHashMap::default();
+
+fn parse_gtf_and_collect_coords(gtf_path: Option<&str>, coords:&mut FxHashMap<String,FxHashMap<i32,Vec<Coord_obj>>>){
+
+    //let new_coords=FxHashMap::default();
+    let reader = gff::Reader::from_file(gtf_path.unwrap(),GFF3);
+    let mut gene_id=0;
+    let mut gene_init=String::new();
     for record in reader.expect("The reader should find records").records() {
-        let rec = record.ok().expect("Error reading record.");
-        get_coords(rec, &mut coords);
-
-        //Coord_obj{startpos: *rec.start(),endpos: *rec.end() }
-    }
-    for coord in &coords{
-        println!("id: {}",coord.0);
-        for coord_e in coord.1{
-            println!(" {}", coord_e)
+        let mut rec = record.ok().expect("Error reading record.");
+        //we have a new gene
+        if rec.feature_type()=="gene"{
+            //see if we are in a new chromosome/scaffold
+            if !coords.contains_key(rec.seqname()){
+                //we are in a new chromosome/scaffold
+                //reset the gene_id
+                gene_id = 0;
+                //
+                let sname=rec.seqname().to_string();
+                coords.insert(sname,FxHashMap::default());
+            }
+            //get the gene map out of coords
+            let gene_map: &mut FxHashMap<i32,Vec<Coord_obj>> = coords.get_mut(rec.seqname()).expect("We made sure that the key exists in the HashMap");
+            //add an empty vector that will contain the exon coordinates for this gene
+            gene_map.insert(gene_id,vec![]);
+            gene_id += 1;
         }
+        else if rec.feature_type()=="exon"{
+            if let Some(gene_map) = coords.get_mut(rec.seqname()) {
+                if let Some(coord_vec) = gene_map.get_mut(&gene_id) {
+                    coord_vec.push(Coord_obj{startpos: *rec.start(),endpos: *rec.end() });
+                }
+
+            }
+
+        }
+
     }
-    println!("GTF resolved")
+}
+
+
+pub(crate) fn resolve_gtf(gtf_path: Option<&str>, fasta_path: Option<&str>,clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>) {
+    println!("Resolving GFF file ");
+
+    let mut coords=FxHashMap::default();//: HashMap<K, HashMap<i32, Vec<Coord_obj>, BuildHasherDefault<FxHasher>>, BuildHasherDefault<FxHasher>> = FxHashMap::default();
+    parse_gtf_and_collect_coords(gtf_path, &mut coords);
+    println!("First step done");
+    parse_fasta_and_gen_clusters(fasta_path,coords);
+
+    //detectOverlaps(coords);
+    //for coord in &coords{
+    //    println!("id: {}",coord.0);
+    //    for coord_e in coord.1{
+    //        println!(" {}", coord_e)
+    //    }
+    //}
+    println!("GTF resolved");
 }
 
 
