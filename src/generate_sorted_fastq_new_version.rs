@@ -77,7 +77,6 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
             }
         }
     }
-    //println!("kmers in window: {:?}", window_kmers);
     //store the final positional minimizers in a vector
     if !window_kmers.is_empty(){
         // Find the initial minimizer (minimizer of initial window)
@@ -94,7 +93,7 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
         let mut forward_hash;
         let mut reverse_hash;
         //iterate further over the sequence and generate the minimizers thereof
-        for (i, new_kmer) in seq[w..].windows(k_size).enumerate() {
+        for (i, new_kmer) in seq[w..].windows(k_size).enumerate().into_iter() {
             new_kmer_pos = i  + w;
             new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
             rc_string = reverse_complement(new_kmer_str);
@@ -165,10 +164,10 @@ pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128],quality_thresh
 //filter out minimizers for which the quality of the minimizer_impact range is too bad
 pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_quality:&[u8], k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>, quality_threshold: &f64) {
     let mut skipped_cter= 0;
-    let mut minimizer_range_start;
+    let mut minimizer_range_start:usize;
     let mut significant;
     //println!("Number of minimizers: {}",this_minimizers.len());
-    for mini in this_minimizers{
+    for mini in this_minimizers{//TODO: test whether into_par_iter works here
         minimizer_range_start = mini.position;
         let qualitiy_interval = &fastq_quality[minimizer_range_start..minimizer_range_start + k];
         //println!("Quality_interval len {}",qualitiy_interval.len());

@@ -15,7 +15,7 @@ mod clustering;
 //mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
 mod generate_sorted_fastq_for_cluster;
-mod gtf_handling;
+mod gff_handling;
 use std::path::{PathBuf, Path};
 //mod isONclust;
 mod structs;
@@ -34,7 +34,7 @@ use bio::io::fasta::FastaRead;
 use bio::io::fastq;
 use bio::io::fastq::FastqRead;
 use std::convert::TryFrom;
-use crate::gtf_handling::resolve_gtf;
+
 
 
 
@@ -154,9 +154,9 @@ struct Cli {
     outfolder: String,
     #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
     n: usize,
-    #[arg(long, short,help="Path to gtf file (optional parameter)")]
-    gtf: Option<String>,
-    #[arg(long,help="Path to gtf file (optional parameter)")]
+    #[arg(long, short,help="Path to gff3 file (optional parameter)")]
+    gff: Option<String>,
+    #[arg(long,help="we do not want to use canonical seeds")]
     noncanonical: Option<bool>,
     #[arg(long,help="Run mode of isONclust (pacbio or ont")]
     mode: String,
@@ -168,11 +168,7 @@ fn main() {
 
 
     //INITIALIZATION
-
-
     let cli = Cli::parse();
-    //println!("k: {:?}", cli.k);
-    //println!("w: {:?}", cli.w);
     println!("n: {:?}", cli.n);
     println!("outfolder {:?}", cli.outfolder);
 
@@ -197,19 +193,18 @@ fn main() {
     println!("k: {:?}", k);
     println!("w: {:?}", w);
     //let k = cli.k;
-    let window_size = w;
     let outfolder = cli.outfolder;
     //makes the read  identifiable and gives us the possibility to only use ids during the clustering step
     let mut id_map = FxHashMap::default();
     let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
-    let gtf_path = cli.gtf.as_deref();
+    let gff_path = cli.gff.as_deref();
 
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
 
         let initial_clustering_path = cli.init_cl.as_deref();
-        resolve_gtf(gtf_path,initial_clustering_path,&mut clusters,&mut cluster_map);
+        //gff_handling::resolve_gff(gff_path,initial_clustering_path,&mut clusters,&mut cluster_map,k,w);
         //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 
         //let noncanonical= cli.noncanonical.as_deref();
@@ -289,7 +284,7 @@ fn main() {
         let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, window_size);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w);
         println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -319,7 +314,7 @@ fn main() {
                 if sequence.len() > k {
                     let mut this_minimizers = vec![];
                     let mut filtered_minis = vec![];
-                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
+                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
                     generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
                     //perform the clustering step
                     clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
@@ -328,7 +323,6 @@ fn main() {
                 else {
                     skipped_cter += 1
                 }
-
             }
             println!("Finished clustering");
             println!("{} reads used for clustering",read_id);
@@ -348,7 +342,6 @@ fn main() {
 
 
     //FILE OUTPUT STEP
-
 
     let now4 = Instant::now();
     write_output::write_output(outfolder, &clusters, cli.fastq, id_map);

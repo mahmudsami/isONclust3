@@ -9,7 +9,7 @@ use std::borrow::Cow;
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
     let reverse_complement: String = dna.chars()
-        .rev()
+        .rev()//TODO: test whether into_par_iter works here
         .map(|c| match c {
             'A' => 'T',
             'T' => 'A',
@@ -32,7 +32,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
     let mut most_shared_cluster= 0;
     let mut nr_minis:usize;
     let mut shared_perc:f64;
-    for (key, value) in shared_mini_infos {
+    for (key, value) in shared_mini_infos {//TODO: test whether into_par_iter works here
         //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
         nr_minis = minimizers.len();
         shared_perc = calculate_shared_perc(nr_minis,*value);
@@ -62,11 +62,11 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,mi
     //if we already have at least one cluster: compare the new read to the cluster(s)
     if !(clusters.is_empty()){
         //if sign_minis.len() > min_shared_minis as usize {
-        for minimizer in sign_minis {
+        for minimizer in sign_minis {//TODO: test whether into_par_iter works here
             //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
             if let Some(belongs_to) = cluster_map.get(&minimizer.sequence) {
                 //iterate over belongs_to to update the counts of shared minimizers for each cluster
-                for &belong_cluster in belongs_to {
+                for &belong_cluster in belongs_to {//TODO: test whether into_par_iter works here
                     //if the minimizer is already appointed to the cluster
                     if let Some(new_val) = shared_mini_infos.get(&belong_cluster) {
                         //increase the counter of minimizers shared with cluster
@@ -80,15 +80,14 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,mi
         }
         let mut most_shared_cluster= 0;
         let mut shared= false;
-            //key: cluster_id, value: count of shared minimizers
-            //TODO: sort wrt length of value and then only look at the first (best fit)
+        //key: cluster_id, value: count of shared minimizers
         (shared,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_mini_infos, sign_minis);
         if !shared{
-            for minimizer in minimizers{
+            for minimizer in minimizers{//TODO: test whether into_par_iter works here
                 //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
                 if let Some(belongs_to) = cluster_map.get(&minimizer.sequence) {
                     //iterate over belongs_to to update the counts of shared minimizers for each cluster
-                    for &belong_cluster in belongs_to {
+                    for &belong_cluster in belongs_to {//TODO: test whether into_par_iter works here
                         //if the minimizer is already appointed to the cluster
                         if let Some(new_val) = shared_mini_infos_norm.get(&belong_cluster) {
                             //increase the counter of minimizers shared with cluster
@@ -110,7 +109,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,mi
                 read_list.push(id);
             }
             for sign_mini in sign_minis {
-                cluster_map
+                cluster_map //TODO: test whether into_par_iter works here
                     .entry(sign_mini.sequence)
                     .or_insert_with(Vec::new)
                     .retain(|&existing_id| existing_id != most_shared_cluster);
@@ -124,7 +123,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,mi
         //we did not find a cluster that we could put the read into-> generate a new cluster
         else{
             for sign_mini in sign_minis {
-                cluster_map
+                cluster_map //TODO: test whether into_par_iter works here
                     .entry(sign_mini.sequence)
                     .or_insert_with(Vec::new)
                     .retain(|&existing_id| existing_id != *cl_id);
@@ -143,9 +142,9 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,mi
     else{
         //fill_first_cluster(&mut clusters, id, sign_minis, cluster_map);
         let init_id = 0;
-        for minimizer in sign_minis {
+        for minimizer in sign_minis {//TODO: test whether into_par_iter works here
             //fill cluster_map with the minimizers that we found in the first read
-            cluster_map
+            cluster_map //TODO: test whether into_par_iter works here
                 .entry(minimizer.sequence)
                 .or_insert_with(Vec::new)
                 .retain(|&existing_id| existing_id != init_id);
@@ -162,7 +161,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,mi
 
 
 pub(crate) fn generate_initial_cluster_map(this_minimizers: &Vec<Minimizer_hashed>, init_cluster_map: &mut FxHashMap<u64, Vec<i32>>,identifier: i32){
-    for minimizer in this_minimizers{
+    for minimizer in this_minimizers{//TODO: test whether into_par_iter works here
         init_cluster_map
             .entry(minimizer.sequence)
             .or_insert_with(Vec::new)

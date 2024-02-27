@@ -9,19 +9,22 @@ pub enum Cluster<T, U> {
 
 /// Represents a minimizer along with its starting position in the input string.
 /// TODO: rename to indexer or similar
-#[derive(Debug, PartialEq,Clone)]
+#[derive(Debug,Eq, PartialEq,Clone)]
 pub struct Minimizer {
     pub sequence: String,
     pub position: usize,
     // pub is_representative: bool
 }
 
-#[derive(Debug, PartialEq,Clone)]
+#[derive(Debug,Eq, PartialEq,Clone)]
 pub struct Minimizer_hashed {
     pub sequence: u64,
     pub position: usize,
     // pub is_representative: bool
 }
+
+
+
 
 pub(crate) struct GtfEntry {
     pub seqname: String,
@@ -41,7 +44,7 @@ impl fmt::Display for GtfEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Eq, PartialEq,Hash,Clone)]
 pub(crate) struct Coord_obj{
     pub startpos: u64,
     pub endpos: u64
@@ -51,6 +54,16 @@ impl fmt::Display for Coord_obj {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}, {}", self.startpos, self.endpos)
     }
+}
+impl Coord_obj{
+    pub fn overlaps_with(&self,other:&Coord_obj)-> bool{
+        let mut overlaps=false;
+        if (self.startpos <= other.endpos && self.endpos >= other.startpos) || (other.startpos <= self.endpos && other.endpos >= self.startpos) {
+            overlaps=true;
+        }
+        overlaps
+    }
+
 }
 
 
