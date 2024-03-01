@@ -138,7 +138,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
         }
     }
     //sort the score_vec by the number of high-confidence seeds (most to least)
-    score_vec.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());//TODO: replace by par_sort_by
+    score_vec.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());//TODO: replace by par_sort_by
     println!("{} reads accepted",score_vec.len());
     //println!("{:?}",score_vec.pop());
 }

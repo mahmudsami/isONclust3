@@ -108,7 +108,12 @@ pub(crate) struct FastqRecord_isoncl_init {
     pub score: f64,
     pub error_rate:f64,
 }
-
+pub(crate) struct internal_gff {
+    pub seqname: String,
+    pub feature_type: String,
+    pub start_coord: u64,
+    pub end_coord: u64,
+}
 
 impl FastqRecord_isoncl_init{
     pub fn get_header(&self)->&str{

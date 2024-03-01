@@ -1,4 +1,4 @@
-use crate::structs::{GtfEntry, FastaRecord, Coord_obj};
+use crate::structs::{GtfEntry, FastaRecord, Coord_obj,internal_gff};
 use std::fs::File;
 use std::io::{BufReader, BufRead, Read};
 use std::str::FromStr;
@@ -16,6 +16,7 @@ extern crate rayon;
 use crate::generate_sorted_fastq_new_version;
 use crate::clustering;
 use std::time::Instant;
+use crate::write_output::path_exists;
 
 //TODO: add overlap detection
 //TODO: remove multiple occasions of minimizers in the same gene if the exons overlap
@@ -97,7 +98,7 @@ fn parse_gtf_and_collect_coords(gtf_path: Option<&str>, coords:&mut FxHashMap<St
             if !coords.contains_key(rec.seqname()){
                 //we are in a new chromosome/scaffold
                 //reset the gene_id
-                gene_id = 0;
+                //gene_id = 0;
                 //
                 let sname= rec.seqname().to_string();
                 coords.insert(sname,FxHashMap::default());
@@ -141,13 +142,13 @@ fn parse_gtf_and_collect_coords(gtf_path: Option<&str>, coords:&mut FxHashMap<St
 pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>,k:usize ,w:usize) {
     println!("Resolving GFF file ");
     let now1 = Instant::now();
-    let mut coords=FxHashMap::default();//: HashMap<K, HashMap<i32, Vec<Coord_obj>, BuildHasherDefault<FxHasher>>, BuildHasherDefault<FxHasher>> = FxHashMap::default();
+    let mut coords = FxHashMap::default();//: HashMap<K, HashMap<i32, Vec<Coord_obj>, BuildHasherDefault<FxHasher>>, BuildHasherDefault<FxHasher>> = FxHashMap::default();
     parse_gtf_and_collect_coords(gff_path, &mut coords);
     println!("{} s used for parsing the gff file", now1.elapsed().as_secs());
     println!("First step done");
     let now2 = Instant::now();
-    parse_fasta_and_gen_clusters(fasta_path,coords, clusters, cluster_map,k, w);
-    println!("Generated {} initial clusters from the reference",clusters.len());
+    parse_fasta_and_gen_clusters(fasta_path, coords, clusters, cluster_map, k, w);
+    println!("Generated {} initial clusters from the reference", clusters.len());
     println!("{} s used for parsing the fasta file", now2.elapsed().as_secs());
     //detectOverlaps(coords);
     //for coord in &coords{
@@ -156,7 +157,66 @@ pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clust
     //        println!(" {}", coord_e)
     //    }
     //}
+    println!("{} s for full GFF resolution", now1.elapsed().as_secs());
     println!("GTF resolved");
 }
+fn process_records(fasta_record: fasta::Record, gff_record: gff::Record) {
+    // Your logic for processing each pair of FASTA and GFF records goes here
+    println!("FASTA Record: {:?}", fasta_record.id());
+    println!("GFF Record: {:?}", gff_record);
+}
 
+pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, k:usize, w:usize){
+//let gff_map= gff_reader.records().map(|record| {(record.expect("We should find the record").seqname(),record.expect("Same as before"))});
+    // Read the FASTA file
+    let fasta_reader = File::open(Path::new(fasta_path.unwrap())).unwrap();
+    let fasta_buf_reader = BufReader::new(fasta_reader);
+    let mut fasta_records = fasta::Reader::new(fasta_buf_reader).records();
+    // Read the GFF file
+    let gff_reader = File::open(Path::new(gff_path.unwrap())).unwrap();
+    let gff_buf_reader = BufReader::new(gff_reader);
+    let mut binding=gff::Reader::new(gff_buf_reader,GFF3);
+    let mut gff_records = binding.records();
+    let mut gene_id= 0;
+    let mut previous_genes= 0;
+    // Iterate through FASTA records
+    while let Some(fasta_record) = fasta_records.next() {
+        let fasta_record = fasta_record.expect("Error reading FASTA record");
+        let scaffold_id = fasta_record.id().to_string();
+        let sequence = std::str::from_utf8(fasta_record.seq()).unwrap().to_uppercase();
+        let mut record_minis=vec![];
+        let mut is_gene= false;
+        println!("scaffold {}",scaffold_id);
+        // Process GFF records for the current scaffold ID
+        while let Some(gff_record) = gff_records.next() {
+            let gff_record = gff_record.expect("Error reading GFF record");
+            let gff_scaffold_id = gff_record.seqname().to_string();
+            // Check if the scaffold IDs match
+            if scaffold_id == gff_scaffold_id {
+                if gff_record.feature_type() =="gene" && gff_record.attributes().get("gene_biotype").expect("This algorithm requires a gene_biotype to extract the coding genes") == "protein_coding"{
+                    gene_id += 1;
+                    is_gene = true;
+                }
+                else if gff_record.feature_type()=="exon"{
+                    let exon_seq= &sequence[*gff_record.start() as usize..*gff_record.end() as usize];
+                    let mut exon_minis= vec![];
+                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(),k,w,&mut exon_minis);
+                }
+                else if gff_record.feature_type() =="pseudogene"{
+                    is_gene = false;
+                }
+                clustering::generate_initial_cluster_map(&record_minis, cluster_map, gene_id);
+                let id_vec= vec![];
+                clusters.insert(gene_id,id_vec);
+                // Your logic for processing each matching GFF record goes here
+                //println!("Processing GFF Record for scaffold ID {}: {:?}", scaffold_id, gff_record);
+            } else {
+                println!("found {} genes in {}",gene_id - previous_genes, scaffold_id);
+                previous_genes = gene_id;
+                // If scaffold IDs don't match, break the inner loop
+                break;
+            }
+        }
 
+    }
+}

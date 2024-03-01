@@ -172,7 +172,7 @@ fn main() {
     println!("n: {:?}", cli.n);
     println!("outfolder {:?}", cli.outfolder);
 
-    let now1 = Instant::now();
+
     let mode = cli.mode;
     let mut k;
     let mut w;
@@ -198,13 +198,15 @@ fn main() {
     let mut id_map = FxHashMap::default();
     let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
     let gff_path = cli.gff.as_deref();
-
+    let now1 = Instant::now();
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
 
         let initial_clustering_path = cli.init_cl.as_deref();
-        //gff_handling::resolve_gff(gff_path,initial_clustering_path,&mut clusters,&mut cluster_map,k,w);
+
+        gff_handling::gff_based_clustering(gff_path,initial_clustering_path,&mut clusters,&mut cluster_map,k,w);
+        println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
         //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 
         //let noncanonical= cli.noncanonical.as_deref();
@@ -264,7 +266,7 @@ fn main() {
             }
 
         }*/
-        println!("{} s used for parsing the initial clustering file", now1.elapsed().as_secs());
+
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
             println!("Current virtual memory usage: {}", usage.virtual_mem);
