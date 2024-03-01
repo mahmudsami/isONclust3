@@ -204,10 +204,11 @@ fn main() {
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
 
         let initial_clustering_path = cli.init_cl.as_deref();
-
-        gff_handling::gff_based_clustering(gff_path,initial_clustering_path,&mut clusters,&mut cluster_map,k,w);
-        println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
-        //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
+        if gff_path.is_some(){
+            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w);
+            println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
+        }
+            //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 
         //let noncanonical= cli.noncanonical.as_deref();
         //let mut noncanonical=false;
