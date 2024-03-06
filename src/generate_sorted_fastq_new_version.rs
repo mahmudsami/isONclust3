@@ -12,7 +12,7 @@ use std::hash::{Hash, Hasher};
 
 
 //takes an object T and hashes it via DefaultHasher. Used to improve search for minimizers in the data
-pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
+pub fn calculate_hash<T: Hash+ ?Sized>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
     s.finish()
@@ -123,6 +123,75 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
     }
 }
 
+pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncmers: &mut Vec<Minimizer_hashed>) {
+    // Calculate reverse complement
+    let seq_rc = reverse_complement(std::str::from_utf8(seq).unwrap());
+
+    // Initialize deques for forward and reverse complement sequences
+    let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1)
+        .map(|i| calculate_hash(&seq[i..i + s]))
+        .collect();
+    let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1)
+        .map(|i| calculate_hash(&seq_rc[i..i + s]))
+        .collect();
+
+    // Find initial minimums and positions
+    let mut curr_min_fw = *window_smers_fw.iter().min().unwrap();
+    let mut curr_min_rc = *window_smers_rc.iter().min().unwrap();
+    let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
+    let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
+
+    // Choose minimum position
+    let (pos_min, seq_tmp) = if curr_min_fw < curr_min_rc {
+        (pos_min_fw, calculate_hash(&seq[0..k]))
+    } else {
+        (pos_min_rc, calculate_hash(&seq_rc[0..k]))
+    };
+
+    // Initialize syncmers list
+    if pos_min == t {
+        syncmers.push(Minimizer_hashed {
+            sequence: seq_tmp,
+            position: 0,
+        });
+    }
+
+    // Iterate over the sequence
+    for i in k - s + 1..seq.len() - s {
+        let new_smer_fw = calculate_hash(&seq[i..i + s]);
+        let new_smer_rc = calculate_hash(&seq_rc[i..i + s]);
+
+        // Update windows
+        let _ = window_smers_fw.pop_front();
+        window_smers_fw.push_back(new_smer_fw);
+        let _ = window_smers_rc.pop_front();
+        window_smers_rc.push_back(new_smer_rc);
+
+        // Update minimums and positions
+        curr_min_fw = *window_smers_fw.iter().min().unwrap();
+        curr_min_rc = *window_smers_rc.iter().min().unwrap();
+        let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
+        let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
+
+        // Choose minimum position
+        let (pos_min, kmer) = if curr_min_fw < curr_min_rc {
+            (pos_min_fw, calculate_hash(&seq[i - (k - s)..i - (k - s) + k]))
+        } else {
+            (pos_min_rc, calculate_hash(&seq_rc[i - (k - s)..i - (k - s) + k]))
+        };
+
+        // Print statements
+        //println!("{:?} {} {}", kmer, i - (k - s), i - (k - s) + k);
+
+        // Add syncmer to the list
+        if pos_min == t {
+            syncmers.push(Minimizer_hashed {
+                sequence: kmer,
+                position: i - (k - s),
+            });
+        }
+    }
+}
 
 
 

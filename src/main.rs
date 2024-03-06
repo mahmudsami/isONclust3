@@ -161,7 +161,8 @@ struct Cli {
     #[arg(long,help="Run mode of isONclust (pacbio or ont")]
     mode: String,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
-
+    #[arg(long,help="seeding approach we choose")]
+    seeding: Option<String>,
 }
 
 fn main() {
@@ -198,6 +199,12 @@ fn main() {
     let mut id_map = FxHashMap::default();
     let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
     let gff_path = cli.gff.as_deref();
+    let seeding_input = cli.seeding.as_deref();
+    let mut seeding="minimizer";
+    if let Some(seed) = seeding_input {
+        seeding = seed;
+    }
+    println!("Using {} as seeds",seeding);
     let now1 = Instant::now();
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
@@ -317,7 +324,16 @@ fn main() {
                 if sequence.len() > k {
                     let mut this_minimizers = vec![];
                     let mut filtered_minis = vec![];
-                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+
+                    if seeding == "minimizer"{
+                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+
+                    }
+                    else if seeding =="syncmer"{
+                        let s=9;
+                        let t=3;
+                        generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
+                    }
                     generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
                     //perform the clustering step
                     clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
