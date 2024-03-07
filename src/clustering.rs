@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 
+
 pub(crate) fn reverse_complement(dna: &str) -> String {
     let reverse_complement: String = dna.chars()
         .rev()//TODO: test whether into_par_iter works here
@@ -30,12 +31,12 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
     let mut most_shared= 0.0;
     let mut shared= false;
     let mut most_shared_cluster= 0;
-    let mut nr_minis:usize;
-    let mut shared_perc:f64;
+    let mut nr_minis: usize;
+    let mut shared_perc: f64;
     for (key, value) in shared_mini_infos {//TODO: test whether into_par_iter works here
         //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
         nr_minis = minimizers.len();
-        shared_perc = calculate_shared_perc(nr_minis,*value);
+        shared_perc = calculate_shared_perc(nr_minis, *value);
         //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
         if shared_perc > min_shared_minis && shared_perc > most_shared && *value >= 3 {
             most_shared = shared_perc;
@@ -47,6 +48,8 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
     }
     (shared,most_shared_cluster)
 }
+
+
 //clustering method for the case that we do not have any annotation to compare the reads against
 pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,minimizers: &Vec<Minimizer_hashed>,clusters:&mut FxHashMap<i32,Vec<i32>>,cluster_map: &mut FxHashMap<u64, Vec<i32>>, id: i32,  cl_id: &mut i32 ){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
