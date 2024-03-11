@@ -143,16 +143,16 @@ pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncm
 
     // Choose minimum position
     let (pos_min, seq_tmp) = if curr_min_fw < curr_min_rc {
-        (pos_min_fw, calculate_hash(&seq[0..k]))
+        (pos_min_fw, curr_min_fw)
     } else {
-        (pos_min_rc, calculate_hash(&seq_rc[0..k]))
+        (pos_min_rc, curr_min_rc)
     };
 
     // Initialize syncmers list
     if pos_min == t {
         syncmers.push(Minimizer_hashed {
             sequence: seq_tmp,
-            position: 0,
+            position: pos_min,
         });
     }
 
@@ -175,9 +175,9 @@ pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncm
 
         // Choose minimum position
         let (pos_min, kmer) = if curr_min_fw < curr_min_rc {
-            (pos_min_fw, calculate_hash(&seq[i - (k - s)..i - (k - s) + k]))
+            (pos_min_fw + i,curr_min_fw)
         } else {
-            (pos_min_rc, calculate_hash(&seq_rc[i - (k - s)..i - (k - s) + k]))
+            (pos_min_rc + i, curr_min_rc)
         };
 
         // Print statements

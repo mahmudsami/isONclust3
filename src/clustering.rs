@@ -33,12 +33,12 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
     let mut most_shared_cluster= 0;
     let mut nr_minis: usize;
     let mut shared_perc: f64;
-    for (key, value) in shared_mini_infos {//TODO: test whether into_par_iter works here
+    for (key, nr_shared) in shared_mini_infos {//TODO: test whether into_par_iter works here
         //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
         nr_minis = minimizers.len();
-        shared_perc = calculate_shared_perc(nr_minis, *value);
+        shared_perc = calculate_shared_perc(nr_minis, *nr_shared);
         //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
-        if shared_perc > min_shared_minis && shared_perc > most_shared && *value >= 3 {
+        if shared_perc > min_shared_minis && shared_perc > most_shared && *nr_shared >=5 {
             most_shared = shared_perc;
             most_shared_cluster = *key;
             if !shared {

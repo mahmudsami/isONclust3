@@ -201,6 +201,7 @@ fn main() {
     let gff_path = cli.gff.as_deref();
     let seeding_input = cli.seeding.as_deref();
     let mut seeding="minimizer";
+    let mut annotation_based=false;
     if let Some(seed) = seeding_input {
         seeding = seed;
     }
@@ -209,11 +210,11 @@ fn main() {
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
-
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
             gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w);
             println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
+            annotation_based=true;
         }
             //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 
@@ -238,42 +239,6 @@ fn main() {
 
         //cl_id is used to appoint a cluster id to a cluster
         let mut cl_id = 0;
-        //initial clusters were given (annotation based clustering)-> we generate the initial clusters
-        /*if let Some(clustering_path) = initial_clustering_path {
-            if initial_clustering_path.is_some() {
-                //parse the fasta file containing the information
-                //let mut reader = parse_fastx_file(&clustering_path).expect("valid path/file");
-                //iterate over each read int the fasta file
-                //while let Some(record) = reader.next(){
-                let mut reader = fasta::Reader::from_file(Path::new(&clustering_path)).expect("We expect the file to exist");
-                //let mut reader = parse_fastx_file(&filename).expect("valid path/file");
-                for record in reader.records().into_iter(){
-                    //retreive the current record
-                    let seq_rec = record.expect("invalid record");
-                    let sequence = seq_rec.seq();
-                    //in the next lines we make sure that we have a proper header and store it as string
-                    //let header_str = seq_rec.id().to_string();
-                    //make the cluster identifiable for later use
-                    //cl_name_map.insert(identifier, header_str);
-                    //we make sure that the sequence is not smaller than k
-                    if sequence.len() > k {
-                        //this_minimizers stores the minimizers generated for the current cluster read
-                        let mut this_minimizers = vec![];
-                        //generate the minimizers for this gene family
-                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
-                        //fill up the cluster_map, a FxHashMap having the Minimizer hash as key and a vector of  clusters the minimizer was found in as value
-                        clustering::generate_initial_cluster_map(&this_minimizers, &mut cluster_map,cl_id);
-                        //we add an empty vector to clusters for each of the clusters we found in the annotation file
-                        let id_vec= vec![];
-                        clusters.insert(cl_id,id_vec);
-                        //increase the cl_id
-                        cl_id += 1;
-                    }
-
-                }
-            }
-
-        }*/
 
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -306,12 +271,16 @@ fn main() {
 
         let now3 = Instant::now();
         //CLUSTERING STEP
-
+        println!("{:?}", clusters);
         {//Clustering scope ( we define a scope so that variables die that we do not use later on)
             //the read id stores an internal id to represent our read
             let mut read_id = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
-            let min_shared_minis = 0.8;
+            let mut min_shared_minis = 0.8;
+            if annotation_based{
+                min_shared_minis=0.6;
+            }
+            println!("{}", min_shared_minis);
             //parse the file:
             let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
             for record in reader.records().into_iter(){
@@ -327,7 +296,6 @@ fn main() {
 
                     if seeding == "minimizer"{
                         generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
-
                     }
                     else if seeding =="syncmer"{
                         let s=9;
