@@ -188,12 +188,6 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
         let mut record_minis=vec![];
         let mut is_gene= false;
         println!("scaffold {}",scaffold_id);
-        if last_line{
-            if last_line.feature_type() =="gene" && last_line.attributes().get("gene_biotype").expect("This algorithm requires a gene_biotype to extract the coding genes") == "protein_coding"{
-                gene_id += 1;
-                is_gene = true;
-            }
-        }
         // Process GFF records for the current scaffold ID
         while let Some(gff_record) = gff_records.next() {
             let gff_record = gff_record.expect("Error reading GFF record");
@@ -221,7 +215,11 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
             } else {
                 println!("found {} genes in {}",gene_id - previous_genes, scaffold_id);
                 previous_genes = gene_id;
-                last_line=gff_record;
+                //last_line=gff_record;
+                if gff_record.feature_type() =="gene" && gff_record.attributes().get("gene_biotype").expect("This algorithm requires a gene_biotype to extract the coding genes") == "protein_coding"{
+                    gene_id += 1;
+                    is_gene = true;
+                }
                 // If scaffold IDs don't match, break the inner loop
                 break;
             }

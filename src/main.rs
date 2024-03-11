@@ -277,9 +277,9 @@ fn main() {
             let mut read_id = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
             let mut min_shared_minis = 0.8;
-            if annotation_based{
+            /*if annotation_based{
                 min_shared_minis=0.6;
-            }
+            }*/
             println!("{}", min_shared_minis);
             //parse the file:
             let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
