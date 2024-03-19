@@ -62,7 +62,7 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
     //let full_seq=cow_to_string(seq.clone());
     //we can only get a minimizer if the sequence is longer than w + k_size - 1 (else we do not even cover one full window)
     if w + k_size < seq.len() + 1{
-        for i in 0..w {
+        for i in 0 .. w {
             k_mer_str = std::str::from_utf8(&seq[i..i + k_size]).unwrap();
             rc_string = reverse_complement(&k_mer_str);
             //generate the hashes of the kmers
@@ -132,12 +132,14 @@ pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncm
     let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1)
         .map(|i| calculate_hash(&seq[i..i + s]))
         .collect();
+    //Initialize the reverse complement deque. We store the hash of the smer, however we have to generate the smer first. For this we take
     let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1)
-        .map(|i| calculate_hash(&seq_rc[seq_len - (i + 1) - s..seq_len - (i + 1)]))
+        .map(|i| calculate_hash(&seq_rc[seq_len - i - s.. seq_len - i].chars().rev().collect::<String>()))
         .collect();
-    // Find initial minimums and positions
+    // Find initial minimums (fw and rc)
     let mut curr_min_fw = *window_smers_fw.iter().min().unwrap();
     let mut curr_min_rc = *window_smers_rc.iter().min().unwrap();
+    //find the minimum positions (fw and rc)
     let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
     let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
 
@@ -157,9 +159,11 @@ pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncm
     }
 
     // Iterate over the sequence
-    for i in k - s + 1..seq.len() - s {
+    for i in k - s + 1 .. seq.len() - s {
         let new_smer_fw = calculate_hash(&seq[i..i + s]);
-        let new_smer_rc = calculate_hash(&seq_rc[seq_len-(i+1) - s ..seq_len-(i+1) ]);
+        let rev_slice=&seq_rc[seq_len-(i) - s ..seq_len-(i)].chars().rev().collect::<String>();
+
+        let new_smer_rc = calculate_hash(rev_slice);
         //println!("fw_len: {}, rc_len: {}", &seq[i..i + s].len(),&seq_rc[seq_len-(i+1) - s ..seq_len-(i+1)].len());
         // Update windows
         let _ = window_smers_fw.pop_front();
@@ -172,16 +176,12 @@ pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncm
         curr_min_rc = *window_smers_rc.iter().min().unwrap();
         let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
         let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
-
         // Choose minimum position
         let (pos_min, kmer) = if curr_min_fw < curr_min_rc {
-            (pos_min_fw + i,curr_min_fw)
+            (pos_min_fw + i, curr_min_fw)
         } else {
             (pos_min_rc + i, curr_min_rc)
         };
-
-        // Print statements
-        //println!("{:?} {} {}", kmer, i - (k - s), i - (k - s) + k);
 
         // Add syncmer to the list
         if pos_min == t {

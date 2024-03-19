@@ -179,7 +179,6 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
     let mut gff_records = binding.records();
     let mut gene_id= 0;
     let mut previous_genes= 0;
-    let mut last_line:Record;
     // Iterate through FASTA records
     while let Some(fasta_record) = fasta_records.next() {
         let fasta_record = fasta_record.expect("Error reading FASTA record");
@@ -212,7 +211,6 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                         if exon_seq.len()>s{
                             generate_sorted_fastq_new_version::syncmers_canonical(exon_seq.as_bytes(), k, s,t , &mut this_minimizers);
                         }
-
                     }
                     generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(),k,w,&mut exon_minis);
                 }
@@ -227,7 +225,6 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
             } else {
                 println!("found {} genes in {}",gene_id - previous_genes, scaffold_id);
                 previous_genes = gene_id;
-                //last_line=gff_record;
                 if gff_record.feature_type() =="gene" && gff_record.attributes().get("gene_biotype").expect("This algorithm requires a gene_biotype to extract the coding genes") == "protein_coding"{
                     gene_id += 1;
                     is_gene = true;

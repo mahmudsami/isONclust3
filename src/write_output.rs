@@ -30,14 +30,14 @@ pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &Stri
 }
 
 
-fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>, id_map:FxHashMap<i32,String>,mut header_cluster_map: FxHashMap<String,i32>){
+fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>, id_map:FxHashMap<i32,String>, header_cluster_map:&mut FxHashMap<String,i32>){
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
     let mut buf_write = BufWriter::new(&f);
-    println!("{} different clusters identified",clusters.len());
+    //println!("{} different clusters identified",clusters.len());
     //let nr_clusters=clusters.len();
     for (cl_id, r_int_ids) in clusters.into_iter(){
-        //println!("cl_id {}, nr_reads {}",cl_id,r_int_ids.len());
+        //println!("cl_id {}, nr_reads {:?}",cl_id,r_int_ids);
         for r_int_id in r_int_ids{
             let read_id = id_map.get(&r_int_id).unwrap();
             writeln!(buf_write ,"{}\t{}", cl_id, read_id);
@@ -47,12 +47,14 @@ fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>
     // Flush the buffer to ensure all data is written to the underlying file
     buf_write.flush().expect("Failed to flush the buffer");
     //println!("{} different clusters identified",nr_clusters);
+    //println!("HCLM {:?}",header_cluster_map);
 }
 
 
 //TODO: this is the current RAM bottleneck: we read the whole file to then have the reads when we write the output
 //Outline: sort the fastq file by cluster and then write the entries from the sorted fastq file to not having to read the full file
 fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, cluster_map: &mut FxHashMap<i32,Vec<FastqRecord_isoncl_init>>){
+    //println!("header cl map {:?}",header_cluster_map);
     let fastq_file = File::open(fastq).unwrap();
     let mut fastq_vec=vec![];
     file_actions::parse_fastq(fastq_file,&mut fastq_vec);
@@ -77,8 +79,8 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
 
 fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>){
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
-
     for (cl_id, records) in cluster_map.into_iter(){
+        //println!("cl id for writing: {}",cl_id);
         let filename = cl_id.to_string()+".fastq";
         let file_path = PathBuf::from(outfolder).join(filename);
         let mut f = File::create(file_path).expect("unable to create file");
@@ -103,16 +105,23 @@ pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,f
     if !path_exists(&outfolder){
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
-    let fastq_path=Path::new(&outfolder).join("fastq_files");
+    let clustering_path=Path::new(&outfolder).join("clustering");
+    if !clustering_path.exists(){
+        fs::create_dir(clustering_path.clone()).expect("We should be able to create the directory");
+    }
+    let fastq_path=clustering_path.join("fastq_files");
     if !fastq_path.exists(){
         let result_dir=fs::create_dir(fastq_path.clone());
     }
     let mut cluster_hashmap_fastq_record= FxHashMap::default();
     //convert_infos_for_writing(id_map.clone(), clusters.clone(), fastq_vec);
-    {//header cluster map scope
-        let mut header_cluster_map= FxHashMap::default();
-        write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone(), header_cluster_map.clone());
-        create_final_ds(header_cluster_map, fastq,&mut cluster_hashmap_fastq_record);
-    }
+    //header cluster map scope
+    let mut header_cluster_map= FxHashMap::default();
+    write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone(),&mut  header_cluster_map);
+        //println!("Header cl map after tsv:{}",header_cluster_map.len());
+    create_final_ds(header_cluster_map, fastq,&mut cluster_hashmap_fastq_record);
+
+    //println!("Cluster_hashmap: {}",cluster_hashmap_fastq_record.len());
+    print!("Writing the fastq files");
     write_fastq_files(&fastq_path, cluster_hashmap_fastq_record);
 }
