@@ -167,12 +167,10 @@ struct Cli {
 
 fn main() {
 
-
     //INITIALIZATION
     let cli = Cli::parse();
     println!("n: {:?}", cli.n);
     println!("outfolder {:?}", cli.outfolder);
-
 
     let mode = cli.mode;
     let mut k;
@@ -200,8 +198,8 @@ fn main() {
     let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
     let gff_path = cli.gff.as_deref();
     let seeding_input = cli.seeding.as_deref();
-    let mut seeding="minimizer";
-    let mut annotation_based=false;
+    let mut seeding= "minimizer";
+    let mut annotation_based= false;
     if let Some(seed) = seeding_input {
         seeding = seed;
     }
@@ -212,9 +210,9 @@ fn main() {
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
-            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w);
+            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w,seeding);
             println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
-            annotation_based=true;
+            annotation_based = true;
         }
             //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
 

@@ -38,7 +38,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
         nr_minis = minimizers.len();
         shared_perc = calculate_shared_perc(nr_minis, *nr_shared);
         //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
-        if shared_perc > min_shared_minis && shared_perc > most_shared && *nr_shared >=5 {
+        if shared_perc > min_shared_minis && shared_perc > most_shared{//} && *nr_shared >=0 {
             most_shared = shared_perc;
             most_shared_cluster = *key;
             if !shared {
@@ -49,7 +49,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_mini_infos: &FxHashMap<i32
     (shared,most_shared_cluster)
 }
 
-
+//TODO:
 //clustering method for the case that we do not have any annotation to compare the reads against
 pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,minimizers: &Vec<Minimizer_hashed>,clusters:&mut FxHashMap<i32,Vec<i32>>,cluster_map: &mut FxHashMap<u64, Vec<i32>>, id: i32,  cl_id: &mut i32 ){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value

@@ -126,15 +126,15 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
 pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncmers: &mut Vec<Minimizer_hashed>) {
     // Calculate reverse complement
     let seq_rc = reverse_complement(std::str::from_utf8(seq).unwrap());
-
-    // Initialize deques for forward and reverse complement sequences
+    let seq_len= seq.len();
+    //println!("seq_len {}", seq_len);
+    // Initialize deques for forward and reverse complement sequences (stores the hashs of the smers)
     let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1)
         .map(|i| calculate_hash(&seq[i..i + s]))
         .collect();
     let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1)
-        .map(|i| calculate_hash(&seq_rc[i..i + s]))
+        .map(|i| calculate_hash(&seq_rc[seq_len - (i + 1) - s..seq_len - (i + 1)]))
         .collect();
-
     // Find initial minimums and positions
     let mut curr_min_fw = *window_smers_fw.iter().min().unwrap();
     let mut curr_min_rc = *window_smers_rc.iter().min().unwrap();
@@ -159,8 +159,8 @@ pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncm
     // Iterate over the sequence
     for i in k - s + 1..seq.len() - s {
         let new_smer_fw = calculate_hash(&seq[i..i + s]);
-        let new_smer_rc = calculate_hash(&seq_rc[i..i + s]);
-
+        let new_smer_rc = calculate_hash(&seq_rc[seq_len-(i+1) - s ..seq_len-(i+1) ]);
+        //println!("fw_len: {}, rc_len: {}", &seq[i..i + s].len(),&seq_rc[seq_len-(i+1) - s ..seq_len-(i+1)].len());
         // Update windows
         let _ = window_smers_fw.pop_front();
         window_smers_fw.push_back(new_smer_fw);
