@@ -179,7 +179,7 @@ fn main() {
 
     if mode=="ont"{
         k = 13;
-        w = 20;
+        w = 22;//->22, standard: 20
         quality_threshold = 0.9_f64.powi(k as i32);
     }
     else{
@@ -212,6 +212,7 @@ fn main() {
         if gff_path.is_some(){
             gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w,seeding);
             println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
+            print!("{:?}",clusters);
             annotation_based = true;
         }
             //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
@@ -296,8 +297,8 @@ fn main() {
                         generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
                     }
                     else if seeding =="syncmer"{
-                        let s=9;
-                        let t=3;
+                        let s= 9;
+                        let t= 2;
                         generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
                     }
                     generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);

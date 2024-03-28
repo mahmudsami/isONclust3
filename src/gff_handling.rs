@@ -160,11 +160,7 @@ pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clust
     println!("{} s for full GFF resolution", now1.elapsed().as_secs());
     println!("GTF resolved");
 }
-fn process_records(fasta_record: fasta::Record, gff_record: gff::Record) {
-    // Your logic for processing each pair of FASTA and GFF records goes here
-    println!("FASTA Record: {:?}", fasta_record.id());
-    println!("GFF Record: {:?}", gff_record);
-}
+
 
 pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, k:usize, w:usize, seeding: &str){
 //let gff_map= gff_reader.records().map(|record| {(record.expect("We should find the record").seqname(),record.expect("Same as before"))});
@@ -186,12 +182,12 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
         let sequence = std::str::from_utf8(fasta_record.seq()).unwrap().to_uppercase();
         let mut record_minis=vec![];
         let mut is_gene= false;
-        println!("scaffold {}",scaffold_id);
+        //println!("scaffold {}",scaffold_id);
         // Process GFF records for the current scaffold ID
         while let Some(gff_record) = gff_records.next() {
             let gff_record = gff_record.expect("Error reading GFF record");
             let gff_scaffold_id = gff_record.seqname().to_string();
-            println!("{}",gff_scaffold_id);
+            //println!("{}",gff_scaffold_id);
             // Check if the scaffold IDs match
             if scaffold_id == gff_scaffold_id {
                 if gff_record.feature_type() =="gene" && gff_record.attributes().get("gene_biotype").expect("This algorithm requires a gene_biotype to extract the coding genes") == "protein_coding"{
@@ -207,7 +203,7 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                     }
                     else if seeding =="syncmer"{
                         let s=9;
-                        let t=3;
+                        let t=2;
                         if exon_seq.len()>s{
                             generate_sorted_fastq_new_version::syncmers_canonical(exon_seq.as_bytes(), k, s,t , &mut this_minimizers);
                         }

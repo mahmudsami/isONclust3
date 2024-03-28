@@ -34,7 +34,7 @@ fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
     let mut buf_write = BufWriter::new(&f);
-    //println!("{} different clusters identified",clusters.len());
+    println!("{} different clusters identified",clusters.len());
     //let nr_clusters=clusters.len();
     for (cl_id, r_int_ids) in clusters.into_iter(){
         //println!("cl_id {}, nr_reads {:?}",cl_id,r_int_ids);
