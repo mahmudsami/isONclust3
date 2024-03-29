@@ -176,7 +176,7 @@ fn main() {
     let mut k;
     let mut w;
     let mut quality_threshold;
-
+    let n = cli.n;
     if mode=="ont"{
         k = 13;
         w = 22;//->22, standard: 20
@@ -330,7 +330,7 @@ fn main() {
     //FILE OUTPUT STEP
 
     let now4 = Instant::now();
-    write_output::write_output(outfolder, &clusters, cli.fastq, id_map);
+    write_output::write_output(outfolder, &clusters, cli.fastq, id_map, n );
     println!("{} s for file output", now4.elapsed().as_secs());
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);

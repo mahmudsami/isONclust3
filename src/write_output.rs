@@ -10,7 +10,6 @@ use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use crate::file_actions;
 
-
 pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
     //writes the fastq file
     let fastq_file = File::open(fastq).unwrap();
@@ -77,18 +76,24 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
 
 
 
-fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>){
+fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>, n: usize){
+    let mut new_cl_id = 1;
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
     for (cl_id, records) in cluster_map.into_iter(){
-        //println!("cl id for writing: {}",cl_id);
-        let filename = cl_id.to_string()+".fastq";
-        let file_path = PathBuf::from(outfolder).join(filename);
-        let mut f = File::create(file_path).expect("unable to create file");
-        let mut buf_write = BufWriter::new(&f);
-        for record in records{
-            write!(buf_write ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
+        if records.len() >= n{ //only write the records if we have n or more reads supporting the cluster
+            fs::create_dir_all(PathBuf::from(outfolder).join(new_cl_id.to_string()));
+            let filename = new_cl_id.to_string()+".fastq";
+            let file_path = PathBuf::from(outfolder).join(new_cl_id.to_string()).join(filename);
+            let mut f = File::create(file_path).expect("unable to create file");
+            let mut buf_write = BufWriter::new(&f);
+            for record in records{
+                write!(buf_write ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
+            }
+            buf_write.flush().expect("Failed to flush the buffer");
+            new_cl_id += 1;//this is the new cl_id as we skip some on the way
         }
-        buf_write.flush().expect("Failed to flush the buffer");
+        //println!("cl id for writing: {}",cl_id);
+
     }
 }
 
@@ -100,16 +105,16 @@ pub fn path_exists(path: &str) -> bool {
 
 
 
-pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,fastq:String, id_map:FxHashMap<i32,String>){
+pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,fastq:String, id_map:FxHashMap<i32,String>, n:usize){
 
     if !path_exists(&outfolder){
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
-    let clustering_path=Path::new(&outfolder).join("clustering");
-    if !clustering_path.exists(){
-        fs::create_dir(clustering_path.clone()).expect("We should be able to create the directory");
-    }
-    let fastq_path=clustering_path.join("fastq_files");
+    //let clustering_path=Path::new(&outfolder).join("clustering");
+    //if !clustering_path.exists(){
+    //    fs::create_dir(clustering_path.clone()).expect("We should be able to create the directory");
+    //}
+    let fastq_path=Path::new(&outfolder).join("fastq_files");
     if !fastq_path.exists(){
         let result_dir=fs::create_dir(fastq_path.clone());
     }
@@ -123,5 +128,5 @@ pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,f
 
     //println!("Cluster_hashmap: {}",cluster_hashmap_fastq_record.len());
     print!("Writing the fastq files");
-    write_fastq_files(&fastq_path, cluster_hashmap_fastq_record);
+    write_fastq_files(&fastq_path, cluster_hashmap_fastq_record, n);
 }
