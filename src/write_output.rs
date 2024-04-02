@@ -87,7 +87,7 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
             let mut f = File::create(file_path).expect("unable to create file");
             let mut buf_write = BufWriter::new(&f);
             for record in records{
-                write!(buf_write ,"{} \n {} \n + \n {} \n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
+                write!(buf_write ,"@{}\n{}\n+\n{}\n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
             }
             buf_write.flush().expect("Failed to flush the buffer");
             new_cl_id += 1;//this is the new cl_id as we skip some on the way
