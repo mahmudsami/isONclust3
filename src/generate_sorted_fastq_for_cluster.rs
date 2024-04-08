@@ -107,7 +107,7 @@ fn compute_d_no_min() -> [f64; 128] {
 }
 
 
-fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_threshold: &f64, window_size: usize, score_vec: &mut Vec<(i32,usize)>, id_map: &mut FxHashMap<i32,String>){
+fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_threshold: &f64, window_size: usize, score_vec: &mut Vec<(i32,usize)>, id_map: &mut FxHashMap<i32,String>,seeding: &str, s: usize,t: usize){
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
@@ -126,8 +126,13 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
         if sequence.len() >= 2*k && compress_sequence(sequence).len() >= k{
             let mut this_minimizers = vec![];
             let mut filtered_minis = vec![];
-            generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
-            generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers, quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
+            if seeding == "minimizer" {
+                generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
+            }
+            else if seeding =="syncmer"{
+                generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
+            }
+            generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers, quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
             let error_rate= calculate_error_rate(quality, &d_no_min);
             if 10.0_f64 * - error_rate.log(10.0_f64) > q_threshold{
                 id_map.insert(read_id, header_new.to_string());
@@ -157,7 +162,7 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String, quality_threshold:&f64,window_size: usize) {
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String, quality_threshold:&f64,window_size: usize, seeding: &str,s: usize, t: usize) {
     println!("Sorting the fastq_file");
     let now = Instant::now();
     //holds the internal ids and scores as tuples to be able to sort properly
@@ -165,7 +170,7 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
     //holds the internal read id
     let mut id_map=FxHashMap::default();
     //the main step of the sort_fastq_for_cluster step: Gets the number of high-confidence seeds for each read and writes them into score_vec
-    analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size,&mut score_vec, &mut id_map);
+    analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size,&mut score_vec, &mut id_map, seeding,s,t);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
     if !path_exists(&outfolder){

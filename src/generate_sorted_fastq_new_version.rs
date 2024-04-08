@@ -238,7 +238,7 @@ pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128],quality_thresh
 
 
 //filter out minimizers for which the quality of the minimizer_impact range is too bad
-pub fn filter_minimizers_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_quality:&[u8], k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>, quality_threshold: &f64) {
+pub fn filter_seeds_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_quality:&[u8], k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>, quality_threshold: &f64) {
     let mut skipped_cter= 0;
     let mut minimizer_range_start:usize;
     let mut significant;

@@ -83,7 +83,7 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
         if records.len() >= n{ //only write the records if we have n or more reads supporting the cluster
             fs::create_dir_all(PathBuf::from(outfolder).join(new_cl_id.to_string()));
             let filename = new_cl_id.to_string()+".fastq";
-            let file_path = PathBuf::from(outfolder).join(new_cl_id.to_string()).join(filename);
+            let file_path = PathBuf::from(outfolder).join(filename);
             let mut f = File::create(file_path).expect("unable to create file");
             let mut buf_write = BufWriter::new(&f);
             for record in records{

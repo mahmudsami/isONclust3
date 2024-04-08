@@ -128,7 +128,9 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
 }
 
 
+fn parse_cli(k:usize ,w:usize,s:usize,t:usize,quality_threshold:f64, cli:Cli){
 
+}
 
 
 fn convert_cl_id(v: usize) -> Option<i32> {
@@ -146,10 +148,14 @@ struct Cli {
     fastq: String,
     #[arg(long, short,help="Path to initial clusters (stored in fastq format)")]
     init_cl: Option<String>,
-    /*#[arg(short,  help="Kmer length")]
+    #[arg(short,  help="Kmer length")]
     k: Option<usize>,
     #[arg(short, help=" window size")]
-    w: Option<usize>,*/
+    w: Option<usize>,
+    #[arg(short, help=" syncmer length")]
+    s: Option<usize>,
+    #[arg(short, help=" minimum syncmer position")]
+    t: Option<usize>,
     #[arg(long, short, help="Path to outfolder")]
     outfolder: String,
     #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
@@ -163,6 +169,8 @@ struct Cli {
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
     #[arg(long,help="seeding approach we choose")]
     seeding: Option<String>,
+    #[arg(long,help="quality threshold used for the data (standard: 0.9) ")]
+    quality_threshold: Option<f64>,
 }
 
 fn main() {
@@ -173,44 +181,96 @@ fn main() {
     println!("outfolder {:?}", cli.outfolder);
 
     let mode = cli.mode;
+    let n = cli.n;
     let mut k;
     let mut w;
+    let mut s;
+    let mut t;
     let mut quality_threshold;
-    let n = cli.n;
+
+    //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
     if mode=="ont"{
         k = 13;
         w = 22;//->22, standard: 20
         quality_threshold = 0.9_f64.powi(k as i32);
+        s = 9;
+        t = 2;
     }
-    else{
+    else if mode == "pacbio"{
         k = 15;
         w = 50;
         quality_threshold = 0.97_f64.powi(k as i32);
+        s = 9;
+        t = 3;
     }
+    else {
+        if cli.quality_threshold.is_some(){
+            let qt=cli.quality_threshold.unwrap();
+            if cli.k.is_some(){
+                k = cli.k.unwrap();
+            }
+            else{
+                k=0;
+            }
 
+            w=0;
+            t=0;
+            s=0;
+            quality_threshold = qt.powi(k as i32);
 
+        }
+        else { panic!("Please set the quality_threshold") }
+    }
+    let seeding_input = cli.seeding.as_deref();
+    let mut seeding= "minimizer";
+    if let Some(seed) = seeding_input {
+        seeding = seed;
+    }
+    if seeding =="syncmer"{
+        if cli.s.is_some(){
+            s = cli.s.unwrap();
+            if k-s+1%2!=0{
+                panic!("Please set k and s so that (k-s)+1 yields an odd number")
+            }
+        }
+        if cli.t.is_some(){
+            t = cli.t.unwrap();
+            if (k-s)/2!=t{
+                panic!("Please set k,s and t to fulfill (k-s)/2=t")
+            }
+        }
+    }
+    else if seeding =="minimizer" {
+        if cli.w.is_some(){
+            w = cli.w.unwrap();
+            if w<k{
+                panic!("Please set w greater than k")
+            }
+        }
+    }
+    if cli.k.is_some(){
+        k = cli.k.unwrap();
+    }
     println!("k: {:?}", k);
     println!("w: {:?}", w);
     //let k = cli.k;
     let outfolder = cli.outfolder;
+    let gff_path = cli.gff.as_deref();
     //makes the read  identifiable and gives us the possibility to only use ids during the clustering step
     let mut id_map = FxHashMap::default();
     let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
-    let gff_path = cli.gff.as_deref();
-    let seeding_input = cli.seeding.as_deref();
-    let mut seeding= "minimizer";
+
+
     let mut annotation_based= false;
-    if let Some(seed) = seeding_input {
-        seeding = seed;
-    }
-    println!("Using {} as seeds",seeding);
+
+    println!("Using {}s as seeds",seeding);
     let now1 = Instant::now();
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
-            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w,seeding);
+            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w,seeding,s,t);
             println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
             print!("{:?}",clusters);
             annotation_based = true;
@@ -258,7 +318,7 @@ fn main() {
         let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding,s,t);
         println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -297,11 +357,10 @@ fn main() {
                         generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
                     }
                     else if seeding =="syncmer"{
-                        let s= 9;
-                        let t= 2;
                         generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
                     }
-                    generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
+
+                    generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
                     //perform the clustering step
                     clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
                     read_id += 1;

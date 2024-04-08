@@ -162,7 +162,7 @@ pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clust
 }
 
 
-pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, k:usize, w:usize, seeding: &str){
+pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, k:usize, w:usize, seeding: &str,s: usize,t: usize){
 //let gff_map= gff_reader.records().map(|record| {(record.expect("We should find the record").seqname(),record.expect("Same as before"))});
     // Read the FASTA file
     let fasta_reader = File::open(Path::new(fasta_path.unwrap())).unwrap();
