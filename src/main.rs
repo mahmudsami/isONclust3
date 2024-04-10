@@ -212,7 +212,6 @@ fn main() {
             else{
                 k=0;
             }
-
             w=0;
             t=0;
             s=0;
@@ -253,6 +252,8 @@ fn main() {
     }
     println!("k: {:?}", k);
     println!("w: {:?}", w);
+    println!("s: {:?}", s);
+    println!("t: {:?}", t);
     //let k = cli.k;
     let outfolder = cli.outfolder;
     let gff_path = cli.gff.as_deref();

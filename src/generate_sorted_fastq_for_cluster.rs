@@ -132,6 +132,9 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
             else if seeding =="syncmer"{
                 generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
             }
+            else{
+                println!("No seeding");
+            }
             generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers, quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
             let error_rate= calculate_error_rate(quality, &d_no_min);
             if 10.0_f64 * - error_rate.log(10.0_f64) > q_threshold{
