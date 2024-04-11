@@ -78,7 +78,7 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
 
 
 fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>, n: usize){
-    let mut new_cl_id = 1;
+    let mut new_cl_id = 0;
     //fs::create_dir_all(PathBuf::from(outfolder).join("fastq_files"));
     let fastq_outfolder=PathBuf::from(outfolder);
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
