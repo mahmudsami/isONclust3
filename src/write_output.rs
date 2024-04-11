@@ -12,10 +12,11 @@ use crate::file_actions;
 
 pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
     //writes the fastq file
+    fs::create_dir_all(PathBuf::from(outfolder).join("clustering"));
     let fastq_file = File::open(fastq).unwrap();
     let mut fastq_records= FxHashMap::default();
     file_actions::parse_fastq_hashmap(fastq_file,&mut fastq_records);
-    let mut f = File::create(outfolder.to_owned()+"/sorted.fastq").expect("Unable to create file");
+    let mut f = File::create(outfolder.to_owned()+"/clustering/sorted.fastq").expect("Unable to create file");
     let mut buf_write = BufWriter::new(&f);
     //for record in fastq_records {
     for score_tup in score_vec.into_iter(){
@@ -30,7 +31,7 @@ pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &Stri
 
 
 fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>, id_map:FxHashMap<i32,String>, header_cluster_map:&mut FxHashMap<String,i32>){
-    let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
+    let file_path = PathBuf::from(outfolder).join("clustering").join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
     let mut buf_write = BufWriter::new(&f);
     println!("{} different clusters identified",clusters.len());
@@ -78,12 +79,13 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
 
 fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>, n: usize){
     let mut new_cl_id = 1;
+    let fastq_outfolder=PathBuf::from(outfolder).join("fastq_files");
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
     for (cl_id, records) in cluster_map.into_iter(){
         if records.len() >= n{ //only write the records if we have n or more reads supporting the cluster
-            fs::create_dir_all(PathBuf::from(outfolder).join(new_cl_id.to_string()));
+            fs::create_dir_all(PathBuf::from(outfolder).join("fastq_files"));
             let filename = new_cl_id.to_string()+".fastq";
-            let file_path = PathBuf::from(outfolder).join(filename);
+            let file_path = fastq_outfolder.join(filename);
             let mut f = File::create(file_path).expect("unable to create file");
             let mut buf_write = BufWriter::new(&f);
             for record in records{

@@ -312,7 +312,7 @@ fn main() {
 
         let q_threshold = 7.0;
         //path to the sorted file
-        let filename = outfolder.clone() + "/sorted.fastq";
+        let filename = outfolder.clone() + "/clustering/sorted.fastq";
         //count the number of reads that were too short to be clustered
         let mut skipped_cter = 0;
         //d_no_min contains a translation for chars into quality values
