@@ -30,8 +30,8 @@ pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &Stri
 }
 
 
-fn write_final_clusters_tsv(outfolder: String, clusters: FxHashMap<i32,Vec<i32>>, id_map:FxHashMap<i32,String>, header_cluster_map:&mut FxHashMap<String,i32>){
-    let file_path = PathBuf::from(outfolder).join("clustering").join("final_clusters.tsv");
+fn write_final_clusters_tsv(outfolder: &Path, clusters: FxHashMap<i32,Vec<i32>>, id_map:FxHashMap<i32,String>, header_cluster_map:&mut FxHashMap<String,i32>){
+    let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
     let mut f = File::create(file_path).expect("unable to create file");
     let mut buf_write = BufWriter::new(&f);
     println!("{} different clusters identified",clusters.len());
@@ -79,8 +79,8 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
 
 fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>, n: usize){
     let mut new_cl_id = 1;
-    fs::create_dir_all(PathBuf::from(outfolder).join("fastq_files"));
-    let fastq_outfolder=PathBuf::from(outfolder).join("fastq_files");
+    //fs::create_dir_all(PathBuf::from(outfolder).join("fastq_files"));
+    let fastq_outfolder=PathBuf::from(outfolder);
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
     for (cl_id, records) in cluster_map.into_iter(){
         if records.len() >= n{ //only write the records if we have n or more reads supporting the cluster
@@ -116,15 +116,19 @@ pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,f
     //if !clustering_path.exists(){
     //    fs::create_dir(clustering_path.clone()).expect("We should be able to create the directory");
     //}
-    let fastq_path=Path::new(&outfolder).join("fastq_files");
+    let clustering_path=Path::new(&outfolder).join("clustering");
+    if !clustering_path.exists(){
+        fs::create_dir(clustering_path.clone());
+    }
+    let fastq_path=clustering_path.join("fastq_files");
     if !fastq_path.exists(){
-        let result_dir=fs::create_dir(fastq_path.clone());
+        fs::create_dir(fastq_path.clone());
     }
     let mut cluster_hashmap_fastq_record= FxHashMap::default();
     //convert_infos_for_writing(id_map.clone(), clusters.clone(), fastq_vec);
     //header cluster map scope
     let mut header_cluster_map= FxHashMap::default();
-    write_final_clusters_tsv(outfolder,clusters.clone(),id_map.clone(),&mut  header_cluster_map);
+    write_final_clusters_tsv(&clustering_path, clusters.clone(), id_map.clone(), &mut  header_cluster_map);
         //println!("Header cl map after tsv:{}",header_cluster_map.len());
     create_final_ds(header_cluster_map, fastq,&mut cluster_hashmap_fastq_record);
 
