@@ -151,10 +151,7 @@ pub fn get_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: usize, this
     //let mut rc_vec=VecDeque::with_capacity(w+1);
     let mut window_kmers: VecDeque<(u64, usize)> = VecDeque::with_capacity(w + 1);
     let mut k_mer_str: &str;
-    //let mut rc_string;
     let mut forward_hash;
-    //let mut reverse_hash;
-    //let full_seq=cow_to_string(seq.clone());
     //we can only get a minimizer if the sequence is longer than w + k_size - 1 (else we do not even cover one full window)
     if w + k_size < seq.len() + 1{
         for i in 0 .. w {
