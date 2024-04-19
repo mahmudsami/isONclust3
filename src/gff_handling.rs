@@ -162,7 +162,7 @@ pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clust
 }
 
 
-pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, k:usize, w:usize, seeding: &str,s: usize,t: usize){
+pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, k:usize, w:usize, seeding: &str,s: usize,t: usize, noncanonical_bool: bool){
 //let gff_map= gff_reader.records().map(|record| {(record.expect("We should find the record").seqname(),record.expect("Same as before"))});
     // Read the FASTA file
     let fasta_reader = File::open(Path::new(fasta_path.unwrap())).unwrap();
@@ -196,10 +196,15 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                 }
                 else if gff_record.feature_type()=="exon"{
                     let exon_seq= &sequence[*gff_record.start() as usize..*gff_record.end() as usize];
-                    let mut exon_minis= vec![];
                     let mut this_minimizers=vec![];
                     if seeding == "minimizer"{
-                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
+                        if noncanonical_bool{
+                            generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
+                        }
+                        else{
+                            generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
+                        }
+
                     }
                     else if seeding =="syncmer"{
                         let s=9;
@@ -208,7 +213,7 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                             generate_sorted_fastq_new_version::syncmers_canonical(exon_seq.as_bytes(), k, s,t , &mut this_minimizers);
                         }
                     }
-                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(),k,w,&mut exon_minis);
+                    //generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(),k,w,&mut exon_minis);
                 }
                 else if gff_record.feature_type() =="pseudogene"{
                     is_gene = false;

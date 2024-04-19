@@ -171,6 +171,8 @@ struct Cli {
     seeding: Option<String>,
     #[arg(long,help="quality threshold used for the data (standard: 0.9) ")]
     quality_threshold: Option<f64>,
+    #[arg(long,help="print additional information")]
+    verbose: Option<bool>,
 }
 
 fn main() {
@@ -219,6 +221,16 @@ fn main() {
 
         }
         else { panic!("Please set the quality_threshold") }
+    }
+    let verbo = cli.verbose;
+    let mut verbose = false;
+    if let Some(verb) = verbo{
+        verbose = true;
+    }
+    let noncan = cli.noncanonical;
+    let mut noncanonical_bool= false;
+    if let Some(noncanonical)= noncan{
+        noncanonical_bool = true;
     }
     let seeding_input = cli.seeding.as_deref();
     let mut seeding= "minimizer";
@@ -271,7 +283,7 @@ fn main() {
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
-            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w,seeding,s,t);
+            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w,seeding,s,t, noncanonical_bool);
             println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
             print!("{:?}",clusters);
             annotation_based = true;
@@ -319,7 +331,7 @@ fn main() {
         let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding,s,t);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding,s,t,noncanonical_bool);
         println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -346,6 +358,10 @@ fn main() {
             for record in reader.records().into_iter(){
                 let seq_rec = record.expect("invalid record");
                 let header_new = seq_rec.id();
+                if verbose{
+                    println!("ID: {}",header_new);
+                }
+
                 let sequence = seq_rec.seq();
                 let quality = seq_rec.qual();
                 //add the read id and the real header to id_map
@@ -355,13 +371,19 @@ fn main() {
                     let mut filtered_minis = vec![];
 
                     if seeding == "minimizer"{
-                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+                        if noncanonical_bool{
+                            generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+                        }
+                        else{
+                            generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+                        }
+
                     }
                     else if seeding =="syncmer"{
                         generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
                     }
 
-                    generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold);
+                    generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
                     //perform the clustering step
                     clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
                     read_id += 1;
@@ -382,8 +404,6 @@ fn main() {
         } else {
             println!("Couldn't get the current memory usage :(");
         }
-
-
     }
 
 

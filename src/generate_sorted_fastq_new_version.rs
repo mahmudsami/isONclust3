@@ -124,6 +124,83 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
 }
 
 
+/// Generates positional minimizers from an input string.
+/// A positional minimizer is the lexicographically smallest substring of a given window size
+/// as the window slides through the input string.
+///
+/// # Arguments
+///
+/// * `input` - The input string to generate minimizers from.
+/// * `window_size` - The size of the sliding window for generating minimizers.
+/// * `k` - The length of k-mers to use for generating minimizers.
+///
+/// # Returns
+///
+/// A vector containing `Minimizer` structs, each containing the lexicographically smallest
+///substring and its starting position in the input string.
+pub fn get_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
+    //make sure that we have suitable values for k_size and w_size (w_size should be larger)
+    let mut w= 0;
+    if w_size > k_size{
+        w = w_size - k_size + 1;
+    }
+    //k_size was chosen larger than w_size. To not fail we use every k-mer as minimizer (maybe have an error message?)
+    else {
+        w = 1;
+    }
+    //let mut rc_vec=VecDeque::with_capacity(w+1);
+    let mut window_kmers: VecDeque<(u64, usize)> = VecDeque::with_capacity(w + 1);
+    let mut k_mer_str: &str;
+    //let mut rc_string;
+    let mut forward_hash;
+    //let mut reverse_hash;
+    //let full_seq=cow_to_string(seq.clone());
+    //we can only get a minimizer if the sequence is longer than w + k_size - 1 (else we do not even cover one full window)
+    if w + k_size < seq.len() + 1{
+        for i in 0 .. w {
+            k_mer_str = std::str::from_utf8(&seq[i..i + k_size]).unwrap();
+            forward_hash = calculate_hash(&k_mer_str);
+            window_kmers.push_back((forward_hash, i));
+        }
+    }
+    //store the final positional minimizers in a vector
+    if !window_kmers.is_empty(){
+        // Find the initial minimizer (minimizer of initial window)
+        let mut binding= window_kmers.clone();
+        let (curr_min, min_pos) = binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
+        //add the initial minimizer to the vector
+        let mut mini = Minimizer_hashed {sequence: *curr_min,position: *min_pos };
+        this_minimizers.push(mini.clone());
+        //we always store the previous minimizer to compare to the newly found one
+        let mut prev_minimizer = mini;
+        let mut new_kmer_pos;
+        let mut new_kmer_str;
+        let mut forward_hash;
+        //iterate further over the sequence and generate the minimizers thereof
+        for (i, new_kmer) in seq[w..].windows(k_size).enumerate().into_iter() {
+            new_kmer_pos = i  + w;
+            new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
+            // updating  by removing first kmer from window
+            window_kmers.pop_front().unwrap();
+            forward_hash = calculate_hash(&new_kmer_str);
+            window_kmers.push_back((forward_hash, new_kmer_pos));
+            // Find the new minimizer, we need a ds that was cloned from window_kmers to abide ownership rules in rust
+            binding = window_kmers.clone();
+            let (curr_min, min_pos) = *binding.iter().min_by_key(|&(kmer, _)| kmer).unwrap();
+            //make sure that the minimal string is a new minimizer not just the previously found one
+            if  min_pos != prev_minimizer.position{ //&& *curr_min != prev_minimizer.1 {
+                //add the minimizer into the vector and store the minimizer as previously detected minimizer
+                mini = Minimizer_hashed {sequence: curr_min,position: min_pos };
+                //println!("minimizer {:?}",mini);
+                this_minimizers.push(mini.clone());
+                prev_minimizer = mini.clone();
+            }
+        }
+    }
+}
+
+
+
 //TODO: add neccessity that the user should give only valid combinations of s t and k
 pub(crate) fn syncmers_canonical(seq: &[u8], k: usize, s: usize, t: usize, syncmers: &mut Vec<Minimizer_hashed>) {
     // Calculate reverse complement
@@ -238,7 +315,7 @@ pub fn is_significant(quality_interval: &[u8], d_no_min:[f64;128],quality_thresh
 
 
 //filter out minimizers for which the quality of the minimizer_impact range is too bad
-pub fn filter_seeds_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_quality:&[u8], k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>, quality_threshold: &f64) {
+pub fn filter_seeds_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_quality:&[u8], k: usize, d_no_min:[f64;128], minimizers_filtered: &mut Vec<Minimizer_hashed>, quality_threshold: &f64, verbose:bool) {
     let mut skipped_cter= 0;
     let mut minimizer_range_start:usize;
     let mut significant;
@@ -255,6 +332,10 @@ pub fn filter_seeds_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_qu
         else{
             skipped_cter += 1;
         }
+    }
+    if verbose{
+        println!("Number of insignificant seeds: {}",skipped_cter );
+        println!("Number of significant seeds: {}",minimizers_filtered.len());
     }
 }
 
@@ -302,60 +383,7 @@ pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isiz
 }
 
 
-/*fn syncmers_canonical(seq: &str, k: usize, s: usize, t: usize) -> Vec<Minimizer> {
-    let seq_rc = reverse_complement(seq);
-    let mut hasher = DefaultHasher::new();
-    let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1).map(|i| seq[i..i + s].hash(&mut hasher)).collect();
-    let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1).map(|i| seq_rc[i..i + s].hash(&mut hasher)).collect();
 
-    let curr_min_fw = *window_smers_fw.iter().min().unwrap();
-    let curr_min_rc = *window_smers_rc.iter().min().unwrap();
-
-    let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
-    let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
-
-    let (pos_min, seq_tmp) = if curr_min_fw < curr_min_rc {
-        (pos_min_fw, &seq[0..k])
-    } else {
-        (pos_min_rc, &seq_rc[0..k])
-    };
-
-    let mut syncmers:Vec<Minimizer> = vec![];
-    if pos_min == t {
-        syncmers.push(Minimizer{sequence:seq_tmp.to_string(), position: 0});
-    }
-
-    for i in k - s + 1..seq.len() - s {
-        seq[i..i + s].hash(&mut hasher);
-        let new_smer_fw = hasher.finish();
-        seq_rc[i..i + s].hash(&mut hasher);
-        let new_smer_rc=hasher.finish();
-        // Updating windows
-        let _ = window_smers_fw.pop_front();
-        window_smers_fw.push_back(new_smer_fw);
-        let _ = window_smers_rc.pop_front();
-        window_smers_rc.push_back(new_smer_rc);
-
-        let curr_min_fw = *window_smers_fw.iter().min().unwrap();
-        let curr_min_rc = *window_smers_rc.iter().min().unwrap();
-
-        let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
-        let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
-
-        let (pos_min, seq_tmp) = if curr_min_fw < curr_min_rc {
-            (pos_min_fw, &seq[i - (k - s)..i - (k - s) + k])
-        } else {
-            (pos_min_rc, &seq_rc[i - (k - s)..i - (k - s) + k])
-        };
-
-        if pos_min == t {
-            let kmer = seq_tmp.to_string();
-            syncmers.push(Minimizer {sequence:kmer, position:i - (k - s)});
-        }
-    }
-
-    syncmers
-}*/
 
 
 
