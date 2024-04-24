@@ -404,6 +404,7 @@ fn main() {
         } else {
             println!("Couldn't get the current memory usage :(");
         }
+        clustering::post_clustering(&mut clusters, &mut cluster_map);
     }
 
 

@@ -5,7 +5,8 @@ use crate::{generate_sorted_fastq_new_version, structs};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use rustc_hash::FxHashMap;
-use std::borrow::Cow;
+use std::borrow::{Cow, Borrow};
+use bio::alignment::sparse::HashMapFx;
 
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
@@ -162,6 +163,89 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>,min_shared_minis:f64,mi
     }
 }
 
+
+pub(crate) fn post_clustering(clusters:&mut FxHashMap<i32,Vec<i32>>,clusters_map: &mut FxHashMap<u64, Vec<i32>>){
+    let min_shared_perc=0.8;
+    //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
+    //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of cluster ids as a value
+
+    //cluster_seeds_hash_map contains the cl_id as key and the count of seeds as a value
+    let mut cluster_seeds_hash_map:FxHashMap<i32,Vec<u64>>= FxHashMap::default();
+    //cluster_seed_shared_map contains the two cluster_ids (smaller, higher) as a key and the count of common seeds as a value
+    let mut cluster_seeds_shared_map: FxHashMap<String,i32> = FxHashMap::default();
+    let mut small_id= 0;
+    let mut high_id= 0;
+    //iterate over the clusters_map to find out the overlaps between clusters and how many seeds each cluster has (the two measures to calculate whether the clusters should be merged)
+    //TODO: sort in ascending order so that we start with the lowest number of ids to the highest (Sort by vec_of_ids.len())
+    for (mini, vec_of_ids) in clusters_map.into_iter(){
+        //iterate over the ids that we have stored in the value of each minimizer
+        //for i in 0..vec_of_ids.len() {
+        //    let id=vec_of_ids[i];
+
+        for (i, &id) in vec_of_ids.iter().enumerate() {
+        //for id in vec_of_ids{
+            //the cluster is already in the cluster_seeds_hash_map ->increase count by one
+            cluster_seeds_hash_map.entry(id).or_insert_with(Vec::new).push(*mini);
+
+
+            //we also need to get the counts of overlaps( this is what we do here)
+
+            for &id2 in vec_of_ids.iter().skip(i + 1) {
+            //for id2 in vec_of_ids[id..]{
+                if id < id2{
+                    small_id = id;
+                    high_id = id2;
+                }
+                else if id2 < id{
+                    small_id = id2;
+                    high_id = id;
+                }
+                let full_id = small_id.to_string()+","+ &*high_id.to_string();
+                if let Some(shared_count) = cluster_seeds_shared_map.get(full_id.as_str()) {
+                    //increase the counter of minimizers shared with cluster
+                    cluster_seeds_shared_map.insert(full_id, *shared_count + 1);
+                }
+                else {
+                    //add a new counter for the cluster element
+                    cluster_seeds_shared_map.insert(full_id, 1);
+                }
+
+            }
+        }
+    }
+    //clustered_bool_map holds the cl_id and a bool to indicate whether the cluster has been merged into another cluster
+    let  mut clustered_bool_map:FxHashMap<i32,bool> = FxHashMap::default();
+    //merged_into is a hashmap containing the cl_id of the subcluster as a key and the overcluster as value
+    let  mut merged_into:FxHashMap<i32,i32> = FxHashMap::default();
+    for (ids,shared_nr) in cluster_seeds_shared_map{
+        //retreive the ids from the appended ids_string
+        let mut ids_s: Vec<_>= ids.split(",").collect();
+        let first_id:i32 = ids_s[0].parse::<i32>().unwrap();
+        let second_id:i32 = ids_s[1].parse::<i32>().unwrap();
+        //retreive the counts of the overall seeds for the clusters
+        let first_count: usize = cluster_seeds_hash_map.get(&first_id).unwrap().len();
+        let snd_count: usize = cluster_seeds_hash_map.get(&second_id).unwrap().len();
+        //calculate the rate of shared clusters from each total number of seeds
+        let first_perc = shared_nr as f64/first_count as f64;
+        let snd_perc = shared_nr as f64/snd_count as f64;
+        //the first cluster has more shared minis with the second cluster (is smaller)
+        if first_perc>=snd_perc{
+            merged_into.insert(first_id,second_id);
+        }
+        //the second cluster has more shared minis with the first cluster (is smaller)
+        else{
+            merged_into.insert(second_id,first_id);
+        }
+        //TODO: add this properly into the code ( adds the significant seeds that were not in the larger cluster but in the smaller one
+        /*
+        for sign_mini in sign_minis {
+                cluster_map //TODO: test whether into_par_iter works here
+                    .entry(sign_mini.sequence)
+                    .or_insert_with(Vec::new)
+                    .retain(|&existing_id| existing_id != most_shared_cluster);
+         */
+    }
+}
 
 pub(crate) fn generate_initial_cluster_map(this_minimizers: &Vec<Minimizer_hashed>, init_cluster_map: &mut FxHashMap<u64, Vec<i32>>,identifier: i32){
     for minimizer in this_minimizers{//TODO: test whether into_par_iter works here
