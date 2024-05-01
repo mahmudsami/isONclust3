@@ -79,6 +79,7 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
 
 fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>, n: usize){
     let mut new_cl_id = 0;
+    let mut read_cter=0;
     //fs::create_dir_all(PathBuf::from(outfolder).join("fastq_files"));
     let fastq_outfolder=PathBuf::from(outfolder);
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
@@ -91,12 +92,14 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
             for record in records{
                 write!(buf_write ,"@{}\n{}\n+\n{}\n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
             }
+            read_cter+=1;
             buf_write.flush().expect("Failed to flush the buffer");
             new_cl_id += 1;//this is the new cl_id as we skip some on the way
         }
         //println!("cl id for writing: {}",cl_id);
 
     }
+    println!("{} reads written",read_cter);
 }
 
 
