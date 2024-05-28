@@ -34,9 +34,7 @@ use bio::io::fasta::FastaRead;
 use bio::io::fastq;
 use bio::io::fastq::FastqRead;
 use std::convert::TryFrom;
-
-
-
+use crate::clustering::post_clustering_new;
 
 
 fn compute_d() -> [f64; 128] {
@@ -280,6 +278,7 @@ fn main() {
     let now1 = Instant::now();
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
+        let mut shared_seed_info: FxHashMap<i32,i32>=FxHashMap::default();
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
@@ -349,6 +348,7 @@ fn main() {
             let mut read_id = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
             let mut min_shared_minis = 0.8;
+
             /*if annotation_based{
                 min_shared_minis=0.6;
             }*/
@@ -384,8 +384,8 @@ fn main() {
                     }
 
                     generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
-                    //perform the clustering step
-                    clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
+                    // perform the clustering step
+                    clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id, &mut shared_seed_info);
                     read_id += 1;
                 }
                 else {
@@ -395,16 +395,22 @@ fn main() {
             println!("Finished clustering");
             println!("{} reads used for clustering",read_id);
             println!("Skipped {} reads due to being too short", skipped_cter);
+
+            println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
+
+            println!("Starting post-clustering to refine clusters");
+
+            clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
         }
 
-        println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
+
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
             println!("Current virtual memory usage: {}", usage.virtual_mem);
         } else {
             println!("Couldn't get the current memory usage :(");
         }
-        clustering::post_clustering(&mut clusters, &mut cluster_map);
+        //clustering::post_clustering(&mut clusters, &mut cluster_map);
     }
 
 
