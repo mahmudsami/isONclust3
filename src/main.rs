@@ -408,14 +408,14 @@ fn main() {
             println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
 
             println!("Starting post-clustering to refine clusters");
-            let mut counter=0;
+            /*let mut counter=0;
             for (cl_id, records) in &clusters{
                 for record in records{
                     counter+=1;
                 }
-            }
-            println!("{} reads in clusters ds",counter);
-            //clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
+            }*/
+            //println!("{} reads in clusters ds",counter);
+            clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
         }
 
 
