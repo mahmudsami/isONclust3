@@ -128,18 +128,10 @@ impl FastqRecord_isoncl_init{
     pub fn get_quality(&self)->&str{
         &self.quality
     }
-    pub fn get_score(&self)->&f64{
-        &self.score
-    }
-    pub fn get_err_rate(&self)->&f64{
-        &self.error_rate
-    }
-    pub fn set_error_rate(&mut self, new_error_rate: f64){
-        self.error_rate = new_error_rate
-    }
-    pub fn set_score(&mut self, new_score: f64) {
-        self.score = new_score
-    }
+    //pub fn get_score(&self)->&f64{ &self.score }
+    pub fn get_err_rate(&self)->&f64{&self.error_rate}
+    pub fn set_error_rate(&mut self, new_error_rate: f64){ self.error_rate = new_error_rate }
+    pub fn set_score(&mut self, new_score: f64) { self.score = new_score }
 }
 
 

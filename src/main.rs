@@ -1,40 +1,43 @@
 //#![allow(warnings)]
-
-use std::fs::File;
-use std::collections::{HashMap, HashSet, VecDeque};
-use rayon::prelude::*;
 extern crate rayon;
-use std::time::Instant;
-use std::time::Duration;
+extern crate clap;
+
+
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
-use clap::Parser;
+
 
 pub mod file_actions;
 mod clustering;
-//mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
 mod generate_sorted_fastq_for_cluster;
 mod gff_handling;
-use std::path::{PathBuf, Path};
-//mod isONclust;
-mod structs;
-use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
-use std::thread;
-
-extern crate clap;
 mod write_output;
+mod structs;
+
+
+//mod isONclust;
+use crate::clustering::post_clustering_new;
+use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
+
+use clap::Parser;
+use rayon::prelude::*;
+use std::collections::VecDeque;
+use std::time::Instant;
+use std::thread;
+use std::path::{PathBuf, Path};
+use std::io::Read;
+use std::convert::TryFrom;
+
 use memory_stats::memory_stats;
+
 use rustc_hash::{FxHashMap,FxHashSet};
 
-use std::io::Read;
-
 use bio::io::fasta;
-use bio::io::fasta::FastaRead;
 use bio::io::fastq;
-use bio::io::fastq::FastqRead;
-use std::convert::TryFrom;
-use crate::clustering::post_clustering_new;
+
+
+
 
 
 fn compute_d() -> [f64; 128] {
@@ -80,7 +83,7 @@ fn calculate_error_rate(qual: &str, d_no_min: &[f64; 128]) -> f64 {
     let mut poisson_mean = 0.0;
     let mut total_count = 0;
 
-    for char_ in qual.chars().collect::<HashSet<_>>() {
+    for char_ in qual.chars().collect::<FxHashSet<_>>() {
         let count = qual.chars().filter(|&c| c == char_).count();
         let index = char_ as usize;
         poisson_mean += count as f64 * d_no_min[index];
@@ -309,7 +312,7 @@ fn main() {
 
 
         //cl_id is used to appoint a cluster id to a cluster
-        let mut cl_id = 0;
+        let mut cl_id = 1;
 
         if let Some(usage) = memory_stats() {
             println!("Current physical memory usage: {}", usage.physical_mem);
@@ -342,7 +345,7 @@ fn main() {
 
         let now3 = Instant::now();
         //CLUSTERING STEP
-        println!("{:?}", clusters);
+        println!("initial clusters {:?}", clusters);
         {//Clustering scope ( we define a scope so that variables die that we do not use later on)
             //the read id stores an internal id to represent our read
             let mut read_id = 0;
@@ -352,7 +355,7 @@ fn main() {
             /*if annotation_based{
                 min_shared_minis=0.6;
             }*/
-            println!("{}", min_shared_minis);
+            //println!("{}", min_shared_minis);
             //parse the file:
             let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
             for record in reader.records().into_iter(){
@@ -366,7 +369,7 @@ fn main() {
                 let quality = seq_rec.qual();
                 //add the read id and the real header to id_map
                 id_map.insert(read_id, header_new.to_string());
-                if sequence.len() > k {
+                //if sequence.len() > k {
                     let mut this_minimizers = vec![];
                     let mut filtered_minis = vec![];
 
@@ -381,16 +384,22 @@ fn main() {
                     }
                     else if seeding =="syncmer"{
                         generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
+
                     }
 
                     generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
+                    //if filtered_minis.is_empty(){
+                    //    println!("No syncmer for read {}",read_id);
+                    //}
                     // perform the clustering step
                     clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id, &mut shared_seed_info);
+
+
                     read_id += 1;
-                }
-                else {
-                    skipped_cter += 1
-                }
+                //}
+                //else {
+                //    skipped_cter += 1
+                //}
             }
             println!("Finished clustering");
             println!("{} reads used for clustering",read_id);
@@ -399,8 +408,14 @@ fn main() {
             println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
 
             println!("Starting post-clustering to refine clusters");
-
-            clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
+            let mut counter=0;
+            for (cl_id, records) in &clusters{
+                for record in records{
+                    counter+=1;
+                }
+            }
+            println!("{} reads in clusters ds",counter);
+            //clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
         }
 
 
@@ -410,7 +425,6 @@ fn main() {
         } else {
             println!("Couldn't get the current memory usage :(");
         }
-        //clustering::post_clustering(&mut clusters, &mut cluster_map);
     }
 
 
