@@ -11,6 +11,7 @@ use std::borrow::Cow;
 use crate::file_actions;
 use rayon::prelude::*;
 
+
 pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
     //writes the fastq file
     let _ = fs::create_dir_all(PathBuf::from(outfolder).join("clustering"));
@@ -88,8 +89,7 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
     let fastq_outfolder= PathBuf::from(outfolder);
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
     for (cl_id, records) in cluster_map.into_iter(){
-        if records.len() >= n{ //only write the records if we have n or more reads supporting the cluster
-            println!("cl id for writing: {}, {}",cl_id,read_cter);
+        if records.len() >= n { //only write the records if we have n or more reads supporting the cluster
             let filename = new_cl_id.to_string()+".fastq";
             let file_path = fastq_outfolder.join(filename);
             let f = File::create(file_path).expect("unable to create file");
@@ -98,12 +98,11 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
                 write!(buf_write ,"@{}\n{}\n+\n{}\n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
                 read_cter += 1;
             }
-
             buf_write.flush().expect("Failed to flush the buffer");
             new_cl_id += 1;//this is the new cl_id as we skip some on the way
         }
 
-
+        println!("cl id for writing: {}, {}",cl_id,read_cter);
     }
     println!("{} reads written",read_cter);
 }

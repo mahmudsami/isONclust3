@@ -44,7 +44,7 @@ fn expected_number_errornous_kmers(quality_string: &str, k: usize, d:&[f64;128])
     let mut window: VecDeque<f64> = VecDeque::with_capacity(k);
     //iterates over the quality values
     for (i, &p_e) in prob_error.iter().enumerate() {
-        //the probability that we do not have an error is mulitplied by the probability that we did not have an error at position p_e
+        //the probability that we do not have an error is multiplied by the probability that we did not have an error at position p_e
         current_prob_no_error *= 1.0 - p_e;
 
         if i >= k {
@@ -74,7 +74,6 @@ fn calculate_error_rate(qual: &[u8], d_no_min: &[f64; 128]) -> f64 {
         poisson_mean += count as f64 * d_no_min[index];
         total_count += count;
     }
-
     let error_rate = poisson_mean / total_count as f64;
     error_rate
 }
@@ -82,7 +81,6 @@ fn calculate_error_rate(qual: &[u8], d_no_min: &[f64; 128]) -> f64 {
 
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
-
     for i in 0..128 {
         let chr_i = i as u8 as char;
         let ord_i = chr_i as i8;

@@ -194,7 +194,7 @@ fn main() {
     //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
     if mode=="ont"{
         k = 13;
-        w = 22;//->22, standard: 20
+        w = 20;//->22, standard: 20
         quality_threshold = 0.9_f64.powi(k as i32);
         s = 9;
         t = 2;
@@ -241,7 +241,7 @@ fn main() {
     if seeding =="syncmer"{
         if cli.s.is_some(){
             s = cli.s.unwrap();
-            if k-s+1%2!=0{
+            if k - s + 1 % 2 != 0{
                 panic!("Please set k and s so that (k-s)+1 yields an odd number")
             }
         }
@@ -364,42 +364,29 @@ fn main() {
                 if verbose{
                     println!("ID: {}",header_new);
                 }
-
                 let sequence = seq_rec.seq();
                 let quality = seq_rec.qual();
                 //add the read id and the real header to id_map
                 id_map.insert(read_id, header_new.to_string());
-                //if sequence.len() > k {
-                    let mut this_minimizers = vec![];
-                    let mut filtered_minis = vec![];
-
-                    if seeding == "minimizer"{
-                        if noncanonical_bool{
-                            generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
-                        }
-                        else{
-                            generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
-                        }
-
+                let mut this_minimizers = vec![];
+                let mut filtered_minis = vec![];
+                if seeding == "minimizer"{
+                    if noncanonical_bool{
+                        generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
                     }
-                    else if seeding =="syncmer"{
-                        generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
-
+                    else{
+                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
                     }
+                }
+                else if seeding == "syncmer"{
+                    generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
 
-                    generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
-                    //if filtered_minis.is_empty(){
-                    //    println!("No syncmer for read {}",read_id);
-                    //}
-                    // perform the clustering step
-                    clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id, &mut shared_seed_info);
+                }
+                generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
+                // perform the clustering step
+                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id, &mut shared_seed_info);
 
-
-                    read_id += 1;
-                //}
-                //else {
-                //    skipped_cter += 1
-                //}
+                read_id += 1;
             }
             println!("Finished clustering");
             println!("{} reads used for clustering",read_id);
@@ -408,14 +395,13 @@ fn main() {
             println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
 
             println!("Starting post-clustering to refine clusters");
-            /*let mut counter=0;
-            for (cl_id, records) in &clusters{
-                for record in records{
-                    counter+=1;
-                }
-            }*/
-            //println!("{} reads in clusters ds",counter);
-            clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
+            //clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
         }
 
 
