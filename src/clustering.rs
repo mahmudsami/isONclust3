@@ -52,11 +52,11 @@ fn detect_whether_shared(min_shared_minis:f64, shared_seed_infos: &FxHashMap<i32
 
 //shared_seed_infos: hashmap that holds read_id->nr shared minimizers with clusters->not updated when cluster changes!
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, minimizers: &Vec<Minimizer_hashed>, clusters:&mut FxHashMap<i32,Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, id: i32,  cl_id: &mut i32,shared_seed_infos:&mut FxHashMap<i32,i32> ){
+pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, minimizers: &Vec<Minimizer_hashed>, clusters:&mut FxHashMap<i32,Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, id: i32,  cl_id: &mut i32 ){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of ids as a value
     //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
-    //let mut shared_seed_infos= FxHashMap::default();
+    let mut shared_seed_infos= FxHashMap::default();
     let shared_perc_mini = min_shared_minis / 2.0_f64;
     let mut shared_seed_infos_norm= FxHashMap::default();
 

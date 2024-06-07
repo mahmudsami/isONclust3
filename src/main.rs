@@ -281,7 +281,7 @@ fn main() {
     let now1 = Instant::now();
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
-        let mut shared_seed_info: FxHashMap<i32,i32>=FxHashMap::default();
+        //let mut shared_seed_info: FxHashMap<i32,i32>=FxHashMap::default();
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
@@ -384,7 +384,7 @@ fn main() {
                 }
                 generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
                 // perform the clustering step
-                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id, &mut shared_seed_info);
+                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
 
                 read_id += 1;
             }
