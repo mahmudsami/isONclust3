@@ -277,7 +277,7 @@ fn main() {
 
     let mut annotation_based= false;
 
-    println!("Using {}s as seeds",seeding);
+    println!("Using {}s as seeds", seeding);
     let now1 = Instant::now();
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
@@ -285,9 +285,9 @@ fn main() {
         let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
-            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w,seeding,s,t, noncanonical_bool);
+            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w, seeding, s, t, noncanonical_bool);
             println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
-            print!("{:?}",clusters);
+            print!("{:?}", clusters);
             annotation_based = true;
         }
             //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
@@ -385,9 +385,9 @@ fn main() {
                 generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
                 // perform the clustering step
                 clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
-
                 read_id += 1;
             }
+            println!("Generated {} clusters from clustering",clusters.len());
             println!("Finished clustering");
             println!("{} reads used for clustering",read_id);
             println!("Skipped {} reads due to being too short", skipped_cter);
@@ -401,16 +401,20 @@ fn main() {
             } else {
                 println!("Couldn't get the current memory usage :(");
             }
-            //clustering::post_clustering_new(&mut clusters,&mut cluster_map,min_shared_minis);
+            let now_pc = Instant::now();
+            clustering::post_clustering_new(&mut clusters,&mut cluster_map, min_shared_minis);
+            println!("{} s for file output", now_pc.elapsed().as_secs());
+            println!("Got {} clusters from Post-clustering",clusters.len());
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
         }
 
 
-        if let Some(usage) = memory_stats() {
-            println!("Current physical memory usage: {}", usage.physical_mem);
-            println!("Current virtual memory usage: {}", usage.virtual_mem);
-        } else {
-            println!("Couldn't get the current memory usage :(");
-        }
+
     }
 
 

@@ -7,7 +7,7 @@ use std::hash::{Hash, Hasher};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::borrow::{Cow, Borrow};
 use bio::alignment::sparse::HashMapFx;
-
+use rayon::prelude::*;
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
     let reverse_complement: String = dna.chars()
@@ -199,7 +199,7 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32,FxHashSet<u64>>, c
                 cl_set_map.get_mut(&id).unwrap().insert(*mini);
             }
             else{
-                let mut this_set:FxHashSet<u64> = FxHashSet::default();
+                let mut this_set: FxHashSet<u64> = FxHashSet::default();
                 this_set.insert(*mini);
                 cl_set_map.insert(id,this_set);
             }
@@ -237,10 +237,14 @@ fn update_clusters(clusters: &mut FxHashMap<i32,Vec<i32>>, clusters_map: &mut Fx
     let large_cl_info= clusters.get_mut(large_cluster_id).unwrap();
     //add the reads of the small cluster into the large cluster
     large_cl_info.extend(small_cl_info);
+    clusters.remove_entry(small_cluster_id);
     //also add the hashes of the small cluster into the large cluster
     for seed_hash in smallHS{
-        let mut cl_vec=clusters_map.get_mut(&seed_hash).unwrap();
-        cl_vec.push(*large_cluster_id);
+        let mut cl_vec= clusters_map.get_mut(&seed_hash).unwrap();
+        if !cl_vec.contains(large_cluster_id){
+            cl_vec.push(*large_cluster_id);
+        }
+        cl_vec.retain(|x| *x != *small_cluster_id);
     }
 }
 
@@ -254,7 +258,7 @@ fn merge_clusters(clusters: &mut FxHashMap<i32,Vec<i32>>, clusters_map: &mut FxH
     let mut intersect: FxHashSet<u64> = largeHs.intersection(&smallHs).cloned().collect();
     largeHs = &mut intersect;
     //largeHs = largeHs.intersection(&smallHs).cloned().collect();
-    update_clusters(clusters,clusters_map,smallHs,large_cluster_id,small_cluster_id);
+    update_clusters(clusters, clusters_map,smallHs, large_cluster_id, small_cluster_id);
 }
 
 
@@ -280,7 +284,7 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                     if shared1 >= shared2 {
                         if merge_into.contains_key(&first_id) {
                             let mut value = merge_into.get_mut(&first_id).unwrap();
-                            let mut other_id=value.0;
+                            let mut other_id= value.0;
                             let mut shared = value.1;
                             if shared1 > shared {
                                 other_id = second_id;
@@ -295,7 +299,7 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                         //TODO: merge shared1 into shared2
                         if merge_into.contains_key(&second_id) {
                             let mut value  = merge_into.get_mut(&second_id).unwrap();
-                            let mut other_id=value.0;
+                            let mut other_id= value.0;
                             let mut shared = value.1;
                             if shared2 > shared {
                                 other_id = first_id;
@@ -313,7 +317,7 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                     //merge_clusters(clusters, clusters_map, &mut cl_set_map, key2, &key1);
                     if merge_into.contains_key(&first_id) {
                         let mut value = merge_into.get_mut(&first_id).unwrap();
-                        let mut other_id=value.0;
+                        let mut other_id= value.0;
                         let mut shared = value.1;
                         if shared1 > shared {
                             other_id = second_id;
@@ -330,7 +334,7 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                 //TODO: merge shared2 into shared1
                 if merge_into.contains_key(&second_id) {
                     let mut value = merge_into.get_mut(&second_id).unwrap();
-                    let mut other_id=value.0;
+                    let mut other_id= value.0;
                     let mut shared = value.1;
                     if shared2 > shared {
                         other_id = first_id;
@@ -357,90 +361,28 @@ fn merge_clusters_from_merge_into(merge_into:&mut FxHashMap<i32,(i32,f64)>, clus
 pub(crate) fn post_clustering_new(clusters: &mut FxHashMap<i32,Vec<i32>>, clusters_map: &mut FxHashMap<u64, Vec<i32>>, min_shared_minis:f64){
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
     let mut cl_set_map: FxHashMap<i32,FxHashSet<u64>> = FxHashMap::default();
-    let mut cl_overlaps: FxHashMap<String,i32> =FxHashMap::default();
-    //TODO update mergedHS and updatedHS and use them to our advantage
-    let mut merge_into:FxHashMap<i32,(i32,f64)> = FxHashMap::default();
-    let mut mergedHS: FxHashSet<i32>=FxHashSet::default();
-    let mut updatedHS: FxHashSet<i32>=FxHashSet::default();
-    let mut first_iter=true;
-    while clusters_map.len()>0 || first_iter{
-        generate_post_clustering_ds(&mut cl_set_map,&mut cl_overlaps, clusters_map);
-        fill_merge_into(&mut cl_overlaps, &mut merge_into, min_shared_minis, &mut cl_set_map);
-        merge_clusters_from_merge_into(&mut merge_into, clusters_map, clusters, &mut cl_set_map);
+    let mut cl_overlaps: FxHashMap<String,i32> = FxHashMap::default();
+    let mut merge_into: FxHashMap<i32,(i32,f64)> = FxHashMap::default();
+    //let mut mergedHS: FxHashSet<i32>=FxHashSet::default();
+    //let mut updatedHS: FxHashSet<i32>=FxHashSet::default();
+    let mut first_iter= true;
+    //continue merging as long as we still find clusters that we may merge
+    while merge_into.len() > 0 || first_iter{
+        println!("Post Cluster iter");
+        println!("Merge into : {}", merge_into.len());
+        println!("Nr clusters: {}", clusters.len());
+        //clear merge_into as this is the indicator how often we attempt to merge further (the while loop depends on it)
+        merge_into.clear();
+        clusters_map.clear();
+        //set first_iter to be false to not stay in a infinity loop
         first_iter = false;
+        //generate the datastrucutre giving us merge infos
+        generate_post_clustering_ds(&mut cl_set_map, &mut cl_overlaps, clusters_map);
+        //merge_into contains the information about which clusters to merge into which
+        fill_merge_into(&mut cl_overlaps, &mut merge_into, min_shared_minis, &mut cl_set_map);
+        //merges the clusters
+        merge_clusters_from_merge_into(&mut merge_into, clusters_map, clusters, &mut cl_set_map);
     }
-    //TODO: rank by best hit and use Hashmap to find best hitting cluster
-
-    
-    //clusters holds the cluster_id as key and a vector of read_ids as value
-    //cluster_map holds the hash of a seed as key and a vector of cluster_ids as value
-    //shared_seed_infos holds
-    //cluster_seeds holds the cluster id and a hashset of seed hashes (the ones contained in the cluster)
-    //STEP1: get a list of minimizers for each cluster (stored in FXHashMap<cl_id,Vec<minimizer_hash>>)
-    //iterate over the clusters_map to find out the overlaps between clusters (the two measures to calculate whether the clusters should be merged)
-    //TODO: sort in ascending order so that we start with the lowest number of ids to the highest (Sort by vec_of_ids.len())
-    //TODO: use hashset instead of vector to store the seed_hashes->easy intersection!
-
-    // Convert the HashMap into a Vec of references to its entries
-        /*let cl_binding= cl_set_map.clone();
-        let keys: Vec<&i32> = cl_binding.keys().collect();
-        // Iterate over each pair of entries without repeating comparisons
-        for i in 0..keys.len() {
-            //get key and value of the first entry
-            let key1 = keys[i];
-            let value1 = cl_binding.get(&key1).unwrap();
-            //iterate over second entry but do not repeat already compared entries
-            for j in i + 1..keys.len() {
-                //get key and value of the second entry
-                let key2 = keys[j];
-                if mergedHS.contains(key2){
-                    //retrieve the value to key2 (the seed_hashes for the cluster)
-                    let value2 = cl_binding.get(&key2).unwrap();
-                    //get the number of seed_hashes of the intersection of the two clusters
-                    let intersect_len= value1.intersection(&value2).collect::<Vec<_>>().len();
-                    //compute the rates of how much of the seed_hashes of the clusters are shared
-                    let shared1 = intersect_len as f64/ value1.len() as f64;
-                    let shared2 = intersect_len as f64/ value2.len() as f64;
-                    //cases covered: shared1 but not shared 2, shared 2 but not shared 1, shared1 and shared2,
-                    if shared1 > min_shared_minis{
-                        if shared2> min_shared_minis{
-                            //shared1 and shared2
-                            if shared1 >= shared2{
-                                //TODO: merge shared1 into shared2
-                                merge_clusters(clusters, clusters_map, &mut cl_set_map, key2, &key1);
-                                mergedHS.insert(*key1);
-                                updatedHS.insert(*key2);
-                            }
-                            else{
-                                //TODO: merge shared2 into shared1
-                                merge_clusters(clusters, clusters_map, &mut cl_set_map, &key1, key2);
-                                mergedHS.insert(*key2);
-                                updatedHS.insert(*key1);
-                            }
-                        }
-                        else{
-                            //shared1 but not shared2
-                            //TODO: merge shared 1 into shared2
-                            merge_clusters(clusters, clusters_map, &mut cl_set_map, key2, &key1);
-                            mergedHS.insert(*key1);
-                            updatedHS.insert(*key2);
-                        }
-                    }
-                    else if shared2 > min_shared_minis{
-                        //shared2 but not shared1
-                        //TODO: merge shared2 into shared1
-                        merge_clusters(clusters, clusters_map, &mut cl_set_map, &key1, key2);
-                        mergedHS.insert(*key2);
-                        updatedHS.insert(*key1);
-                    }
-                    else{
-                        //Do not merge anything
-                    }
-                }
-
-            }
-        }*/
-
 }
 
 
