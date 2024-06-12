@@ -102,7 +102,7 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
             new_cl_id += 1;//this is the new cl_id as we skip some on the way
         }
 
-        println!("cl id for writing: {}, {}",cl_id,read_cter);
+        //println!("cl id for writing: {}, {}",cl_id,read_cter);
     }
     println!("{} reads written",read_cter);
 }
