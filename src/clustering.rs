@@ -189,7 +189,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
 //takes clusters_map as input and generates cl_set_map: a Hashmap containing the cluster id as key and a hashset of seedhashes as value.
 fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32,FxHashSet<u64>>, cl_overlaps: &mut FxHashMap<String,i32>, clusters_map: &mut FxHashMap<u64, Vec<i32>>){
     //TODO: count overlaps between clusters to sort and identify all cluster_combinations
-    println!("Clusters_map len {}",clusters_map.len());
+    //println!("Clusters_map len {}",clusters_map.len());
 
     for (mini, vec_of_ids) in clusters_map.into_iter() {
         //iterate over the ids that we have stored in the value of each minimizer
