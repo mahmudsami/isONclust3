@@ -115,7 +115,7 @@ pub fn path_exists(path: &str) -> bool {
 
 
 
-pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,fastq:String, id_map:FxHashMap<i32,String>, n:usize){
+pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,fastq:String, id_map:FxHashMap<i32,String>, n:usize, no_fastq: bool){
 
     if !path_exists(&outfolder){
         let _ = fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
@@ -137,10 +137,13 @@ pub(crate) fn write_output(outfolder:String, clusters:&FxHashMap<i32,Vec<i32>>,f
     //header cluster map scope
     let mut header_cluster_map= FxHashMap::default();
     write_final_clusters_tsv(&clustering_path, clusters.clone(), id_map.clone(), &mut  header_cluster_map);
+    //no_fastq: true -> we do not want to write the fastq files
+    if !no_fastq{
         //println!("Header cl map after tsv:{}",header_cluster_map.len());
-    create_final_ds(header_cluster_map, fastq,&mut cluster_hashmap_fastq_record);
+        create_final_ds(header_cluster_map, fastq,&mut cluster_hashmap_fastq_record);
+        //println!("Cluster_hashmap: {}",cluster_hashmap_fastq_record.len());
+        println!("Writing the fastq files");
+        write_fastq_files(&fastq_path, cluster_hashmap_fastq_record, n);
+    }
 
-    //println!("Cluster_hashmap: {}",cluster_hashmap_fastq_record.len());
-    println!("Writing the fastq files");
-    write_fastq_files(&fastq_path, cluster_hashmap_fastq_record, n);
 }

@@ -174,11 +174,18 @@ struct Cli {
     quality_threshold: Option<f64>,
     #[arg(long,help="print additional information")]
     verbose: Option<bool>,
+    #[arg(long,help="Do not run the post clustering step during the analysis")]
+    no_post_cluster: Option<bool>,
+    #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
+    no_fastq: Option<bool>,
 }
 
 fn main() {
 
+    //#################################################################################################
     //INITIALIZATION
+    //#################################################################################################
+
     let cli = Cli::parse();
     println!("n: {:?}", cli.n);
     println!("outfolder {:?}", cli.outfolder);
@@ -228,6 +235,19 @@ fn main() {
     if let Some(verb) = verbo{
         verbose = true;
     }
+
+    let no_pc = cli.no_post_cluster;
+    let mut no_post_cluster = false;
+    if let Some(npc) = no_pc{
+        no_post_cluster = true;
+    }
+
+    let no_fq = cli.no_fastq;
+    let mut no_fastq = false;
+    if let Some(nfq) = no_fq{
+        no_fastq = true;
+    }
+
     let noncan = cli.noncanonical;
     let mut noncanonical_bool= false;
     if let Some(noncanonical)= noncan{
@@ -290,13 +310,6 @@ fn main() {
             print!("{:?}", clusters);
             annotation_based = true;
         }
-            //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
-
-        //let noncanonical= cli.noncanonical.as_deref();
-        //let mut noncanonical=false;
-        //if noncanonical.is_some(){
-        //    noncanonical=true;
-        //}
 
         if verbose{
             if let Some(usage) = memory_stats() {
@@ -306,12 +319,10 @@ fn main() {
                 println!("Couldn't get the current memory usage :(");
             }
         }
-        //let mut cl_name_map = FxHashMap::default();
 
-
-
-        //GENERATION OF ANNOTATION-BASED CLUSTERS
-
+        //#################################################################################################
+        //GENERATION OF ANNOTATION BASED CLUSTERS
+        //#################################################################################################
 
         //cl_id is used to appoint a cluster id to a cluster
         let mut cl_id = 1;
@@ -324,7 +335,9 @@ fn main() {
             }
         }
 
+        //#################################################################################################
         //SORTING STEP
+        //#################################################################################################
 
         let q_threshold = 7.0;
         //path to the sorted file
@@ -348,7 +361,9 @@ fn main() {
             let now3 = Instant::now();
             println!("initial clusters {:?}", clusters);
         }
+        //#################################################################################################
         //CLUSTERING STEP
+        //#################################################################################################
         {//Clustering scope ( we define a scope so that variables die that we do not use later on)
             //the read id stores an internal id to represent our read
             let mut read_id = 0;
@@ -399,34 +414,35 @@ fn main() {
             }
 
 
-            println!("Starting post-clustering to refine clusters");
+
             if let Some(usage) = memory_stats() {
                 println!("Current physical memory usage: {}", usage.physical_mem);
                 println!("Current virtual memory usage: {}", usage.virtual_mem);
             } else {
                 println!("Couldn't get the current memory usage :(");
             }
-            let now_pc = Instant::now();
-            clustering::post_clustering_new(&mut clusters,&mut cluster_map, 0.4);
-            println!("{} s for file output", now_pc.elapsed().as_secs());
-            println!("Got {} clusters from Post-clustering",clusters.len());
-            if let Some(usage) = memory_stats() {
-                println!("Current physical memory usage: {}", usage.physical_mem);
-                println!("Current virtual memory usage: {}", usage.virtual_mem);
-            } else {
-                println!("Couldn't get the current memory usage :(");
+
+            //no_post_cluster: true -> do not run post_clustering
+            if !no_post_cluster{
+                println!("Starting post-clustering to refine clusters");
+                let now_pc = Instant::now();
+                clustering::post_clustering_new(&mut clusters, &mut cluster_map, min_shared_minis);
+                println!("{} s for file output", now_pc.elapsed().as_secs());
+                println!("Got {} clusters from Post-clustering",clusters.len());
+                if let Some(usage) = memory_stats() {
+                    println!("Current physical memory usage: {}", usage.physical_mem);
+                    println!("Current virtual memory usage: {}", usage.virtual_mem);
+                } else {
+                    println!("Couldn't get the current memory usage :(");
+                }
             }
         }
-
-
-
     }
-
-
+    //#################################################################################################
     //FILE OUTPUT STEP
-
+    //#################################################################################################
     let now4 = Instant::now();
-    write_output::write_output(outfolder, &clusters, cli.fastq, id_map, n );
+    write_output::write_output(outfolder, &clusters, cli.fastq, id_map, n ,no_fastq);
     println!("{} s for file output", now4.elapsed().as_secs());
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);
