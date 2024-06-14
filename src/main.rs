@@ -221,11 +221,11 @@ fn main() {
                 k = cli.k.unwrap();
             }
             else{
-                k=0;
+                k = 0;
             }
-            w=0;
-            t=0;
-            s=0;
+            w = 0;
+            t = 0;
+            s = 0;
             quality_threshold = qt.powi(k as i32);
 
         }
@@ -276,7 +276,7 @@ fn main() {
     else if seeding =="minimizer" {
         if cli.w.is_some(){
             w = cli.w.unwrap();
-            if w<k{
+            if w < k{
                 panic!("Please set w greater than k")
             }
         }
