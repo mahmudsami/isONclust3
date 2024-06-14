@@ -14,6 +14,7 @@ mod generate_sorted_fastq_for_cluster;
 mod gff_handling;
 mod write_output;
 mod structs;
+mod Parallelization_side;
 
 
 //mod isONclust;

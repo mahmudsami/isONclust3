@@ -187,7 +187,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
 }
 
 //takes clusters_map as input and generates cl_set_map: a Hashmap containing the cluster id as key and a hashset of seedhashes as value.
-fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32,FxHashSet<u64>>, cl_overlaps: &mut FxHashMap<String,i32>, clusters_map: &mut FxHashMap<u64, Vec<i32>>){
+fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32,FxHashSet<u64>>, cl_overlaps: &mut FxHashMap<i32,FxHashMap<i32,i32>>, clusters_map: &mut FxHashMap<u64, Vec<i32>>){
     //TODO: count overlaps between clusters to sort and identify all cluster_combinations
     //println!("Clusters_map len {}",clusters_map.len());
 
@@ -216,13 +216,28 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32,FxHashSet<u64>>, c
                     small_id = id2;
                     large_id = id;
                 }
-                let concatenated= format!("{},{}",small_id,large_id);
-                if cl_overlaps.contains_key(concatenated.as_str()){
+                //let concatenated= format!("{},{}",small_id,large_id);
+                /*if cl_overlaps.contains_key(concatenated.as_str()){
                     let mut overlap_cter= cl_overlaps.get_mut(concatenated.as_str()).unwrap();
                     *overlap_cter += 1;
                 }
                 else{
                     cl_overlaps.insert(concatenated,1);
+                }*/
+                if cl_overlaps.contains_key(&small_id){
+                    let id_overlaps= cl_overlaps.get_mut(&small_id).unwrap();
+                    if id_overlaps.contains_key(&large_id){
+                        let mut overlap = id_overlaps.get_mut(&large_id).unwrap();
+                        *overlap += 1;
+                    }
+                    else {
+                        id_overlaps.insert(large_id,1);
+                    }
+                }
+                else{
+                    let mut id_overlaps= FxHashMap::default();
+                    id_overlaps.insert(large_id,1);
+                    cl_overlaps.insert(small_id,id_overlaps);
                 }
             }
         }
@@ -265,15 +280,17 @@ fn merge_clusters(clusters: &mut FxHashMap<i32,Vec<i32>>, clusters_map: &mut FxH
 
 
 
-fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHashMap<i32,(i32,f64)>, min_shared_minis: f64, cl_set_map: &mut FxHashMap<i32,FxHashSet<u64>>,small_hs: &mut FxHashSet<i32>){
-    for (id, overlap) in cl_overlaps {
+fn fill_merge_into(cl_overlaps: &mut FxHashMap<i32,FxHashMap<i32,i32>>,merge_into: &mut FxHashMap<i32,(i32,f64)>, min_shared_minis: f64, cl_set_map: &mut FxHashMap<i32,FxHashSet<u64>>,small_hs: &mut FxHashSet<i32>){
+    for (first_id,overlap_hm) in cl_overlaps {
+        for (second_id, overlap) in overlap_hm {
+    //for (id, overlap) in cl_overlaps {
         // Split the concatenated string
-        let parts: Vec<&str> = id.split(',').collect();
+        //let parts: Vec<&str> = id.split(',').collect();
         //print!("Parts");
-        if parts.len() == 2 {
+        //if parts.len() == 2 {
             // Parse the parts back into i32
-            let first_id: i32 = parts[0].parse().expect("Invalid number");
-            let second_id: i32 = parts[1].parse().expect("Invalid number");
+            //let first_id: i32 = parts[0].parse().expect("Invalid number");
+            //let second_id: i32 = parts[1].parse().expect("Invalid number");
             let nr_seeds1 = cl_set_map.get(&first_id).unwrap().len();
             let nr_seeds2 = cl_set_map.get(&second_id).unwrap().len();
             //compute the rates of how much of the seed_hashes of the clusters are shared
@@ -291,13 +308,13 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                             let mut other_id= value.0;
                             let mut shared = value.1;
                             if shared1 > shared {
-                                other_id = second_id;
+                                other_id = *second_id;
                                 shared = shared1;
                             }
                         }
                         else {
-                            small_hs.insert(first_id);
-                            merge_into.insert(first_id, (second_id, shared1));
+                            small_hs.insert(*first_id);
+                            merge_into.insert(*first_id, (*second_id, shared1));
                         }
                     }
                     else{
@@ -307,13 +324,13 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                             let mut other_id= value.0;
                             let mut shared = value.1;
                             if shared2 > shared {
-                                other_id = first_id;
+                                other_id = *first_id;
                                 shared = shared2;
                             }
                         }
                         else{
-                            small_hs.insert(second_id);
-                            merge_into.insert(second_id,(first_id,shared2));
+                            small_hs.insert(*second_id);
+                            merge_into.insert(*second_id,(*first_id,shared2));
                         }
                     }
                 }
@@ -326,13 +343,13 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                         let mut other_id= value.0;
                         let mut shared = value.1;
                         if shared1 > shared {
-                            other_id = second_id;
+                            other_id = *second_id;
                             shared = shared1;
                         }
                     }
                     else {
-                        small_hs.insert(first_id);
-                        merge_into.insert(first_id, (second_id, shared1));
+                        small_hs.insert(*first_id);
+                        merge_into.insert(*first_id, (*second_id, shared1));
                     }
                 }
             }
@@ -344,14 +361,14 @@ fn fill_merge_into(cl_overlaps: &mut FxHashMap<String,i32>,merge_into: &mut FxHa
                     let mut other_id= value.0;
                     let mut shared = value.1;
                     if shared2 > shared {
-                        other_id = first_id;
+                        other_id = *first_id;
                         shared = shared2;
 
                     }
                 }
                 else{
-                    small_hs.insert(second_id);
-                    merge_into.insert(second_id,(first_id,shared2));
+                    small_hs.insert(*second_id);
+                    merge_into.insert(*second_id,(*first_id,shared2));
                 }
             }
         }
@@ -377,10 +394,11 @@ fn merge_clusters_from_merge_into(merge_into:&mut FxHashMap<i32,(i32,f64)>, clus
 pub(crate) fn post_clustering_new(clusters: &mut FxHashMap<i32,Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, min_shared_minis:f64){
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
     let mut cl_set_map: FxHashMap<i32,FxHashSet<u64>> = FxHashMap::default();
-    let mut cl_overlaps: FxHashMap<String,i32> = FxHashMap::default();
+    //TODO; use the new ds instead of cl_overlaps to hopefully reduce RAM usage significantly
+    let mut cl_overlaps: FxHashMap<i32,FxHashMap<i32,i32>> = FxHashMap::default();
     let mut merge_into: FxHashMap<i32,(i32,f64)> = FxHashMap::default();
     //small_hs is a HashSet storing all cluster ids that were merged into other clusters during this iteration
-    let mut small_hs: FxHashSet<i32>=FxHashSet::default();
+    let mut small_hs: FxHashSet<i32>= FxHashSet::default();
     //used to have do-while structure
     let mut first_iter= true;
     //continue merging as long as we still find clusters that we may merge
@@ -391,7 +409,6 @@ pub(crate) fn post_clustering_new(clusters: &mut FxHashMap<i32,Vec<i32>>, cluste
         //clear merge_into as this is the indicator how often we attempt to merge further (the while loop depends on it)
         merge_into.clear();
         cl_set_map.clear();
-        cl_overlaps.clear();
         small_hs.clear();
         //set first_iter to be false to not stay in a infinity loop
         first_iter = false;
@@ -402,6 +419,7 @@ pub(crate) fn post_clustering_new(clusters: &mut FxHashMap<i32,Vec<i32>>, cluste
         //merge_into contains the information about which clusters to merge into which
         fill_merge_into(&mut cl_overlaps, &mut merge_into, min_shared_minis, &mut cl_set_map, &mut small_hs);
         //println!("merge into filled");
+        cl_overlaps.clear();
         //println!("{:?}",merge_into);
         //merges the clusters
         merge_clusters_from_merge_into(&mut merge_into, cluster_map, clusters, &mut cl_set_map, small_hs.clone());
