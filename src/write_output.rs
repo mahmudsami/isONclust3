@@ -34,18 +34,22 @@ pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &Stri
 
 fn write_final_clusters_tsv(outfolder: &Path, clusters: FxHashMap<i32,Vec<i32>>, id_map:FxHashMap<i32,String>, header_cluster_map:&mut FxHashMap<String,i32>){
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
+
     let f = File::create(file_path).expect("unable to create file");
     let mut buf_write = BufWriter::new(&f);
     let mut nr_reads= 0;
+
     println!("{} different clusters identified",clusters.len());
     //let nr_clusters=clusters.len();
     for (cl_id, r_int_ids) in clusters.into_iter(){
         //println!("cl_id {}, nr_reads {:?}",cl_id,nr_reads);
         for r_int_id in r_int_ids{
+
             let read_id = id_map.get(&r_int_id).unwrap();
             nr_reads += 1;
             let _ = writeln!(buf_write ,"{}\t{}", cl_id, read_id);
             header_cluster_map.insert(read_id.to_string(),cl_id);
+
         }
     }
     // Flush the buffer to ensure all data is written to the underlying file
@@ -88,6 +92,7 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
     let fastq_outfolder= PathBuf::from(outfolder);
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
     for (cl_id, records) in cluster_map.into_iter(){
+
         if records.len() >= n { //only write the records if we have n or more reads supporting the cluster
             let filename = new_cl_id.to_string()+".fastq";
             let file_path = fastq_outfolder.join(filename);
@@ -100,6 +105,7 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
             buf_write.flush().expect("Failed to flush the buffer");
             new_cl_id += 1; //this is the new cl_id as we skip some on the way
         }
+
 
         //println!("cl id for writing: {}, {}",cl_id,read_cter);
     }

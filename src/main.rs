@@ -14,6 +14,7 @@ mod generate_sorted_fastq_for_cluster;
 mod gff_handling;
 mod write_output;
 mod structs;
+
 mod Parallelization_side;
 
 
@@ -25,6 +26,7 @@ use clap::Parser;
 use rayon::prelude::*;
 use std::collections::VecDeque;
 use std::time::Instant;
+
 use std::thread;
 use std::path::{PathBuf, Path};
 use std::io::Read;
@@ -132,6 +134,13 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
 
 fn parse_cli(k:usize ,w:usize,s:usize,t:usize,quality_threshold:f64, cli:Cli){
 
+}
+
+
+fn print_entries(sorted_sign_minis: &Vec<(i32,Vec<Minimizer_hashed>)>,id_map: &HashMap<i32,String>) {
+    for entry in sorted_sign_minis.iter().take(20){
+        print!("{}",id_map.get(&entry.0).unwrap());
+    }
 }
 
 
@@ -273,6 +282,7 @@ fn main() {
             }
         }
     }
+
     else if seeding =="minimizer" {
         if cli.w.is_some(){
             w = cli.w.unwrap();
@@ -280,6 +290,7 @@ fn main() {
                 panic!("Please set w greater than k")
             }
         }
+
     }
     if cli.k.is_some(){
         k = cli.k.unwrap();
