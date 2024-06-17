@@ -7,22 +7,28 @@ use rayon::prelude::*;
 use std::time::Instant;
 use std::borrow::Borrow;
 use std::collections::VecDeque;
-use crate::clustering::reverse_complement;
+use crate::clustering;
 use crate::structs::FastqRecord_isoncl_init;
-
+use crate::write_output;
+use crate::generate_sorted_fastq_new_version;
+use crate::write_output::path_exists;
+//use crate::bio_rust_file_read;
+use std::fs;
+use bio::io::fastq;
+use bio::io::fastq::FastqRead;
+use rustc_hash::FxHashMap;
 
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
-fn compress_sequence(seq: &str) -> String {
+fn compress_sequence(seq: &[u8]) -> String {
     //compresses the sequence seq by keeping only the first character of each consecutive group of equal characters. The resulting compressed sequence is stored in the variable seq_hpol_comp.
 
     let mut seq_hpol_comp = String::new();
-    let mut last_char: Option<char> = None;
-
-    for ch in seq.chars() {
-        if last_char.is_none() || last_char.unwrap() != ch {
-            seq_hpol_comp.push(ch);
+    let mut last_char: Option<&u8> = None;
+    for ch in seq{
+        if last_char.is_none() || last_char.unwrap()!= ch{
+            seq_hpol_comp.push(*ch as char);
         }
-        last_char = Some(ch);
+        last_char= Some(ch);
     }
 
     seq_hpol_comp
@@ -30,50 +36,51 @@ fn compress_sequence(seq: &str) -> String {
 
 
 fn expected_number_errornous_kmers(quality_string: &str, k: usize, d:&[f64;128]) -> f64 {
-    //computes the expeced number of errornous kmers for a read by analysing the quality entry
+    //computes the expected number of errornous kmers for a read by analysing the quality entry
     let prob_error: Vec<f64> = quality_string.chars().map(|char_| d[char_ as u8 as usize]).collect();
     let mut sum_of_expectations = 0.0;
-    let mut qurrent_prob_no_error = 1.0;
+    let mut current_prob_no_error = 1.0;
+    //holds k nucleotides to represent a kmer
     let mut window: VecDeque<f64> = VecDeque::with_capacity(k);
-
+    //iterates over the quality values
     for (i, &p_e) in prob_error.iter().enumerate() {
-        qurrent_prob_no_error *= 1.0 - p_e;
+        //the probability that we do not have an error is multiplied by the probability that we did not have an error at position p_e
+        current_prob_no_error *= 1.0 - p_e;
 
         if i >= k {
             let p_to_leave = window.pop_front().unwrap();
-            qurrent_prob_no_error /= p_to_leave;
+            current_prob_no_error /= p_to_leave;
         }
 
-        sum_of_expectations += qurrent_prob_no_error;
+        sum_of_expectations += current_prob_no_error;
 
         if i >= k - 1 {
             window.push_back(1.0 - p_e);
         }
     }
-
+    //
     (quality_string.len() - k + 1) as f64 - sum_of_expectations
 }
 
 
 
-fn calculate_error_rate(qual: &str, d_no_min: &[f64; 128]) -> f64 {
+fn calculate_error_rate(qual: &[u8], d_no_min: &[f64; 128]) -> f64 {
     let mut poisson_mean = 0.0;
     let mut total_count = 0;
 
-    for char_ in qual.chars().collect::<HashSet<_>>() {
-        let count = qual.chars().filter(|&c| c == char_).count();
-        let index = char_ as usize;
+    for &char_byte in qual.iter().collect::<HashSet<_>>() {
+        let count = qual.iter().filter(|&&c| c == char_byte).count();
+        let index = char_byte as usize;
         poisson_mean += count as f64 * d_no_min[index];
         total_count += count;
     }
-
     let error_rate = poisson_mean / total_count as f64;
     error_rate
 }
 
+
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
-
     for i in 0..128 {
         let chr_i = i as u8 as char;
         let ord_i = chr_i as i8;
@@ -82,6 +89,7 @@ fn compute_d() -> [f64; 128] {
     }
     d
 }
+
 
 //D_no_min = {chr(i) : 10**( - (ord(chr(i)) - 33)/10.0 )  for i in range(128)}
 fn compute_d_no_min() -> [f64; 128] {
@@ -97,60 +105,53 @@ fn compute_d_no_min() -> [f64; 128] {
 }
 
 
-
-
-
-fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str)->Vec<FastqRecord_isoncl_init>{
+fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_threshold: &f64, window_size: usize, score_vec: &mut Vec<(i32,usize)>, id_map: &mut FxHashMap<i32,String>,seeding: &str, s: usize,t: usize, noncanonical_bool: bool){
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
-    //read the fastq file and store the result in fastq_records (a vector of FastqRecord_isoncl_init)
-    let fastq_file = File::open(in_file_path).unwrap();
-    let mut fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
-    println!("{} reads recorded",fastq_records.len());
-    //filter fastq_records: We only keep reads having a sequence length>2*k and that do not have a shorter compression than k
-    fastq_records.retain(|record| record.get_sequence().len() >= 2*k && compress_sequence(&*record.get_sequence()).len() >= k );
-    println!("{} reads accepted",fastq_records.len());
-    //compute d_no_min and d, two arrays that we use for the calculations
-    let d_no_min=compute_d_no_min();
-    let d =compute_d();
-    //iterate over all fastq_records and calculate error_rate as well as score
-    fastq_records.par_iter_mut().for_each(|fastq_record| {
-        //calculate the error rate and store it in vector errors
-        fastq_record.set_error_rate( calculate_error_rate(&fastq_record.get_quality(), &d_no_min));
-        let exp_errors_in_kmers = expected_number_errornous_kmers(&fastq_record.get_quality(), k, &d);
-        let p_no_error_in_kmers = 1.0 - exp_errors_in_kmers/ (fastq_record.get_sequence().len() - k +1) as f64;
-        //calculate the final score and add it to fastq_record (we have a dedicated field for that that was initialized with 0.0)
-        fastq_record.set_score( p_no_error_in_kmers  * ((fastq_record.get_sequence().len() - k +1) as f64))
-    });
-    //filter out records that have a too high error rate
-    fastq_records.retain(|record| 10.0_f64*-record.get_err_rate().log(10.0_f64) > q_threshold);
-    /*Alternative version for above line: first do a filtering step, then get rid of all entries filtered out
-    fastq_records.par_iter_mut().for_each(|record| {
-        let should_retain = 10.0_f64 * - errors.last().expect("is a f64").log10() > q_threshold;
-        if !should_retain {
-            record.header.clear();
-            record.sequence.clear();
-            record.quality.clear();
+    let d_no_min= compute_d_no_min();
+    //read_id holds the internal id we appoint to a read
+    let mut read_id = 0;
+    //generate a Reader object that parses the fastq-file (taken from rust-bio)
+    let mut reader = fastq::Reader::from_file(Path::new(&in_file_path)).expect("We expect the file to exist");
+    //iterate over the records
+    for record in reader.records().into_iter(){
+        let seq_rec = record.expect("invalid record");
+        let header_new = seq_rec.id();
+        let sequence = seq_rec.seq();
+        let quality = seq_rec.qual();//.expect("We also should have a quality");
+        //add the read id and the real header to id_map
+        if sequence.len() >= 2*k && compress_sequence(sequence).len() >= k{
+            let mut this_minimizers = vec![];
+            let mut filtered_minis = vec![];
+            if seeding == "minimizer" {
+                if noncanonical_bool{
+                    generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
+                }
+                else {
+                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, window_size, &mut this_minimizers);
+                }
+            }
+            else if seeding =="syncmer"{
+                generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
+            }
+            else{
+                println!("No seeding");
+            }
+            generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers, quality, k, d_no_min, &mut filtered_minis, &quality_threshold,false);
+            let error_rate= calculate_error_rate(quality, &d_no_min);
+            if 10.0_f64 * - error_rate.log(10.0_f64) > q_threshold{
+                id_map.insert(read_id, header_new.to_string());
+                let score_tuple=(read_id, filtered_minis.len());
+                score_vec.push(score_tuple);
+                read_id += 1;
+            }
         }
-
-    });
-    fastq_records.retain(|record| !record.header.is_empty());*/
-    println!("{} reads accepted",fastq_records.len());
-    //sort the vector fastq_records by scores
-    fastq_records.par_sort_by(|a, b| b.get_score().partial_cmp(&a.get_score()).unwrap());
-    //fastq_records.reverse();
-    fastq_records
-}
-
-
-fn write_ordered_fastq(fastq_records:&Vec<FastqRecord_isoncl_init>)->std::io::Result<()>{
-    //writes the fastq file
-    let mut f = File::create("output.vtk").expect("Unable to create file");
-    for record in fastq_records {
-        write!(f, "{}  {} \n + \n {} \n", record.get_header(), record.get_sequence(),record.get_quality()).expect("Could not write file");
     }
-    Ok(())
+    //sort the score_vec by the number of high-confidence seeds (most to least)
+    score_vec.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());//TODO: replace by par_sort_by
+    println!("{} reads accepted",score_vec.len());
+    //println!("{:?}",score_vec.pop());
 }
 
 
@@ -167,12 +168,22 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str ) {
-    use std::time::Instant;
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str,outfolder: &String, quality_threshold:&f64,window_size: usize, seeding: &str,s: usize, t: usize, noncanonical_bool: bool) {
+    println!("Sorting the fastq_file");
     let now = Instant::now();
-    let fastq_records=analyse_fastq_and_sort(k, q_threshold, in_file_path);
+    //holds the internal ids and scores as tuples to be able to sort properly
+    let mut score_vec=vec![];
+    //holds the internal read id
+    let mut id_map=FxHashMap::default();
+    //the main step of the sort_fastq_for_cluster step: Gets the number of high-confidence seeds for each read and writes them into score_vec
+    analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size,&mut score_vec, &mut id_map, seeding,s,t, noncanonical_bool);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
-    write_ordered_fastq(fastq_records.borrow()).expect("Could not write file");
-    print_statistics(fastq_records.borrow());
+    if !path_exists(&outfolder){
+        fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
+    }
+    //write a fastq-file that contains the reordered reads
+    write_output::write_ordered_fastq(&score_vec, outfolder,&id_map,in_file_path);
+    println!("Wrote the sorted fastq file");
+    //print_statistics(fastq_records.borrow());
 }

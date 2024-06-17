@@ -1,27 +1,47 @@
-use std::fs::File;
-use std::collections::{HashMap, HashSet, VecDeque};
-use rayon::prelude::*;
-use std::time::Instant;
-use std::time::Duration;
+//#![allow(warnings)]
+extern crate rayon;
+extern crate clap;
+
+
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
-use clap::Parser;
+
 
 pub mod file_actions;
 mod clustering;
-//mod generate_sorted_fastq_for_cluster;
 mod generate_sorted_fastq_new_version;
-use std::path::PathBuf;
-mod isONclust;
-mod structs;
-use crate::structs::{FastaRecord, FastqRecord_isoncl_init, Minimizer_hashed};
-use std::thread;
-use crate::clustering::calculate_hash;
-extern crate rayon;
-extern crate clap;
+mod generate_sorted_fastq_for_cluster;
+mod gff_handling;
 mod write_output;
+mod structs;
+
+mod Parallelization_side;
+
+
+//mod isONclust;
+use crate::clustering::post_clustering_new;
+use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
+
+use clap::Parser;
+use rayon::prelude::*;
+use std::collections::VecDeque;
+use std::time::Instant;
+
+use std::thread;
+use std::path::{PathBuf, Path};
+use std::io::Read;
+use std::convert::TryFrom;
+
 use memory_stats::memory_stats;
-use rustc_hash::FxHashMap;
+
+use rustc_hash::{FxHashMap,FxHashSet};
+
+use bio::io::fasta;
+use bio::io::fastq;
+
+
+
+
 
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
@@ -66,7 +86,7 @@ fn calculate_error_rate(qual: &str, d_no_min: &[f64; 128]) -> f64 {
     let mut poisson_mean = 0.0;
     let mut total_count = 0;
 
-    for char_ in qual.chars().collect::<HashSet<_>>() {
+    for char_ in qual.chars().collect::<FxHashSet<_>>() {
         let count = qual.chars().filter(|&c| c == char_).count();
         let index = char_ as usize;
         poisson_mean += count as f64 * d_no_min[index];
@@ -112,146 +132,21 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
 }
 
 
-/*fn main() {
-    let args: Vec<String> = env::args().collect();
-    //let fasta_path = &args[1];
-    let fastq_path = &args[1];
-    let mut initial_clustering_records=vec![];
-    if args.len()>1{
-        let initial_clustering_path = &args[2];
-        let initial_clustering_file = File::open(initial_clustering_path).unwrap();
-        initial_clustering_records = file_actions::parse_fasta(initial_clustering_path).unwrap();
-
-    }
-
-    let k=9;
-    let window_size = 20;
-
-    //let fasta_file = File::open(fasta_path).unwrap();
-    //let fasta_records = FileActions::parse_fasta(fasta_file).unwrap();
-    let fastq_file = File::open(fastq_path).unwrap();
-
-    let fastq_records = file_actions::parse_fastq(fastq_file).unwrap();
-
-    //test_minimizer_gens();
-    //let mut mini_map: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
-    let mut mini_map_filtered: HashMap<i32, Vec<generate_sorted_fastq_new_version::Minimizer>> = HashMap::with_capacity(fastq_records.len());
-
-    //let mut idmap: HashMap<&str, i32> = HashMap::with_capacity(fastq_records.len());
-    //let mut iterator=fastq_records.iter();
-    for fastq_record in fastq_records{
-        let this_minimizers = generate_sorted_fastq_new_version::get_kmer_minimizers(&*fastq_record.get_sequence(), k, window_size);
-        //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
-        let filtered_minis = generate_sorted_fastq_new_version::filter_minimizers_by_quality(this_minimizers,&fastq_record.sequence, &fastq_record.quality,window_size,k);
-        mini_map_filtered.insert(fastq_record.internal_id,filtered_minis);
-    }
-    //sorted_entries: a Vec<(i32,Vec<Minimizer)> sorted by the number of significant minimizers: First read has the most significant minimizers->least amount of significant minimizers
-    let sorted_entries = get_sorted_entries(mini_map_filtered);
-
-    if initial_clustering_records.len() > 0{
-        let init_cluster_map= clustering::get_initial_clustering(initial_clustering_records,k,window_size);
-        clustering::cluster_from_initial(sorted_entries, init_cluster_map);
-    }
-    else{
-        clustering::cluster_sorted_entries(sorted_entries);
-    }
-    let d_no_min =generate_sorted_fastq_new_version::compute_d_no_min();
-    println!("{:?}",d_no_min)
-
-
-    //generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(15,7.0,"/home/alexanderpetri/Rust/100k_sample.fastq")
-    //let seq=dna!("ACTGACTACACAT");
-    //let dna_sequence = "ATCGA";
-    //let reversed_complement = generate_sorted_fastq_for_cluster::reverse_complement(dna_sequence);
-    //println!("Reverse complement: {}", reversed_complement);
-
-    /*for rec in fasta_records {
-        println!("{}", rec);
-    }
-    for rec in fastq_records {
-        println!("{}",rec);
-    }*/
-
-
-
-
-
-
-    /*
-    THREAD test field: here I test how to use threads in Rust to actually make it possible to run several threads in parallel
-
-     */
-    /*let handle=thread::spawn(|| {
-        for i in 1..10 {
-            println!("hi number {} from the spawned thread!", i);
-            thread::sleep(Duration::from_millis(1));
-        }
-    });
-    handle.join().unwrap();
-    for i in 1..5 {
-        println!("hi number {} from the main thread!", i);
-        thread::sleep(Duration::from_millis(1));
-    }
-    let threads: Vec<_> = (0..500)
-        .map(|i| {
-            thread::spawn(move || {
-                println!("Thread #{} started!",i);
-                thread::sleep(Duration::from_millis(5000));
-                println!("Thread #{} finished!",i);
-            })
-        })
-        .collect();
-
-    for handle in threads {
-        handle.join().unwrap();
-    }*/
+fn parse_cli(k:usize ,w:usize,s:usize,t:usize,quality_threshold:f64, cli:Cli){
 
 }
-*/
 
-/*fn main() {
-    let matches = command!() // requires `cargo` feature
-        .propagate_version(true)
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .subcommand(
-            Command::new("index_kmers")
-                .arg(
-                    arg!([FASTQ])
-                        .value_parser(value_parser!(String))
-                        .long("fastq")
-                        .help("Path to consensus fastq file(s)")
-                )
-                .arg(
-                    arg!([K])
-                        .value_parser(value_parser!(u32))
-                        .short('k')
-                        .default_value("15")
-                        .help("kmer size")
-                )
-                .arg(
-                    arg!([T])
-                        .value_parser(value_parser!(u32))
-                        .short('t')
-                        .default_value("8")
-                        .help("kmindex number of threads")
-                )
-        )
-        .get_matches();
-        match matches.subcommand() {
-        Some(("index_kmers", sub_matches)) => {
-        index_kmers(&sub_matches)
-        }
-    _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
-    }
 
-}*/
 fn print_entries(sorted_sign_minis: &Vec<(i32,Vec<Minimizer_hashed>)>,id_map: &HashMap<i32,String>) {
     for entry in sorted_sign_minis.iter().take(20){
         print!("{}",id_map.get(&entry.0).unwrap());
     }
 }
 
+
+fn convert_cl_id(v: usize) -> Option<i32> {
+    i32::try_from(v).ok()
+}
 
 #[derive(Parser,Debug)]
 #[command(name = "isONclust3")]
@@ -264,184 +159,309 @@ struct Cli {
     fastq: String,
     #[arg(long, short,help="Path to initial clusters (stored in fastq format)")]
     init_cl: Option<String>,
-    #[arg(short, default_value_t = 13, help="Kmer length")]
-    k: usize,
-    #[arg(short, default_value_t = 20)]
-    w: usize,
+    #[arg(short,  help="Kmer length")]
+    k: Option<usize>,
+    #[arg(short, help=" window size")]
+    w: Option<usize>,
+    #[arg(short, help=" syncmer length")]
+    s: Option<usize>,
+    #[arg(short, help=" minimum syncmer position")]
+    t: Option<usize>,
     #[arg(long, short, help="Path to outfolder")]
     outfolder: String,
     #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
     n: usize,
-    #[arg(long, short,help="Path to gtf file (optional parameter)")]
-    gtf: Option<String>,
-    #[arg(long,help="Path to gtf file (optional parameter)")]
+    #[arg(long, short,help="Path to gff3 file (optional parameter)")]
+    gff: Option<String>,
+    #[arg(long,help="we do not want to use canonical seeds")]
     noncanonical: Option<bool>,
+    #[arg(long,help="Run mode of isONclust (pacbio or ont")]
+    mode: String,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
-    
+    #[arg(long,help="seeding approach we choose")]
+    seeding: Option<String>,
+    #[arg(long,help="quality threshold used for the data (standard: 0.9) ")]
+    quality_threshold: Option<f64>,
+    #[arg(long,help="print additional information")]
+    verbose: Option<bool>,
+    #[arg(long,help="Do not run the post clustering step during the analysis")]
+    no_post_cluster: Option<bool>,
+    #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
+    no_fastq: Option<bool>,
 }
 
 fn main() {
+
+    //#################################################################################################
+    //INITIALIZATION
+    //#################################################################################################
+
     let cli = Cli::parse();
-    println!("k: {:?}", cli.k);
-    println!("w: {:?}", cli.w);
-    println!("n: {:?}",cli.n);
-    println!("outfolder {:?}",cli.outfolder);
-    //
-    // READ the files (the initial_clusters_file as well as the fastq file containing the reads)
-    //
-    let now1 = Instant::now();
-    let fastq_file = File::open(cli.fastq).unwrap();
-    println!("{} s used for file input", now1.elapsed().as_secs());
-    //let initial_clustering_path = &cli.init_cl.unwrap_or_else(||{"".to_string()});
-    let  initial_clustering_path =cli.init_cl.as_deref();
-    //let noncanonical= cli.noncanonical.as_deref();
-    //let mut noncanonical=false;
-    //if noncanonical.is_some(){
-    //    noncanonical=true;
-    //}
+    println!("n: {:?}", cli.n);
+    println!("outfolder {:?}", cli.outfolder);
 
-    let gtf_path = cli.gtf.as_deref();
-    //let mut initial_clustering_records: Vec<_>=vec![];
-    let mut init_clust_rec_both_dir=vec![];
-    if let Some(clustering_path) = initial_clustering_path{
-    //if initial_clustering_path.is_some(){
-        //let clustering_path = initial_clustering_path.unwrap();
-        init_clust_rec_both_dir = file_actions::parse_fasta(clustering_path).unwrap();
-        //init_clust_rec_both_dir = clustering::add_rev_comp_seqs_annotation(initial_clustering_records);
+    let mode = cli.mode;
+    let n = cli.n;
+    let mut k;
+    let mut w;
+    let mut s;
+    let mut t;
+    let mut quality_threshold;
+
+    //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
+    if mode=="ont"{
+        k = 13;
+        w = 20;//->22, standard: 20
+        quality_threshold = 0.9_f64.powi(k as i32);
+        s = 9;
+        t = 2;
     }
-    let mut gtf_entries=vec![];
-    if let Some(gtf_path_u) = gtf_path {
-        gtf_entries = file_actions::parse_gtf(gtf_path_u).unwrap();
-        println!("gtf file parsed")
+    else if mode == "pacbio"{
+        k = 15;
+        w = 50;
+        quality_threshold = 0.97_f64.powi(k as i32);
+        s = 9;
+        t = 3;
+    }
+    else {
+        if cli.quality_threshold.is_some(){
+            let qt=cli.quality_threshold.unwrap();
+            if cli.k.is_some(){
+                k = cli.k.unwrap();
+            }
+            else{
+                k = 0;
+            }
+            w = 0;
+            t = 0;
+            s = 0;
+            quality_threshold = qt.powi(k as i32);
+
+        }
+        else { panic!("Please set the quality_threshold") }
+    }
+    let verbo = cli.verbose;
+    let mut verbose = false;
+    if let Some(verb) = verbo{
+        verbose = true;
     }
 
-    /*for gtf_e in gtf_entries{
-        println!("{}",gtf_e)
-    }*/
-    let quality_threshold=7.0;
-    let k = cli.k;
-    let window_size = cli.w;
-    let w = window_size - k;
+    let no_pc = cli.no_post_cluster;
+    let mut no_post_cluster = false;
+    if let Some(npc) = no_pc{
+        no_post_cluster = true;
+    }
+
+    let no_fq = cli.no_fastq;
+    let mut no_fastq = false;
+    if let Some(nfq) = no_fq{
+        no_fastq = true;
+    }
+
+    let noncan = cli.noncanonical;
+    let mut noncanonical_bool= false;
+    if let Some(noncanonical)= noncan{
+        noncanonical_bool = true;
+    }
+    let seeding_input = cli.seeding.as_deref();
+    let mut seeding= "minimizer";
+    if let Some(seed) = seeding_input {
+        seeding = seed;
+    }
+    if seeding =="syncmer"{
+        if cli.s.is_some(){
+            s = cli.s.unwrap();
+            if k - s + 1 % 2 != 0{
+                panic!("Please set k and s so that (k-s)+1 yields an odd number")
+            }
+        }
+        if cli.t.is_some(){
+            t = cli.t.unwrap();
+            if (k-s)/2!=t{
+                panic!("Please set k,s and t to fulfill (k-s)/2=t")
+            }
+        }
+    }
+
+    else if seeding =="minimizer" {
+        if cli.w.is_some(){
+            w = cli.w.unwrap();
+            if w < k{
+                panic!("Please set w greater than k")
+            }
+        }
+
+    }
+    if cli.k.is_some(){
+        k = cli.k.unwrap();
+    }
+    println!("k: {:?}", k);
+    println!("w: {:?}", w);
+    println!("s: {:?}", s);
+    println!("t: {:?}", t);
+    //let k = cli.k;
     let outfolder = cli.outfolder;
-    if let Some(usage) = memory_stats() {
-        println!("Current physical memory usage: {}", usage.physical_mem);
-        println!("Current virtual memory usage: {}", usage.virtual_mem);
-    } else {
-        println!("Couldn't get the current memory usage :(");
-    }
-    let fastq_records= file_actions::parse_fastq(fastq_file).unwrap();
-    //let (fastq_records,id_map) = file_actions::parse_fastq(fastq_file);
-    //
-    //Generate the minimizers for the initial clusters
-    //
-    if let Some(usage) = memory_stats() {
-        println!("Current physical memory usage: {}", usage.physical_mem);
-        println!("Current virtual memory usage: {}", usage.virtual_mem);
-    } else {
-        println!("Couldn't get the current memory usage :(");
-    }
-    //let mut mini_map_filtered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::with_capacity(fastq_records.len());
-    let mut mini_map_filtered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::default();
-    let mut mini_map_unfiltered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::default();
-    //let mut mini_map_unfiltered: FxHashMap<i32, Vec<structs::Minimizer_hashed>> = FxHashMap::with_capacity(fastq_records.len());
-    if let Some(usage) = memory_stats() {
-        println!("Current physical memory usage: {}", usage.physical_mem);
-        println!("Current virtual memory usage: {}", usage.virtual_mem);
-    } else {
-        println!("Couldn't get the current memory usage :(");
-    }
-    //
-    // Generate minimizers for the fastq file and filter by significance
-    //
-    let mut int_id_cter= 0;
-    let mut id_map= HashMap::new();
-    //count the number of reads that were too short to be clustered
-    let mut skipped_cter=0;
-    //d_no_min contains a translation for chars into quality values
-    let d_no_min= generate_sorted_fastq_new_version::compute_d_no_min();
-    //let d =compute_d();
-    //TODO: only use the actual kmers position nothing surrounding
-    let mini_range_len = k;
-    println!("Mini range len: {}",mini_range_len);
-    //quality_threshold gives at what point minimizers are too low quality to be used in our algo
-    //let filtered_records=filter_fastq_records(fastq_records,d_no_min,quality_threshold,k,d);
-    println!("Parsed the files");
-    if let Some(usage) = memory_stats() {
-        println!("Current physical memory usage: {}", usage.physical_mem);
-        println!("Current virtual memory usage: {}", usage.virtual_mem);
-    } else {
-        println!("Couldn't get the current memory usage :(");
-    }
-    let now2 = Instant::now();
-    println!("{} s before minimizergen", now1.elapsed().as_secs());
+    let gff_path = cli.gff.as_deref();
+    //makes the read  identifiable and gives us the possibility to only use ids during the clustering step
+    let mut id_map = FxHashMap::default();
+    let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
 
 
-    for fastq_record in &fastq_records{
-        //println!("int id {}",int_id_cter);
-        id_map.insert(int_id_cter,(*fastq_record.header.clone()).to_string());
-        if fastq_record.sequence.len() > mini_range_len{
-            let mut this_minimizers=vec![];
-            let mut filtered_minis = vec![];
-            generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&fastq_record.sequence, k, window_size,&mut this_minimizers);
-            generate_sorted_fastq_new_version::filter_minimizers_by_quality(&this_minimizers,&fastq_record.sequence, &fastq_record.quality,w,k,d_no_min,&mut filtered_minis);
-            mini_map_unfiltered.insert(int_id_cter,this_minimizers.clone());
-            //mini_map.insert(fastq_record.internal_id, this_minimizers.clone());
-            mini_map_filtered.insert(int_id_cter, filtered_minis.clone());
-            //println!("{} : {} ",int_id_cter, fastq_record.header);
-            int_id_cter += 1;
+    let mut annotation_based= false;
+
+    println!("Using {}s as seeds", seeding);
+    let now1 = Instant::now();
+    {//main scope (holds all the data structures that we can delete when the clustering is done
+        //holds the mapping of which minimizer belongs to what clusters
+        //let mut shared_seed_info: FxHashMap<i32,i32>=FxHashMap::default();
+        let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
+        let initial_clustering_path = cli.init_cl.as_deref();
+        if gff_path.is_some(){
+            gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w, seeding, s, t, noncanonical_bool);
+            println!("{} s used for parsing the annotation information", now1.elapsed().as_secs());
+            print!("{:?}", clusters);
+            annotation_based = true;
         }
-        else {
-            skipped_cter+=1
-            //println!("Read too short- skipped {}",fastq_record.header)
+
+        if verbose{
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
         }
-        //this_minimizers.clear();
-        //filtered_minis.clear();
-    }
-    println!("{} s for minimizer gen and filtering of minis", now2.elapsed().as_secs());
-    println!("Skipped {} reads due to being too short",skipped_cter);
-    if let Some(usage) = memory_stats() {
-        println!("Current physical memory usage: {}", usage.physical_mem);
-        println!("Current virtual memory usage: {}", usage.virtual_mem);
-    } else {
-        println!("Couldn't get the current memory usage :(");
-    }
-    let now5 = Instant::now();
-    //sorted_entries: a Vec<(i32,Vec<Minimizer)>, sorted by the number of significant minimizers: First read has the most significant minimizers -> least amount of significant minimizers
-    let sorted_sign_minis=get_sorted_entries(mini_map_filtered);
-    println!("{} s for sorting of reads", now5.elapsed().as_secs());
-    //print_entries(&sorted_sign_minis,&id_map);
 
-    //
-    //Perform the clustering
-    //
-    let mut clusters: FxHashMap<i32,Vec<i32>> = FxHashMap::default();
-    let now3 = Instant::now();
-    //annotation based clustering
-    if !init_clust_rec_both_dir.is_empty(){
-        let init_cluster_map= clustering::get_initial_clustering(init_clust_rec_both_dir,k,window_size);
-        clusters = clustering::cluster_from_initial(&sorted_sign_minis, init_cluster_map);
-        //println!("{:?}",clusters);
-    }
-    //de novo clustering
-    else{
-        //min_shared_minis: The minimum amount of minimizers shared with the cluster to assign the read to the cluster
-        let min_shared_minis= 0.8;
-        //the clustering step
-        clustering::cluster_de_novo(&sorted_sign_minis, min_shared_minis, &mini_map_unfiltered, &mut clusters);
-        //println!("{:?}",clusters);
-        //TODO: would it make sense to add a post_clustering? i.e. find the overlap between all clusters and merge if > min_shared_minis
-    }
-    println!("{} s for denovo clustering", now3.elapsed().as_secs());
+        //#################################################################################################
+        //GENERATION OF ANNOTATION BASED CLUSTERS
+        //#################################################################################################
 
-    if let Some(usage) = memory_stats() {
-    println!("Current physical memory usage: {}", usage.physical_mem);
-    println!("Current virtual memory usage: {}", usage.virtual_mem);
-    } else {
-        println!("Couldn't get the current memory usage :(");
+        //cl_id is used to appoint a cluster id to a cluster
+        let mut cl_id = 1;
+        if verbose {
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
+        }
+
+        //#################################################################################################
+        //SORTING STEP
+        //#################################################################################################
+
+        let q_threshold = 7.0;
+        //path to the sorted file
+        let filename = outfolder.clone() + "/clustering/sorted.fastq";
+        //count the number of reads that were too short to be clustered
+        let mut skipped_cter = 0;
+        //d_no_min contains a translation for chars into quality values
+        let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
+        println!("{}", filename);
+        let now2 = Instant::now();
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding,s,t,noncanonical_bool);
+        if verbose {
+            println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
+
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
+            let now3 = Instant::now();
+            println!("initial clusters {:?}", clusters);
+        }
+        //#################################################################################################
+        //CLUSTERING STEP
+        //#################################################################################################
+        {//Clustering scope ( we define a scope so that variables die that we do not use later on)
+            //the read id stores an internal id to represent our read
+            let mut read_id = 0;
+            //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
+            let mut min_shared_minis = 0.8;
+
+            /*if annotation_based{
+                min_shared_minis=0.6;
+            }*/
+            //println!("{}", min_shared_minis);
+            //parse the file:
+            let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
+            for record in reader.records().into_iter(){
+                let seq_rec = record.expect("invalid record");
+                let header_new = seq_rec.id();
+                if verbose{
+                    println!("ID: {}",header_new);
+                }
+                let sequence = seq_rec.seq();
+                let quality = seq_rec.qual();
+                //add the read id and the real header to id_map
+                id_map.insert(read_id, header_new.to_string());
+                let mut this_minimizers = vec![];
+                let mut filtered_minis = vec![];
+                if seeding == "minimizer"{
+                    if noncanonical_bool{
+                        generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+                    }
+                    else{
+                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+                    }
+                }
+                else if seeding == "syncmer"{
+                    generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
+
+                }
+                generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
+                // perform the clustering step
+                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
+                read_id += 1;
+            }
+            println!("Generated {} clusters from clustering",clusters.len());
+            println!("Finished clustering");
+            println!("{} reads used for clustering",read_id);
+            println!("Skipped {} reads due to being too short", skipped_cter);
+            if verbose {
+                //println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
+            }
+
+
+
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
+
+            //no_post_cluster: true -> do not run post_clustering
+            if !no_post_cluster{
+                println!("Starting post-clustering to refine clusters");
+                let now_pc = Instant::now();
+                clustering::post_clustering_new(&mut clusters, &mut cluster_map, min_shared_minis);
+                println!("{} s for file output", now_pc.elapsed().as_secs());
+                println!("Got {} clusters from Post-clustering",clusters.len());
+                if let Some(usage) = memory_stats() {
+                    println!("Current physical memory usage: {}", usage.physical_mem);
+                    println!("Current virtual memory usage: {}", usage.virtual_mem);
+                } else {
+                    println!("Couldn't get the current memory usage :(");
+                }
+            }
+        }
     }
-    println!("Finished clustering");
+    //#################################################################################################
+    //FILE OUTPUT STEP
+    //#################################################################################################
     let now4 = Instant::now();
-    write_output::write_output(outfolder, &clusters,fastq_records, id_map);
+    write_output::write_output(outfolder, &clusters, cli.fastq, id_map, n ,no_fastq);
     println!("{} s for file output", now4.elapsed().as_secs());
+    if let Some(usage) = memory_stats() {
+        println!("Current physical memory usage: {}", usage.physical_mem);
+        println!("Current virtual memory usage: {}", usage.virtual_mem);
+    } else {
+        println!("Couldn't get the current memory usage :(");
+    }
     println!("{} overall runtime", now1.elapsed().as_secs());
 }
+
