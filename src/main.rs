@@ -414,8 +414,6 @@ fn main() {
                 //println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
             }
 
-
-
             if let Some(usage) = memory_stats() {
                 println!("Current physical memory usage: {}", usage.physical_mem);
                 println!("Current virtual memory usage: {}", usage.virtual_mem);
@@ -427,7 +425,8 @@ fn main() {
             if !no_post_cluster{
                 println!("Starting post-clustering to refine clusters");
                 let now_pc = Instant::now();
-                clustering::post_clustering_new(&mut clusters, &mut cluster_map, min_shared_minis);
+                clustering::post_clustering(&mut clusters, &mut cluster_map, min_shared_minis);
+                //clustering::post_clustering_new(&mut clusters, &mut cluster_map, min_shared_minis);
                 println!("{} s for file output", now_pc.elapsed().as_secs());
                 println!("Got {} clusters from Post-clustering",clusters.len());
                 if let Some(usage) = memory_stats() {
