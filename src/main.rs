@@ -18,7 +18,7 @@ mod Parallelization_side;
 
 
 //mod isONclust;
-use crate::clustering::post_clustering_new;
+use crate::clustering::post_clustering;
 use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
 
 use clap::Parser;
@@ -426,7 +426,6 @@ fn main() {
                 println!("Starting post-clustering to refine clusters");
                 let now_pc = Instant::now();
                 clustering::post_clustering(&mut clusters, &mut cluster_map, min_shared_minis);
-                //clustering::post_clustering_new(&mut clusters, &mut cluster_map, min_shared_minis);
                 println!("{} s for file output", now_pc.elapsed().as_secs());
                 println!("Got {} clusters from Post-clustering",clusters.len());
                 if let Some(usage) = memory_stats() {
