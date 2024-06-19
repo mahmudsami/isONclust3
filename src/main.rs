@@ -137,11 +137,7 @@ fn parse_cli(k:usize ,w:usize,s:usize,t:usize,quality_threshold:f64, cli:Cli){
 }
 
 
-fn print_entries(sorted_sign_minis: &Vec<(i32,Vec<Minimizer_hashed>)>,id_map: &HashMap<i32,String>) {
-    for entry in sorted_sign_minis.iter().take(20){
-        print!("{}",id_map.get(&entry.0).unwrap());
-    }
-}
+
 
 
 fn convert_cl_id(v: usize) -> Option<i32> {
@@ -360,7 +356,7 @@ fn main() {
         let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding,s,t,noncanonical_bool);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool);
         if verbose {
             println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
 
