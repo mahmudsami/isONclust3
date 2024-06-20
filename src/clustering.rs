@@ -1,11 +1,6 @@
-use crate::structs:: FastaRecord;
-use std::collections::{HashMap, HashSet};
 use crate::structs::Minimizer_hashed;
-use crate::{generate_sorted_fastq_new_version, structs};
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::borrow::{Cow, Borrow};
-use bio::alignment::sparse::HashMapFx;
 use rayon::prelude::*;
 
 

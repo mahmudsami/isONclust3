@@ -257,7 +257,7 @@ fn main() {
     if seeding =="syncmer"{
         if cli.s.is_some(){
             s = cli.s.unwrap();
-            if k - s + 1 % 2 != 0{
+            if (k - s + 1) % 2 != 0{
                 panic!("Please set k and s so that (k-s)+1 yields an odd number")
             }
         }

@@ -1,13 +1,8 @@
 use std::path::Path;
-use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::Write;
-use crate::file_actions;
+use std::collections::HashSet;
 use rayon::prelude::*;
 use std::time::Instant;
-use std::borrow::Borrow;
 use std::collections::VecDeque;
-use crate::clustering;
 use crate::structs::FastqRecord_isoncl_init;
 use crate::write_output;
 use crate::generate_sorted_fastq_new_version;
@@ -15,7 +10,6 @@ use crate::write_output::path_exists;
 //use crate::bio_rust_file_read;
 use std::fs;
 use bio::io::fastq;
-use bio::io::fastq::FastqRead;
 use rustc_hash::FxHashMap;
 
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values

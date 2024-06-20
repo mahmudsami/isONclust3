@@ -1,11 +1,8 @@
 use std::collections::VecDeque;
-use std::ops::Index;
 use rayon::prelude::*;
-//use crate::file_actions::FastqRecord_isoncl_init;
-use std::cmp::max;
-use crate::structs::{FastqRecord_isoncl_init, FastaRecord, Minimizer, Minimizer_hashed};
+use crate::structs::{Minimizer, Minimizer_hashed};
 use crate::clustering::reverse_complement;
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -45,7 +42,7 @@ fn cow_to_string(cow: Cow<'_, [u8]>) -> String {
 
 pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
     //make sure that we have suitable values for k_size and w_size (w_size should be larger)
-    let mut w= 0;
+    let w;
     if w_size > k_size{
         w = w_size - k_size + 1;
     }
@@ -140,7 +137,7 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
 ///substring and its starting position in the input string.
 pub fn get_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: usize, this_minimizers: &mut Vec<Minimizer_hashed>)  {
     //make sure that we have suitable values for k_size and w_size (w_size should be larger)
-    let mut w= 0;
+    let  w;
     if w_size > k_size{
         w = w_size - k_size + 1;
     }
