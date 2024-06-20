@@ -1,13 +1,10 @@
 use std::path::PathBuf;
 use std::fs::File;
-use std::io::{Write, BufReader, BufRead, BufWriter, Error};
+use std::io::{Write, BufWriter};
 use std::path::Path;
-use std::collections::HashMap;
 use std::fs;
-use crate::structs::{FastqRecord, FastqRecord_isoncl_init};
-use std::collections::hash_map::RandomState;
+use crate::structs::FastqRecord_isoncl_init;
 use rustc_hash::FxHashMap;
-use std::borrow::Cow;
 use crate::file_actions;
 use rayon::prelude::*;
 
@@ -21,7 +18,7 @@ pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &Stri
     let f = File::create(outfolder.to_owned()+"/clustering/sorted.fastq").expect("Unable to create file");
     let mut buf_write = BufWriter::new(&f);
     //for record in fastq_records {
-    for score_tup in score_vec.into_iter(){
+    for score_tup in score_vec.iter(){
         let this_header = id_map.get(&score_tup.0).unwrap();
         let record= fastq_records.get(this_header).unwrap();
         if &record.header == this_header{
@@ -38,18 +35,15 @@ fn write_final_clusters_tsv(outfolder: &Path, clusters: FxHashMap<i32,Vec<i32>>,
     let f = File::create(file_path).expect("unable to create file");
     let mut buf_write = BufWriter::new(&f);
     let mut nr_reads= 0;
-
     println!("{} different clusters identified",clusters.len());
     //let nr_clusters=clusters.len();
     for (cl_id, r_int_ids) in clusters.into_iter(){
         //println!("cl_id {}, nr_reads {:?}",cl_id,nr_reads);
         for r_int_id in r_int_ids{
-
             let read_id = id_map.get(&r_int_id).unwrap();
             nr_reads += 1;
             let _ = writeln!(buf_write ,"{}\t{}", cl_id, read_id);
             header_cluster_map.insert(read_id.to_string(),cl_id);
-
         }
     }
     // Flush the buffer to ensure all data is written to the underlying file
@@ -69,7 +63,7 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
     file_actions::parse_fastq(fastq_file,&mut fastq_vec);
     //iterate over fastq_vec and add the reads to cluster_map
     for read in fastq_vec{
-        let id =read.header.clone();
+        let id = read.header.clone();
         if header_cluster_map.contains_key(&id) {
             let cluster_id = header_cluster_map.get(&id).unwrap();
             if cluster_map.contains_key(cluster_id) {

@@ -64,7 +64,7 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
     if w + k_size < seq.len() + 1{
         for i in 0 .. w {
             k_mer_str = std::str::from_utf8(&seq[i..i + k_size]).unwrap();
-            rc_string = reverse_complement(&k_mer_str);
+            rc_string = reverse_complement(k_mer_str);
             //generate the hashes of the kmers
             forward_hash = calculate_hash(&k_mer_str);
             reverse_hash = calculate_hash(&rc_string);
@@ -93,7 +93,7 @@ pub fn get_canonical_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: u
         let mut forward_hash;
         let mut reverse_hash;
         //iterate further over the sequence and generate the minimizers thereof
-        for (i, new_kmer) in seq[w..].windows(k_size).enumerate().into_iter() {
+        for (i, new_kmer) in seq[w..].windows(k_size).enumerate() {
             new_kmer_pos = i  + w;
             new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
             rc_string = reverse_complement(new_kmer_str);
@@ -174,7 +174,7 @@ pub fn get_kmer_minimizers_hashed(seq: &[u8], k_size: usize, w_size: usize, this
         let mut new_kmer_str;
         let mut forward_hash;
         //iterate further over the sequence and generate the minimizers thereof
-        for (i, new_kmer) in seq[w..].windows(k_size).enumerate().into_iter() {
+        for (i, new_kmer) in seq[w..].windows(k_size).enumerate() {
             new_kmer_pos = i  + w;
             new_kmer_str = std::str::from_utf8(new_kmer).unwrap();
             // updating  by removing first kmer from window

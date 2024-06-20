@@ -11,12 +11,10 @@ use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::path::Path;
 use bio::io::fasta;
-use bio::io::fasta::FastaRead;
 extern crate rayon;
 use crate::generate_sorted_fastq_new_version;
 use crate::clustering;
 use std::time::Instant;
-use crate::write_output::path_exists;
 
 //TODO: add overlap detection
 //TODO: remove multiple occasions of minimizers in the same gene if the exons overlap

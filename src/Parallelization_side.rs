@@ -1,8 +1,8 @@
 
-use bio::io::fastq;
-use bio::io::bed::Record;
-use std::path::Path;
-use rayon::prelude::*;
+//use bio::io::fastq;
+//use bio::io::bed::Record;
+//use std::path::Path;
+//use rayon::prelude::*;
 
 
 /*fn split_in_batches(n_threads: usize, score_vec: Vec<(i32,usize)>, reads_split: &mut Vec<Vec<i32>>) {

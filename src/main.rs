@@ -40,9 +40,6 @@ use bio::io::fasta;
 use bio::io::fastq;
 
 
-
-
-
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
 
@@ -54,6 +51,7 @@ fn compute_d() -> [f64; 128] {
     }
     d
 }
+
 
 fn expected_number_errornous_kmers(quality_string: &str, k: usize, d:&[f64;128]) -> f64 {
     //computes the expeced number of errornous kmers for a read by analysing the quality entry
@@ -98,8 +96,6 @@ fn calculate_error_rate(qual: &str, d_no_min: &[f64; 128]) -> f64 {
 }
 
 
-
-
 fn get_sorted_entries(mini_map_filtered: FxHashMap<i32, Vec<structs::Minimizer_hashed>>)->Vec<(i32, Vec<structs::Minimizer_hashed>)>{
     // Sort by the length of vectors in descending order
     let mut sorted_entries: Vec<(i32, Vec<structs::Minimizer_hashed>)> = mini_map_filtered
@@ -132,17 +128,10 @@ fn filter_fastq_records(mut fastq_records:Vec<FastqRecord_isoncl_init>,d_no_min:
 }
 
 
-fn parse_cli(k:usize ,w:usize,s:usize,t:usize,quality_threshold:f64, cli:Cli){
-
-}
-
-
-
-
-
 fn convert_cl_id(v: usize) -> Option<i32> {
     i32::try_from(v).ok()
 }
+
 
 #[derive(Parser,Debug)]
 #[command(name = "isONclust3")]
@@ -185,6 +174,7 @@ struct Cli {
     #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
     no_fastq: Option<bool>,
 }
+
 
 fn main() {
 
@@ -273,7 +263,7 @@ fn main() {
         }
         if cli.t.is_some(){
             t = cli.t.unwrap();
-            if (k-s)/2!=t{
+            if (k-s) / 2 != t{
                 panic!("Please set k,s and t to fulfill (k-s)/2=t")
             }
         }
@@ -377,14 +367,13 @@ fn main() {
             let mut read_id = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
             let mut min_shared_minis = 0.8;
-
             /*if annotation_based{
                 min_shared_minis=0.6;
             }*/
             //println!("{}", min_shared_minis);
             //parse the file:
             let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
-            for record in reader.records().into_iter(){
+            for record in reader.records(){
                 let seq_rec = record.expect("invalid record");
                 let header_new = seq_rec.id();
                 if verbose{
@@ -398,14 +387,14 @@ fn main() {
                 let mut filtered_minis = vec![];
                 if seeding == "minimizer"{
                     if noncanonical_bool{
-                        generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+                        generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(sequence, k, w, &mut this_minimizers);
                     }
                     else{
-                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(&sequence.clone(), k, w, &mut this_minimizers);
+                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence, k, w, &mut this_minimizers);
                     }
                 }
                 else if seeding == "syncmer"{
-                    generate_sorted_fastq_new_version::syncmers_canonical(&sequence.clone(), k, s,t , &mut this_minimizers);
+                    generate_sorted_fastq_new_version::syncmers_canonical(sequence, k, s,t , &mut this_minimizers);
 
                 }
                 generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
