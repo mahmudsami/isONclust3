@@ -394,8 +394,12 @@ fn main() {
                     }
                 }
                 else if seeding == "syncmer"{
-                    generate_sorted_fastq_new_version::syncmers_canonical(sequence, k, s,t , &mut this_minimizers);
-
+                    if noncanonical_bool{
+                        generate_sorted_fastq_new_version::get_kmer_syncmers(sequence, k, s, t, &mut this_minimizers);
+                    }
+                    else {
+                        generate_sorted_fastq_new_version::syncmers_canonical(sequence, k, s, t, &mut this_minimizers);
+                    }
                 }
                 generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
                 // perform the clustering step

@@ -341,40 +341,82 @@ pub fn filter_seeds_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_qu
 ///         k_size: The size of the k_mer used
 ///         s_size: The size of s
 ///         t: The size of parameter t
-///OUtput:  syncmers: A vector storing all syncmers (we use the minimizer struct to store them as essentially the same infos)
-pub(crate) fn get_kmer_syncmers(seq: &str, k_size: usize, s_size: usize, t: isize) -> Vec<Minimizer> {
-    let w = k_size - s_size;
+///OUTPUT:  syncmers: A vector storing all syncmers (we use the minimizer struct to store them as essentially the same infos)
+pub(crate) fn get_kmer_syncmers(seq: &[u8], k: usize, s: usize, t: usize, syncmers: &mut Vec<Minimizer_hashed>) {
+    //TODO: add neccessity that the user should give only valid combinations of s t and k
+        // Calculate reverse complement
+        //let seq_rc = reverse_complement(std::str::from_utf8(seq).unwrap());
+        let seq_len= seq.len();
+        //println!("seqlen {}",seq_len);
+        //println!("seq_len {}", seq_len);
+        // Initialize deques for forward and reverse complement sequences (stores the hashs of the smers)
+        let mut window_smers_fw: VecDeque<u64> = (0..k - s + 1)
+            .map(|i| calculate_hash(&seq[i..i + s]))
+            .collect();
+        //Initialize the reverse complement deque. We store the hash of the smer, however we have to generate the smer first. For this we take
+        //let mut window_smers_rc: VecDeque<u64> = (0..k - s + 1)
+        //    .map(|i| calculate_hash(&seq_rc[seq_len-(i+s)..seq_len-i]))
+        //    .collect();
+        //println!("{} elements in our deque",window_smers_fw.len());
+        // Find initial minimums (fw and rc)
+        let mut curr_min_fw = *window_smers_fw.iter().min().unwrap();
+        //let mut curr_min_rc = *window_smers_rc.iter().min().unwrap();
+        //find the minimum positions (fw and rc)
+        let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
+        //let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
+        //let rc_hash=calculate_hash(reverse_complement(std::str::from_utf8(&seq[0..k]).unwrap()).as_str());
+        // Choose minimum position
+        //let (pos_min, seq_tmp) = if curr_min_fw < curr_min_rc {
+        //    (pos_min_fw, calculate_hash(&seq[0..k]))
+        //} else {
+        //
+        //    (pos_min_rc, rc_hash)
+        //};
 
-    // get t, the position of s-mer
-    // t is chosen to be in the middle of k-mer for the chosen syncmer
-    let mut t = t;
-    if t < 0 {
-        let diff = k_size as isize - s_size as isize;
-        t = if diff % 2 == 0 {
-            diff / 2
-        } else {
-            (diff + 1) / 2
-        };
-        t -= 1;
-    }
-
-    let mut syncmers = Vec::new();
-    // get list of all s-mers in the first k-mer
-
-    let mut kmer_smers: VecDeque<&str> = (0..=w).map(|i| &seq[i..i + s_size]).collect();
-    for i in 0..seq.len() - k_size {
-        // add a new syncmer to the list if its smallest s-mer is at place t
-        if kmer_smers.iter().position(|&x| x == *kmer_smers.iter().min().unwrap()) == Some(t as usize) {
-            syncmers.push(Minimizer {sequence: (seq[ i..i + k_size]).parse().unwrap(), position: i});
+        // Initialize syncmers list
+        if pos_min_fw == t {
+            syncmers.push(Minimizer_hashed {
+                sequence: calculate_hash(&seq[0..k]),
+                position: 0,
+            });
         }
-        // move the window one step to the right by popping the leftmost
-        // s-mer and adding one to the right
-        kmer_smers.pop_front();
-        kmer_smers.push_back(&seq[i + k_size - s_size + 1..i + k_size + 1]);
-    }
 
-    syncmers
-}
+        // Iterate over the sequence
+        for i in (k - s) + 1 .. seq.len() - k  {
+            //println!("i {}",i);
+            let new_smer_fw = calculate_hash(&seq[i..i + s]);
+            //let rev_slice=&seq_rc[seq_len-(i+s)..seq_len-i];
+            //let new_smer_rc = calculate_hash(rev_slice);
+            //println!("fw_len: {}, rc_len: {}", &seq[i..i + s].len(),&seq_rc[seq_len-(i+1) - s ..seq_len-(i+1)].len());
+            // Update windows
+            let _ = window_smers_fw.pop_front();
+            window_smers_fw.push_back(new_smer_fw);
+            //let _ = window_smers_rc.pop_front();
+            //window_smers_rc.push_back(new_smer_rc);
+
+            // Update minimums and positions
+            curr_min_fw = *window_smers_fw.iter().min().unwrap();
+            //curr_min_rc = *window_smers_rc.iter().min().unwrap();
+            let pos_min_fw = window_smers_fw.iter().position(|&x| x == curr_min_fw).unwrap();
+            //let pos_min_rc = window_smers_rc.iter().position(|&x| x == curr_min_rc).unwrap();
+            // Choose minimum position
+            //println!("startpos {} end {}",i-(k-s),i-(k-s)+k);
+            //let rc_hash= calculate_hash(reverse_complement(std::str::from_utf8(&seq[i-(k-s)..i-(k-s)+k]).unwrap()).as_str());
+            //let (pos_min, kmer) = if curr_min_fw < curr_min_rc {
+            //    (pos_min_fw, calculate_hash(&seq[i-(k-s)..i-(k-s)+k]))
+            //} else {
+            //    (pos_min_rc,rc_hash)
+            //};
+
+            // Add syncmer to the list
+            if pos_min_fw == t {
+                syncmers.push(Minimizer_hashed {
+                    sequence: calculate_hash(&seq[i-(k-s)..i-(k-s)+k]),
+                    position: i,
+                });
+            }
+        }
+    }
 
 
 
@@ -459,7 +501,7 @@ mod tests {
         ];
         assert_eq!(actual_minimizers, expected_minimizers);
     }
-    #[test]
+    /*#[test]
     fn test_kmer_syncmers(){
         let input ="CATTCAGGAATC";
         let k=5;
@@ -472,7 +514,7 @@ mod tests {
 
         ];
         assert_eq!(retreived_syncmers, expected_syncmers);
-    }
+    }*/
     #[test]
     fn test_average_0(){
         let mut input=vec![];

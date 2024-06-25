@@ -127,7 +127,12 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
                 }
             }
             else if seeding =="syncmer"{
-                generate_sorted_fastq_new_version::syncmers_canonical(sequence, k, s,t , &mut this_minimizers);
+                if noncanonical_bool{
+                    generate_sorted_fastq_new_version::get_kmer_syncmers(sequence, k, s, t, &mut this_minimizers);
+                }
+                else {
+                    generate_sorted_fastq_new_version::syncmers_canonical(sequence, k, s, t, &mut this_minimizers);
+                }
             }
             else{
                 println!("No seeding");
