@@ -28,7 +28,7 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 use std::thread;
-use std::path::{PathBuf, Path};
+use std::path::Path;
 use std::io::Read;
 use std::convert::TryFrom;
 
@@ -198,14 +198,14 @@ fn main() {
     if mode=="ont"{
         k = 13;
         w = 20;//->22, standard: 20
-        quality_threshold = 0.9_f64.powi(k as i32);
+        quality_threshold = 0.9_f64.powi(k as i32);//TODO: standard: 0.9_f64
         s = 9;
         t = 2;
     }
     else if mode == "pacbio"{
         k = 15;
         w = 50;
-        quality_threshold = 0.97_f64.powi(k as i32);
+        quality_threshold = 0.97_f64.powi(k as i32);//TODO://standard: 0.97_f64
         s = 9;
         t = 3;
     }
@@ -254,6 +254,9 @@ fn main() {
     if let Some(seed) = seeding_input {
         seeding = seed;
     }
+    if cli.k.is_some(){
+        k = cli.k.unwrap();
+    }
     if seeding =="syncmer"{
         if cli.s.is_some(){
             s = cli.s.unwrap();
@@ -269,7 +272,7 @@ fn main() {
         }
     }
 
-    else if seeding =="minimizer" {
+    else if seeding == "minimizer" {
         if cli.w.is_some(){
             w = cli.w.unwrap();
             if w < k{
@@ -278,9 +281,7 @@ fn main() {
         }
 
     }
-    if cli.k.is_some(){
-        k = cli.k.unwrap();
-    }
+
     println!("k: {:?}", k);
     println!("w: {:?}", w);
     println!("s: {:?}", s);
@@ -365,6 +366,7 @@ fn main() {
         {//Clustering scope ( we define a scope so that variables die that we do not use later on)
             //the read id stores an internal id to represent our read
             let mut read_id = 0;
+            //let mut read_cter = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
             let mut min_shared_minis = 0.8;
             /*if annotation_based{
@@ -405,6 +407,12 @@ fn main() {
                 // perform the clustering step
                 clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
                 read_id += 1;
+                if verbose{
+                    if read_id%1000000==0 {
+                        println!("{} reads processed", read_id);
+                    }
+                }
+
             }
             println!("Generated {} clusters from clustering",clusters.len());
             println!("Finished clustering");
