@@ -295,7 +295,7 @@ fn main() {
 
 
     let mut annotation_based= false;
-
+    let filename = outfolder.clone() + "/clustering/sorted.fastq";
     println!("Using {}s as seeds", seeding);
     let now1 = Instant::now();
     {//main scope (holds all the data structures that we can delete when the clustering is done
@@ -340,7 +340,7 @@ fn main() {
 
         let q_threshold = 7.0;
         //path to the sorted file
-        let filename = outfolder.clone() + "/clustering/sorted.fastq";
+
         //count the number of reads that were too short to be clustered
         let mut skipped_cter = 0;
         //d_no_min contains a translation for chars into quality values
@@ -433,7 +433,7 @@ fn main() {
             if !no_post_cluster{
                 println!("Starting post-clustering to refine clusters");
                 let now_pc = Instant::now();
-                clustering::post_clustering(&mut clusters, &mut cluster_map, min_shared_minis);
+                post_clustering(&mut clusters, &mut cluster_map, min_shared_minis);
                 println!("{} s for file output", now_pc.elapsed().as_secs());
                 println!("Got {} clusters from Post-clustering",clusters.len());
                 if let Some(usage) = memory_stats() {
@@ -449,7 +449,7 @@ fn main() {
     //FILE OUTPUT STEP
     //#################################################################################################
     let now4 = Instant::now();
-    write_output::write_output(outfolder, &clusters, cli.fastq, id_map, n ,no_fastq);
+    write_output::write_output(outfolder, &clusters, filename, id_map, n ,no_fastq);
     println!("{} s for file output", now4.elapsed().as_secs());
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);

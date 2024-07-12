@@ -58,7 +58,7 @@ fn write_final_clusters_tsv(outfolder: &Path, clusters: FxHashMap<i32,Vec<i32>>,
 //Outline: sort the fastq file by cluster and then write the entries from the sorted fastq file to not having to read the full file
 fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, cluster_map: &mut FxHashMap<i32,Vec<FastqRecord_isoncl_init>>){
     let fastq_file = File::open(fastq).unwrap();
-    let mut fastq_vec=vec![];
+    let mut fastq_vec= vec![];
     //parse the fastq file to store the data in fastq_vec
     file_actions::parse_fastq(fastq_file,&mut fastq_vec);
     //iterate over fastq_vec and add the reads to cluster_map
@@ -86,7 +86,6 @@ fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqReco
     let fastq_outfolder= PathBuf::from(outfolder);
     //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
     for (cl_id, records) in cluster_map.into_iter(){
-
         if records.len() >= n { //only write the records if we have n or more reads supporting the cluster
             let filename = new_cl_id.to_string()+".fastq";
             let file_path = fastq_outfolder.join(filename);
