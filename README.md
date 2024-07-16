@@ -10,18 +10,23 @@ isONclust3 is a tool for clustering either PacBio Iso-Seq reads, or Oxford Nanop
     1. [Running a test](#runtest)
 5. [Contact](#contact)
 6. [Credits](#credits)
+## Installation Guide <a name="installationguide"></a>
+At the moment building from source is the only option to install the tool. This requires users to install the Rust programming language onto their system.
+## Installing Rust <a name="installingrust"></a>
+You can install rust via<br />
+
+`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` (for macOS and Linux or other Unix-based OS). For Windows please follow the instructions on the following site: https://forge.rust-lang.org/infra/other-installation-methods.html .<br />
 ## Installation <a name="installation"></a>
-At the moment building from source is the only option to install the tool. For this please install rust via
-`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` (for macOS and Linux or other Unix-based OS). For windows please follow the instructions on the following site 
-`cd isONclust3` 
-`cargo build --release` ( Compile the current package, the executable is located in target/release)
+After cloning the repository via `git clone https://github.com/aljpetri/isONclust3.git` use the following two commands to compile the code: <br />
+`cd isONclust3` <br />
+`cargo build --release` ( Compile the current package, the executable is then located in target/release) <br />
 
 ## Introduction <a name="introduction"></a>
 
 
 
 
-## Running isONform <a name="Running"></a>
+## Running isONclust3 <a name="Running"></a>
 
 To run the algorithm:<br />
 
