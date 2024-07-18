@@ -1,6 +1,6 @@
 rustflags = ["-Ctarget-cpu=native"]
 [package]
-name = "isONclust_rs"
+name = "isONclust3"
 version = "0.0.1"
 edition = "2021"
 
