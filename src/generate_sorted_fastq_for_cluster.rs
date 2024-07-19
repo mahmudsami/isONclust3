@@ -64,10 +64,9 @@ fn calculate_error_rate(qual: &[u8], d_no_min: &[f64; 128]) -> f64 {
     let mut poisson_mean = 0.0;
 
     for &char_byte in qual.iter() {
-        let integer_value = char_byte as usize;
         counts[char_byte as usize] += 1;
     }
-    //print!("{:?}\n", counts);
+
     for (idx, cnt) in counts.iter().enumerate()  {
         poisson_mean += *cnt as f64 * d_no_min[idx];
         total_count += *cnt;
