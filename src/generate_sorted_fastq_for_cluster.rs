@@ -59,15 +59,19 @@ fn expected_number_errornous_kmers(quality_string: &str, k: usize, d:&[f64;128])
 
 
 fn calculate_error_rate(qual: &[u8], d_no_min: &[f64; 128]) -> f64 {
-    let mut poisson_mean = 0.0;
+    let mut counts = vec![0; 128];
     let mut total_count = 0;
+    let mut poisson_mean = 0.0;
 
-    for &char_byte in qual.iter().collect::<HashSet<_>>() {
-        let count = qual.iter().filter(|&&c| c == char_byte).count();
-        let index = char_byte as usize;
-        poisson_mean += count as f64 * d_no_min[index];
-        total_count += count;
+    for &char_byte in qual.iter() {
+        counts[char_byte as usize] += 1;
     }
+
+    for (idx, cnt) in counts.iter().enumerate()  {
+        poisson_mean += *cnt as f64 * d_no_min[idx];
+        total_count += *cnt;
+    }
+
     let error_rate = poisson_mean / total_count as f64;
     error_rate
 }
