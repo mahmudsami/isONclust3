@@ -197,14 +197,14 @@ fn main() {
     //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
     if mode=="ont"{
         k = 13;
-        w = 20;//->22, standard: 20
+        w = 21;//->22, standard: 20
         quality_threshold = 0.9_f64.powi(k as i32);//TODO: standard: 0.9_f64
         s = 9;
         t = 2;
     }
     else if mode == "pacbio"{
         k = 15;
-        w = 50;
+        w = 51;
         quality_threshold = 0.97_f64.powi(k as i32);//TODO://standard: 0.97_f64
         s = 9;
         t = 3;
@@ -277,6 +277,9 @@ fn main() {
             w = cli.w.unwrap();
             if w < k{
                 panic!("Please set w greater than k")
+            }
+            else if w%2==0{
+                panic!("Please choose w to be odd")
             }
         }
 
@@ -388,6 +391,12 @@ fn main() {
                 let mut this_minimizers = vec![];
                 let mut filtered_minis = vec![];
                 if seeding == "minimizer"{
+                    if w > k{
+                        w = w - k+ 1; // the minimizer generator will panic if w is even to break ties
+                        if w % 2 == 0 {
+                            w += 1;
+                        }
+                    }
                     if noncanonical_bool {
                         let min_iter = MinimizerBuilder::<u64, _>::new()
                             .minimizer_size(k)
