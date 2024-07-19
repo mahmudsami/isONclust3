@@ -12,7 +12,7 @@ use std::hash::BuildHasherDefault;
 use std::path::Path;
 use bio::io::fasta;
 extern crate rayon;
-use crate::generate_sorted_fastq_new_version;
+use crate::seeding_and_filtering_seeds;
 use crate::clustering;
 use std::time::Instant;
 
@@ -63,7 +63,7 @@ fn parse_fasta_and_gen_clusters(fasta_path: Option<&str>, coords: FxHashMap<Stri
                     if ! coords_in_gene.contains(exon_coord){
                         let exon_seq = &sequence[exon_coord.startpos as usize..exon_coord.endpos as usize].to_string();
                         let mut exon_minis=vec![];
-                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(),k,w,&mut exon_minis);
+                        seeding_and_filtering_seeds::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut exon_minis);
                         record_minis.append( &mut exon_minis);
                         coords_in_gene.insert(exon_coord);
                     }
@@ -197,10 +197,10 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                     let mut this_minimizers=vec![];
                     if seeding == "minimizer"{
                         if noncanonical_bool{
-                            generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
+                            seeding_and_filtering_seeds::get_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
                         }
                         else{
-                            generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
+                            seeding_and_filtering_seeds::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
                         }
 
                     }
@@ -208,7 +208,7 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                         let s=9;
                         let t=2;
                         if exon_seq.len()>s{
-                            generate_sorted_fastq_new_version::syncmers_canonical(exon_seq.as_bytes(), k, s,t , &mut this_minimizers);
+                            seeding_and_filtering_seeds::syncmers_canonical(exon_seq.as_bytes(), k, s, t, &mut this_minimizers);
                         }
                     }
                     //generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(),k,w,&mut exon_minis);

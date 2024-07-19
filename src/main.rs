@@ -9,7 +9,7 @@ extern crate clap;
 
 pub mod file_actions;
 mod clustering;
-mod generate_sorted_fastq_new_version;
+mod seeding_and_filtering_seeds;
 mod generate_sorted_fastq_for_cluster;
 mod gff_handling;
 mod write_output;
@@ -344,7 +344,7 @@ fn main() {
         //count the number of reads that were too short to be clustered
         let mut skipped_cter = 0;
         //d_no_min contains a translation for chars into quality values
-        let d_no_min = generate_sorted_fastq_new_version::compute_d_no_min();
+        let d_no_min = seeding_and_filtering_seeds::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
         generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool);
@@ -388,8 +388,15 @@ fn main() {
                 let mut this_minimizers = vec![];
                 let mut filtered_minis = vec![];
                 if seeding == "minimizer"{
-                    if noncanonical_bool{
-                        generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(sequence, k, w, &mut this_minimizers);
+                    if noncanonical_bool {
+                        let min_iter = MinimizerBuilder::<u64, _>::new()
+                            .minimizer_size(k)
+                            .width((w) as u16)
+                            .iter(sequence);
+                        for (minimizer, position) in min_iter {
+                            let mut mini = Minimizer_hashed { sequence: minimizer, position: position };
+                            this_minimizers.push(mini.clone());
+                        }
                     }
                     else{
                         let min_iter = MinimizerBuilder::<u64, _>::new()
@@ -405,13 +412,13 @@ fn main() {
                 }
                 else if seeding == "syncmer"{
                     if noncanonical_bool{
-                        generate_sorted_fastq_new_version::get_kmer_syncmers(sequence, k, s, t, &mut this_minimizers);
+                        seeding_and_filtering_seeds::get_kmer_syncmers(sequence, k, s, t, &mut this_minimizers);
                     }
                     else {
-                        generate_sorted_fastq_new_version::syncmers_canonical(sequence, k, s, t, &mut this_minimizers);
+                        seeding_and_filtering_seeds::syncmers_canonical(sequence, k, s, t, &mut this_minimizers);
                     }
                 }
-                generate_sorted_fastq_new_version::filter_seeds_by_quality(&this_minimizers,  quality, k, d_no_min, &mut filtered_minis, &quality_threshold,verbose);
+                seeding_and_filtering_seeds::filter_seeds_by_quality(&this_minimizers, quality, k, d_no_min, &mut filtered_minis, &quality_threshold, verbose);
                 // perform the clustering step
                 clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
                 read_id += 1;
