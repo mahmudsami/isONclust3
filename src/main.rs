@@ -20,7 +20,7 @@ mod Parallelization_side;
 
 //mod isONclust;
 use crate::clustering::post_clustering;
-use crate::structs::{FastaRecord, FastqRecord_isoncl_init};
+use crate::structs::{Minimizer_hashed, FastqRecord_isoncl_init};
 
 use clap::Parser;
 use rayon::prelude::*;
@@ -38,7 +38,7 @@ use rustc_hash::{FxHashMap,FxHashSet};
 
 use bio::io::fasta;
 use bio::io::fastq;
-
+use minimizer_iter::MinimizerBuilder;
 
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
@@ -392,7 +392,15 @@ fn main() {
                         generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(sequence, k, w, &mut this_minimizers);
                     }
                     else{
-                        generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence, k, w, &mut this_minimizers);
+                        let min_iter = MinimizerBuilder::<u64, _>::new()
+                            .canonical()
+                            .minimizer_size(k)
+                            .width((w) as u16)
+                            .iter(sequence);
+                        for (minimizer, position, _) in min_iter {
+                            let mut mini = Minimizer_hashed {sequence: minimizer,position: position };
+                            this_minimizers.push(mini.clone());
+                        }
                     }
                 }
                 else if seeding == "syncmer"{
