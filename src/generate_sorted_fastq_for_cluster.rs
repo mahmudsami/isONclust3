@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use rayon::prelude::*;
 use std::time::Instant;
 use std::collections::VecDeque;
-use crate::structs::FastqRecord_isoncl_init;
+use crate::structs::{FastqRecord_isoncl_init, Minimizer_hashed};
 use crate::write_output;
 use crate::generate_sorted_fastq_new_version;
 use crate::write_output::path_exists;
@@ -11,6 +11,8 @@ use crate::write_output::path_exists;
 use std::fs;
 use bio::io::fastq;
 use rustc_hash::FxHashMap;
+use minimizer_iter::MinimizerBuilder;
+
 
 //https://doc.rust-lang.org/std/primitive.char.html#method.decode_utf16  for parsing of quality values
 fn compress_sequence(seq: &[u8]) -> String {
@@ -112,6 +114,18 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
     let mut read_id = 0;
     //generate a Reader object that parses the fastq-file (taken from rust-bio)
     let mut reader = fastq::Reader::from_file(Path::new(&in_file_path)).expect("We expect the file to exist");
+    //make sure that we have suitable values for k_size and w_size (w_size should be larger)
+    let mut w;
+    if window_size > k{
+        w = window_size - k+ 1; // the minimizer generator will panic if w is even to break ties
+        if w % 2 == 0 {
+            w += 1;
+        }
+    }
+    //k_size was chosen larger than w_size. To not fail we use every k-mer as minimizer (maybe have an error message?)
+    else {
+        w = 1;
+    }
     //iterate over the records
     for record in reader.records().into_iter(){
         let seq_rec = record.expect("invalid record");
@@ -127,7 +141,20 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
                     generate_sorted_fastq_new_version::get_kmer_minimizers_hashed(sequence, k, window_size, &mut this_minimizers);
                 }
                 else {
-                    generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence, k, window_size, &mut this_minimizers);
+                    let min_iter = MinimizerBuilder::<u64, _>::new()
+                        .canonical()
+                        .minimizer_size(k)
+                        .width((w) as u16)
+                        .iter(sequence);
+                    for (minimizer, position, _) in min_iter {
+                        let mut mini = Minimizer_hashed {sequence: minimizer,position: position };
+                        this_minimizers.push(mini.clone());
+                    }
+
+                    //println!("minimizers NEW len: {:?}", this_minimizers.len());
+
+                    //generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(sequence, k, window_size, &mut this_minimizers);
+                    //println!("minimizers OLD len: {:?}", &this_minimizers.len());
                 }
             }
             else if seeding =="syncmer"{
