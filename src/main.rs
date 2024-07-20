@@ -1,7 +1,7 @@
 //#![allow(warnings)]
 extern crate rayon;
 extern crate clap;
-
+extern crate nohash_hasher;
 
 //use crate::generate_sorted_fastq_new_version::{filter_minimizers_by_quality, Minimizer,get_kmer_minimizers};
 //use clap::{arg, command, Command};
@@ -19,6 +19,7 @@ mod Parallelization_side;
 
 
 //mod isONclust;
+use std::{collections::HashMap};
 use crate::clustering::post_clustering;
 use crate::structs::{Minimizer_hashed, FastqRecord_isoncl_init};
 
@@ -39,6 +40,10 @@ use rustc_hash::{FxHashMap,FxHashSet};
 use bio::io::fasta;
 use bio::io::fastq;
 use minimizer_iter::MinimizerBuilder;
+
+
+type Seed_Map = FxHashMap<u64, Vec<i32>>; // Change here to any other hash table implementation, e.g.,  HashMap<u64, Vec<i32>, nohash_hasher::BuildNoHashHasher<u64>>;
+type Cluster_ID_Map = FxHashMap<i32, Vec<i32>>; //  Change here to any other hash table implementation, e.g., HashMap<i32, Vec<i32>,nohash_hasher::BuildNoHashHasher<i32>>;
 
 fn compute_d() -> [f64; 128] {
     let mut d = [0.0; 128];
@@ -294,7 +299,7 @@ fn main() {
     let gff_path = cli.gff.as_deref();
     //makes the read  identifiable and gives us the possibility to only use ids during the clustering step
     let mut id_map = FxHashMap::default();
-    let mut clusters: FxHashMap<i32, Vec<i32>> = FxHashMap::default();
+    let mut clusters: Cluster_ID_Map = HashMap::default(); //FxHashMap<i32, Vec<i32>> = FxHashMap::default();
 
 
     let mut annotation_based= false;
@@ -304,7 +309,7 @@ fn main() {
     {//main scope (holds all the data structures that we can delete when the clustering is done
         //holds the mapping of which minimizer belongs to what clusters
         //let mut shared_seed_info: FxHashMap<i32,i32>=FxHashMap::default();
-        let mut cluster_map: FxHashMap<u64, Vec<i32>> = FxHashMap::default();
+        let mut cluster_map: Seed_Map = HashMap::default(); //FxHashMap<u64, Vec<i32>> = FxHashMap::default();
         let initial_clustering_path = cli.init_cl.as_deref();
         if gff_path.is_some(){
             gff_handling::gff_based_clustering(gff_path, initial_clustering_path, &mut clusters, &mut cluster_map, k, w, seeding, s, t, noncanonical_bool);
@@ -429,6 +434,10 @@ fn main() {
                 }
                 seeding_and_filtering_seeds::filter_seeds_by_quality(&this_minimizers, quality, k, d_no_min, &mut filtered_minis, &quality_threshold, verbose);
                 // perform the clustering step
+                //println!("{} filtered_minis", filtered_minis.len());
+                //println!("{} this_minimizers", this_minimizers.len());
+                //println!(" ");
+
                 clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
                 read_id += 1;
                 if verbose{
