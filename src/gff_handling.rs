@@ -12,7 +12,7 @@ use std::hash::BuildHasherDefault;
 use std::path::Path;
 use bio::io::fasta;
 extern crate rayon;
-use crate::seeding_and_filtering_seeds;
+use crate::{Cluster_ID_Map, Seed_Map, seeding_and_filtering_seeds};
 use crate::clustering;
 use std::time::Instant;
 
@@ -36,7 +36,7 @@ fn detect_overlaps(gene_map: &FxHashMap<i32,Vec<Coord_obj>>, this_gene_id:&i32, 
 
 
 
-fn parse_fasta_and_gen_clusters(fasta_path: Option<&str>, coords: FxHashMap<String,FxHashMap<i32,Vec<Coord_obj>>>,clusters: &mut FxHashMap<i32, Vec<i32>>, init_cluster_map: &mut FxHashMap<u64, Vec<i32>>,k: usize,w: usize){
+fn parse_fasta_and_gen_clusters(fasta_path: Option<&str>, coords: FxHashMap<String,FxHashMap<i32,Vec<Coord_obj>>>, clusters: &mut Cluster_ID_Map, init_cluster_map: &mut Seed_Map,k: usize,w: usize){
     println!("parse_fasta");
     let path=fasta_path.unwrap();
     let mut reader = fasta::Reader::from_file(Path::new(path)).expect("We expect the file to exist");
@@ -137,7 +137,7 @@ fn parse_gtf_and_collect_coords(gtf_path: Option<&str>, coords:&mut FxHashMap<St
 }
 
 
-pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>,k:usize ,w:usize) {
+pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map,k:usize ,w:usize) {
     println!("Resolving GFF file ");
     let now1 = Instant::now();
     let mut coords = FxHashMap::default();//: HashMap<K, HashMap<i32, Vec<Coord_obj>, BuildHasherDefault<FxHasher>>, BuildHasherDefault<FxHasher>> = FxHashMap::default();
@@ -160,7 +160,7 @@ pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clust
 }
 
 
-pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut FxHashMap<i32, Vec<i32>>, cluster_map: &mut FxHashMap<u64, Vec<i32>>, k:usize, w:usize, seeding: &str,s: usize,t: usize, noncanonical_bool: bool){
+pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, k:usize, w:usize, seeding: &str,s: usize,t: usize, noncanonical_bool: bool){
 //let gff_map= gff_reader.records().map(|record| {(record.expect("We should find the record").seqname(),record.expect("Same as before"))});
     // Read the FASTA file
     let fasta_reader = File::open(Path::new(fasta_path.unwrap())).unwrap();
