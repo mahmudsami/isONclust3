@@ -79,7 +79,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                 }
             }
         }*/
-        let mut most_shared_cluster= 0;
+        let mut most_shared_cluster= -1;
         let mut shared= false;
         //key: cluster_id, value: count of shared minimizers
         // (shared,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_seed_infos, sign_minis);
@@ -91,6 +91,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                     //iterate over belongs_to to update the counts of shared minimizers for each cluster
                     for &belong_cluster in belongs_to {//TODO: test whether into_par_iter works here
                         //iterate over belongs_to to update the counts of shared minimizers for each cluster
+                        // println!("belong_cluster {} belong_cluster as usize {}", belong_cluster, belong_cluster as usize );
                         shared_seed_infos_norm_vec[belong_cluster as usize] += 1;
                         //if the minimizer is already appointed to the cluster
                         // if let Some(new_val) = shared_seed_infos_norm.get(&belong_cluster) {
@@ -104,15 +105,18 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                 }
             }
 
+            //println!("shared_seed_infos_norm_vec {:?}", shared_seed_infos_norm_vec );
+
             if let Some((max_cluster_id, max_shared)) = shared_seed_infos_norm_vec.iter().enumerate().max_by_key(|&(_, value)| value) {
                 let nr_minis= minimizers.len();
                 let mut shared_perc: f64;
-                let most_shared_cluster= max_cluster_id as i32;
                 //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
                 shared_perc = calculate_shared_perc(nr_minis, *max_shared);
+                //println!("max_cluster_id: {}, max_shared: {}, shared_perc: {}, nr_minis: {}",max_cluster_id,max_shared,shared_perc,nr_minis );
                 // println!("shared percentage between read and cluster : {} min required: {}", shared_perc, shared_perc_mini);
                 if shared_perc > shared_perc_mini {
                     shared = true;
+                    most_shared_cluster= max_cluster_id as i32;
                 }
             }
 
@@ -262,6 +266,8 @@ fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cl
     //println!("ALL KEYS: {:?}", cl_set_map.keys());
 
     for (cl_id,hashes) in cl_set_map.iter(){
+        //println!("cl_id: {} nr minimizers: {}",cl_id, hashes.len());
+
         for hash in hashes.iter() {
             if let Some(belongs_to) = cluster_map.get(hash) {
                 //iterate over belongs_to to update the counts of shared minimizers for each cluster
@@ -280,8 +286,9 @@ fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cl
             let most_shared_cluster_id= max_cluster_id as i32;
             //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
             shared_perc = calculate_shared_perc(nr_minis, *max_shared);
-            //println!("shared percentage between read {} and max_cluster_id {} : {}",cl_id, max_cluster_id, shared_perc);
+            //println!("shared percentage between cluster: {} and max_cluster_id {} : {}. Min required: {}. Max shared {}",cl_id, max_cluster_id, shared_perc, min_shared_minis, max_shared);
             if shared_perc > min_shared_minis {
+                //println!("ENTERING MERGE");
                 //println!("Nr elems_this {}, other {}", nr_elems_this,nr_elems_other);
                 if  nr_minis < cl_set_map.get(&most_shared_cluster_id).unwrap().len() {
                     merge_into.push((*cl_id, most_shared_cluster_id));
