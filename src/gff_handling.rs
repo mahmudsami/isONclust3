@@ -1,14 +1,13 @@
-use crate::structs::{GtfEntry, FastaRecord, Coord_obj,internal_gff};
+use crate::structs::{ Coord_obj};
 use std::fs::File;
-use std::io::{BufReader, BufRead, Read};
-use std::str::FromStr;
-use rustc_hash::{FxHashMap, FxHasher, FxHashSet};
+use std::io::{BufReader, BufRead};
+
+use rustc_hash::{FxHashMap, FxHashSet};
 use bio::io::gff;
-use bio::io::gff::{GffType, Record};
+
 use bio::io::gff::GffType::GFF3;
 use rayon::prelude::*;
-use std::collections::HashMap;
-use std::hash::BuildHasherDefault;
+
 use std::path::Path;
 use bio::io::fasta;
 extern crate rayon;

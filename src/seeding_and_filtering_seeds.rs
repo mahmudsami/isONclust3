@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use rayon::prelude::*;
-use crate::structs::{Minimizer, Minimizer_hashed};
+use crate::structs::{ Minimizer_hashed};
 use crate::clustering::reverse_complement;
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;

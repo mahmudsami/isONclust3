@@ -28,7 +28,6 @@ use rayon::prelude::*;
 use std::collections::VecDeque;
 use std::time::Instant;
 
-use std::thread;
 use std::path::Path;
 use std::io::Read;
 use std::convert::TryFrom;
@@ -37,7 +36,6 @@ use memory_stats::memory_stats;
 
 use rustc_hash::{FxHashMap,FxHashSet};
 
-use bio::io::fasta;
 use bio::io::fastq;
 use minimizer_iter::MinimizerBuilder;
 
@@ -408,8 +406,8 @@ fn main() {
                             .width((w) as u16)
                             .iter(sequence);
                         for (minimizer, position) in min_iter {
-                            let mut mini = Minimizer_hashed { sequence: minimizer, position: position };
-                            this_minimizers.push(mini.clone());
+                            let mini = Minimizer_hashed { sequence: minimizer, position: position };
+                            this_minimizers.push(mini);
                         }
                     }
                     else{
@@ -419,8 +417,8 @@ fn main() {
                             .width((w) as u16)
                             .iter(sequence);
                         for (minimizer, position, _) in min_iter {
-                            let mut mini = Minimizer_hashed {sequence: minimizer,position: position };
-                            this_minimizers.push(mini.clone());
+                            let mini = Minimizer_hashed {sequence: minimizer,position: position };
+                            this_minimizers.push(mini);
                         }
                     }
                 }

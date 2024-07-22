@@ -143,8 +143,8 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
                         .width((w) as u16)
                         .iter(sequence);
                     for (minimizer, position) in min_iter {
-                        let mut mini = Minimizer_hashed { sequence: minimizer, position: position };
-                        this_minimizers.push(mini.clone());
+                        let mini = Minimizer_hashed { sequence: minimizer, position: position };
+                        this_minimizers.push(mini);
                     }
                 }
                 else {
@@ -154,8 +154,8 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
                         .width((w) as u16)
                         .iter(sequence);
                     for (minimizer, position, _) in min_iter {
-                        let mut mini = Minimizer_hashed {sequence: minimizer,position: position };
-                        this_minimizers.push(mini.clone());
+                        let mini = Minimizer_hashed {sequence: minimizer,position: position };
+                        this_minimizers.push(mini);
                     }
 
                     //println!("minimizers NEW len: {:?}", this_minimizers.len());

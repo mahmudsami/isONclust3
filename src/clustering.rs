@@ -1,8 +1,7 @@
 use crate::structs::Minimizer_hashed;
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use rayon::prelude::*;
-use std::collections::HashMap;
+//use rayon::prelude::*;
 use crate::{Cluster_ID_Map, Seed_Map};
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
@@ -262,17 +261,18 @@ fn merge_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, cl
 
 
 fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>){
+    //shared_seed_infos_vec: a vector
     let mut shared_seed_infos_vec: Vec<i32> = vec![0; nr_clusters];
     //println!("ALL KEYS: {:?}", cl_set_map.keys());
 
     for (cl_id,hashes) in cl_set_map.iter(){
         //println!("cl_id: {} nr minimizers: {}",cl_id, hashes.len());
-
+        //iterate over the hashes for each cl_id
         for hash in hashes.iter() {
             if let Some(belongs_to) = cluster_map.get(hash) {
                 //iterate over belongs_to to update the counts of shared minimizers for each cluster
                 for &belong_cluster in belongs_to {
-                    if {belong_cluster != *cl_id }{
+                    if belong_cluster != *cl_id {
                         shared_seed_infos_vec[belong_cluster as usize] += 1;
                     }
                 }
@@ -290,6 +290,7 @@ fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cl
             if shared_perc > min_shared_minis {
                 //println!("ENTERING MERGE");
                 //println!("Nr elems_this {}, other {}", nr_elems_this,nr_elems_other);
+                //we have a new best cluster as soon as
                 if  nr_minis < cl_set_map.get(&most_shared_cluster_id).unwrap().len() {
                     merge_into.push((*cl_id, most_shared_cluster_id));
                     small_hs.insert(*cl_id);
