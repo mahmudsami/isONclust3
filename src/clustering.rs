@@ -351,10 +351,8 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
 
 pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64){
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
-    //TODO: replace FxHashset in cl_set_map by an array
     let mut cl_set_map: FxHashMap<i32,Vec<u64>> = FxHashMap::default();
-    //TODO; use the new ds instead of cl_overlaps to hopefully reduce RAM usage significantly
-    //let mut cl_overlaps: FxHashMap<i32,Vec<i32,i32>> = FxHashMap::default();
+    //merge_into is a vector of a tuple(cl_id1,cl_id2)
     let mut merge_into: Vec<(i32,i32)> = vec![];
     //small_hs is a HashSet storing all cluster ids that were merged into other clusters during this iteration
     let mut small_hs: FxHashSet<i32> = FxHashSet::default();
@@ -363,8 +361,8 @@ pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
     let nr_clusters= clusters.len();
     //continue merging as long as we still find clusters that we may merge
     while !merge_into.is_empty() || first_iter {
-        let mut nr_cl_cter = 0;
-        let mut hash_cter= 0 ;
+        //let nr_cl_cter = cl_set_map.len();
+        //let mut hash_cter = 0;
         //println!("Post Cluster iter");
         println!("Merge into: {}", merge_into.len());
         println!("Nr clusters: {}", clusters.len());
@@ -376,14 +374,10 @@ pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
         //merge_into contains the information about which clusters to merge into which
         //generate the data structure giving us merge infos
         generate_post_clustering_ds(&mut cl_set_map,  cluster_map);
-
-        for (cl_id, hash_set) in cl_set_map.iter(){
-            nr_cl_cter+=1;
-            for hash in hash_set{
-                hash_cter+=1;
-            }
-        }
-        println!("Nr clusters: {}, nr hashes {}",nr_cl_cter,hash_cter);
+        //for (cl_id, hash_set) in cl_set_map.iter(){
+        //    hash_cter += hash_set.len();
+        //}
+        //println!("Nr clusters: {}, nr hashes {}",nr_cl_cter, hash_cter);
         detect_overlaps(nr_clusters, &cl_set_map, cluster_map, &mut merge_into, min_shared_minis, &mut small_hs);
         //println!("# Elements in small_hs {}",small_hs.len());
         //merges the clusters
