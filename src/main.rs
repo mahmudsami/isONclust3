@@ -200,7 +200,7 @@ fn main() {
     //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
     if mode=="ont"{
         k = 13;
-        w = 21;//->22, standard: 20
+        w = 21;
         quality_threshold = 0.9_f64.powi(k as i32);//TODO: standard: 0.9_f64
         s = 9;
         t = 2;
@@ -345,10 +345,7 @@ fn main() {
         //#################################################################################################
 
         let q_threshold = 7.0;
-        //path to the sorted file
-
         //count the number of reads that were too short to be clustered
-        let mut skipped_cter = 0;
         //d_no_min contains a translation for chars into quality values
         let d_no_min = seeding_and_filtering_seeds::compute_d_no_min();
         println!("{}", filename);
@@ -372,14 +369,8 @@ fn main() {
         {//Clustering scope ( we define a scope so that variables die that we do not use later on)
             //the read id stores an internal id to represent our read
             let mut read_id = 0;
-            //let mut read_cter = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
-            let mut min_shared_minis = 0.8;
-            /*if annotation_based{
-                min_shared_minis=0.6;
-            }*/
-            //println!("{}", min_shared_minis);
-            //parse the file:
+            let min_shared_minis = 0.8;
             let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
             for record in reader.records(){
                 let seq_rec = record.expect("invalid record");
@@ -435,24 +426,22 @@ fn main() {
                 //println!("{} filtered_minis", filtered_minis.len());
                 //println!("{} this_minimizers", this_minimizers.len());
                 //println!(" ");
-
-                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id);
+                let mut shared_seed_infos_norm_vec: Vec<i32> = vec![0; clusters.len()];
+                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id,&mut shared_seed_infos_norm_vec);
                 read_id += 1;
                 if verbose{
-                    if read_id%1000000==0 {
+                    if read_id % 1000000==0 {
                         println!("{} reads processed", read_id);
                     }
                 }
-
             }
             println!("Generated {} clusters from clustering",clusters.len());
             println!("Finished clustering");
             println!("{} reads used for clustering",read_id);
-            println!("Skipped {} reads due to being too short", skipped_cter);
+
             if verbose {
                 //println!("{} s for reading the sorted fastq file and clustering of the reads", now3.elapsed().as_secs());
             }
-
             if let Some(usage) = memory_stats() {
                 println!("Current physical memory usage: {}", usage.physical_mem);
                 println!("Current virtual memory usage: {}", usage.virtual_mem);
@@ -464,8 +453,9 @@ fn main() {
             if !no_post_cluster{
                 println!("Starting post-clustering to refine clusters");
                 let now_pc = Instant::now();
-                post_clustering(&mut clusters, &mut cluster_map, min_shared_minis);
-                println!("{} s for file output", now_pc.elapsed().as_secs());
+                let mut shared_seed_infos_vec: Vec<i32> = vec![0; clusters.len()];
+                post_clustering(&mut clusters, &mut cluster_map, min_shared_minis,&mut shared_seed_infos_vec);
+                println!("{} s for post-clustering", now_pc.elapsed().as_secs());
                 println!("Got {} clusters from Post-clustering",clusters.len());
                 if let Some(usage) = memory_stats() {
                     println!("Current physical memory usage: {}", usage.physical_mem);

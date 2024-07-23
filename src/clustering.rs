@@ -28,7 +28,7 @@ fn detect_whether_shared(min_shared_minis:f64, shared_seed_infos: &FxHashMap<i32
     let mut most_shared= 0.0;
     let mut shared= false;
     let mut most_shared_cluster= -1;
-    let mut nr_minis=minimizers.len();
+    let nr_minis= minimizers.len();
     let mut shared_perc: f64;
     for (key, nr_shared) in shared_seed_infos {//TODO: test whether into_par_iter works here
         //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
@@ -48,41 +48,21 @@ fn detect_whether_shared(min_shared_minis:f64, shared_seed_infos: &FxHashMap<i32
 
 //shared_seed_infos: hashmap that holds read_id->nr shared minimizers with clusters->not updated when cluster changes!
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, minimizers: &Vec<Minimizer_hashed>, clusters:&mut Cluster_ID_Map, cluster_map: &mut Seed_Map, id: i32,  cl_id: &mut i32 ){
+pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, minimizers: &Vec<Minimizer_hashed>, clusters:&mut Cluster_ID_Map, cluster_map: &mut Seed_Map, id: i32,  cl_id: &mut i32, shared_seed_infos_norm_vec: &mut Vec<i32> ){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of ids as a value
     //shared mini_infos contains the cluster (key) as well as the number of minimizers appointed to it (value)
     //let mut shared_seed_infos= FxHashMap::default();
     let shared_perc_mini = min_shared_minis / 2.0_f64;
     //let mut shared_seed_infos_norm= FxHashMap::default();
-    let mut shared_seed_infos_norm_vec: Vec<i32> = vec![0; clusters.len()];
+    //let mut shared_seed_infos_norm_vec: Vec<i32> = vec![0; clusters.len()];
 
     //TODO: This can be heavily improved if I add a field, high_confidence, to the seed object (here minimizer) We then can only pass over the minis with high_confidence=false
     //entry represents a read in our data
     //if we already have at least one cluster: compare the new read to the cluster(s)
     if !(clusters.is_empty()){
-        //if sign_minis.len() > min_shared_minis as usize {
-/*        for minimizer in sign_minis {//TODO: test whether into_par_iter works here
-            //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
-            if let Some(belongs_to) = cluster_map.get(&minimizer.sequence) {
-                //iterate over belongs_to to update the counts of shared minimizers for each cluster
-                for &belong_cluster in belongs_to {//TODO: test whether into_par_iter works here
-                    //if the minimizer is already appointed to the cluster
-                    if let Some(new_val) = shared_seed_infos.get(&belong_cluster) {
-                        //increase the counter of minimizers shared with cluster
-                        shared_seed_infos.insert(belong_cluster, *new_val + 1);
-                    } else {
-                        //add a new counter for the cluster element
-                        shared_seed_infos.insert(belong_cluster, 1);
-                    }
-                }
-            }
-        }*/
         let mut most_shared_cluster= -1;
         let mut shared= false;
-        //key: cluster_id, value: count of shared minimizers
-        // (shared,most_shared_cluster) = detect_whether_shared(min_shared_minis, &shared_seed_infos, sign_minis);
-        //println!("{} shared when using filtered", shared);
         if !shared{
             for minimizer in minimizers{//TODO: test whether into_par_iter works here
                 //if we find the minimizer hash in cluster_map: store the clusters in belongs_to
@@ -92,20 +72,9 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                         //iterate over belongs_to to update the counts of shared minimizers for each cluster
                         // println!("belong_cluster {} belong_cluster as usize {}", belong_cluster, belong_cluster as usize );
                         shared_seed_infos_norm_vec[belong_cluster as usize] += 1;
-                        //if the minimizer is already appointed to the cluster
-                        // if let Some(new_val) = shared_seed_infos_norm.get(&belong_cluster) {
-                        //     //increase the counter of minimizers shared with cluster
-                        //     shared_seed_infos_norm.insert(belong_cluster, *new_val + 1);
-                        // } else {
-                        //     //add a new counter for the cluster element
-                        //     shared_seed_infos_norm.insert(belong_cluster, 1);
-                        // }
                     }
                 }
             }
-
-            //println!("shared_seed_infos_norm_vec {:?}", shared_seed_infos_norm_vec );
-
             if let Some((max_cluster_id, max_shared)) = shared_seed_infos_norm_vec.iter().enumerate().max_by_key(|&(_, value)| value) {
                 let nr_minis= minimizers.len();
                 let mut shared_perc: f64;
@@ -118,10 +87,6 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                     most_shared_cluster= max_cluster_id as i32;
                 }
             }
-
-            //(shared,most_shared_cluster) = detect_whether_shared(shared_perc_mini, &shared_seed_infos_norm, &minimizers);
-            //println!("{} shared when using ALL", shared);
-
         }
         //if we have a cluster that we share enough minimizers with
         if shared {
@@ -161,7 +126,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                 let id_vec=vec![id];
                 clusters.insert(*cl_id,id_vec);
                 *cl_id += 1;
-                }
+            }
             else{
                 let id_vec=vec![id];
                 clusters.insert(*cl_id,id_vec);
@@ -209,19 +174,6 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, cluste
                 //this_set.push(*mini);
                 cl_set_map.insert(id,this_set);
             }
-            for j in i + 1..vec_of_ids.len() {
-                let id2 = vec_of_ids[j];
-                let mut small_id;
-                let mut large_id;
-                if id < id2{
-                    small_id = id;
-                    large_id = id2;
-                }
-                else{
-                    small_id = id2;
-                    large_id = id;
-                }
-            }
         }
     }
 }
@@ -260,9 +212,9 @@ fn merge_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, cl
 }
 
 
-fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>){
+fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>, shared_seed_infos_vec: &mut Vec<i32> ){
     //shared_seed_infos_vec: a vector
-    let mut shared_seed_infos_vec: Vec<i32> = vec![0; nr_clusters];
+    //let mut shared_seed_infos_vec: Vec<i32> = vec![0; nr_clusters];
     //println!("ALL KEYS: {:?}", cl_set_map.keys());
 
     for (cl_id,hashes) in cl_set_map.iter(){
@@ -302,32 +254,11 @@ fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cl
             }
         }
         // clear count vector for next cluster
-        for item in &mut shared_seed_infos_vec { *item = 0; }
-        //println!("Post cluster vec CLEARING: {:?}", shared_seed_infos_vec);
-    }
-}
-
-
-/*fn detect_whether_shared_other(this_id: i32,min_shared_minis:f64, shared_seed_infos: &FxHashMap<i32,i32>, minimizers:  Vec<u64>) -> (bool, i32) {
-    let mut most_shared= 0.0;
-    let mut shared= false;
-    let mut most_shared_cluster= -1;
-    let mut nr_minis= minimizers.len();
-    let mut shared_perc: f64;
-    for (key, nr_shared) in shared_seed_infos {//TODO: test whether into_par_iter works here
-        //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
-        shared_perc = calculate_shared_perc(nr_minis, *nr_shared);
-        //println!("shared percentage between read and cluster {} : {}",key, shared_perc);
-        if shared_perc > min_shared_minis && shared_perc > most_shared && this_id != *key {
-            most_shared = shared_perc;
-            most_shared_cluster = *key;
-            if !shared {
-                shared = true;
-            }
+        for item in shared_seed_infos_vec.iter_mut(){
+            *item = 0;
         }
     }
-    (shared,most_shared_cluster)
-}*/
+}
 
 
 fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map: &mut  Seed_Map, clusters: &mut Cluster_ID_Map, cl_set_map: &mut FxHashMap<i32,Vec<u64>>, small_hs: &FxHashSet<i32>){
@@ -349,7 +280,7 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
 }
 
 
-pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64){
+pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64, shared_seed_infos_vec: &mut Vec<i32>){
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
     let mut cl_set_map: FxHashMap<i32,Vec<u64>> = FxHashMap::default();
     //merge_into is a vector of a tuple(cl_id1,cl_id2)
@@ -374,13 +305,10 @@ pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
         //merge_into contains the information about which clusters to merge into which
         //generate the data structure giving us merge infos
         generate_post_clustering_ds(&mut cl_set_map,  cluster_map);
-        //for (cl_id, hash_set) in cl_set_map.iter(){
-        //    hash_cter += hash_set.len();
-        //}
         //println!("Nr clusters: {}, nr hashes {}",nr_cl_cter, hash_cter);
-        detect_overlaps(nr_clusters, &cl_set_map, cluster_map, &mut merge_into, min_shared_minis, &mut small_hs);
-        //println!("# Elements in small_hs {}",small_hs.len());
-        //merges the clusters
+        detect_overlaps(nr_clusters, &cl_set_map, cluster_map, &mut merge_into, min_shared_minis, &mut small_hs, shared_seed_infos_vec);
+
+        //for mut item in shared_seed_infos_vec { *item = 0; }
         merge_clusters_from_merge_into(&mut merge_into, cluster_map, clusters, &mut cl_set_map, &small_hs);
         cl_set_map.clear();
     }
