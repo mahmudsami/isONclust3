@@ -40,7 +40,7 @@ use bio::io::fastq;
 use minimizer_iter::MinimizerBuilder;
 
 
-type Seed_Map = FxHashMap<u64, Vec<i32>>; // Change here to any other hash table implementation, e.g.,  HashMap<u64, Vec<i32>, nohash_hasher::BuildNoHashHasher<u64>>;
+type Seed_Map = FxHashMap<u64, FxHashSet<i32>>; // Change here to any other hash table implementation, e.g.,  HashMap<u64, Vec<i32>, nohash_hasher::BuildNoHashHasher<u64>>;
 type Cluster_ID_Map = FxHashMap<i32, Vec<i32>>; //  Change here to any other hash table implementation, e.g., HashMap<i32, Vec<i32>,nohash_hasher::BuildNoHashHasher<i32>>;
 
 fn compute_d() -> [f64; 128] {
@@ -427,7 +427,7 @@ fn main() {
                 //println!("{} this_minimizers", this_minimizers.len());
                 //println!(" ");
                 let mut shared_seed_infos_norm_vec: Vec<i32> = vec![0; clusters.len()];
-                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id,&mut shared_seed_infos_norm_vec);
+                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id, &mut shared_seed_infos_norm_vec);
                 read_id += 1;
                 if verbose{
                     if read_id % 1000000==0 {
