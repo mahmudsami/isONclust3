@@ -55,12 +55,12 @@ fn detect_whether_shared(min_shared_minis:f64, shared_seed_infos: &FxHashMap<i32
 //clustering method for the case that we do not have any annotation to compare the reads against
 //shared_seed_infos: hashmap that holds read_id->nr shared minimizers with clusters->not updated when cluster changes!
 //clustering method for the case that we do not have any annotation to compare the reads against
-pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, minimizers: &Vec<Minimizer_hashed>, clusters:&mut Cluster_ID_Map, cluster_map: &mut Seed_Map, id: i32,  cl_id: &mut i32, shared_seed_infos_norm_vec: &mut Vec<i32> ){
+pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, minimizers: &Vec<Minimizer_hashed>, clusters:&mut Cluster_ID_Map, cluster_map: &mut Seed_Map, id: i32, shared_seed_infos_norm_vec: &mut Vec<i32> ){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of ids as a value
     //let empty_hs=FxHashSet::default();
     let shared_perc_mini = min_shared_minis / 2.0_f64;
-
+    let mut cl_id:i32 = clusters.len() as i32;
     //we do not yet have a cluster and therefore need to fill the first read into the first
     if clusters.is_empty(){
         let init_id = 0;
@@ -69,11 +69,10 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
             cluster_map
                 .entry(minimizer.sequence)
                 .or_insert_with(||new_Fx_hashset());
-                //.retain(|&existing_id| existing_id != init_id);
             // Check if id was retained (not a duplicate) and push it if needed
-            let vect = cluster_map.get_mut(&minimizer.sequence).unwrap();
-            if !vect.contains(&init_id) {
-                vect.insert(init_id);
+            let hs = cluster_map.get_mut(&minimizer.sequence).unwrap();
+            if !hs.contains(&init_id) {
+                hs.insert(init_id);
                 //vect.push(init_id);
             }
         }
@@ -122,13 +121,11 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                 cluster_map //TODO: test whether into_par_iter works here
                     .entry(sign_mini.sequence)
                     .or_insert_with(||new_Fx_hashset());
-                    //.retain(|&existing_id| existing_id != most_shared_cluster);
                 // Check if id was retained (not a duplicate) and push it if needed
                 //add the new cluster_id to the cluster_map should it not have been in there
-                let vect = cluster_map.get_mut(&sign_mini.sequence).unwrap();
-                if !vect.contains(&most_shared_cluster) {
-                    vect.insert(most_shared_cluster);
-                    //vect.push(most_shared_cluster);
+                let hs = cluster_map.get_mut(&sign_mini.sequence).unwrap();
+                if !hs.contains(&most_shared_cluster) {
+                    hs.insert(most_shared_cluster);
                 }
             }
         }
@@ -139,18 +136,16 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
                     cluster_map //TODO: test whether into_par_iter works here
                         .entry(sign_mini.sequence)
                         .or_insert_with(||new_Fx_hashset());
-                        //.retain(|&existing_id| existing_id != *cl_id);
                     // Check if id was retained (not a duplicate) and push it if needed
-                    let vect = cluster_map.get_mut(&sign_mini.sequence).unwrap();
-                    if !vect.contains(cl_id) {
-                        //vect.push(*cl_id);
-                        vect.insert(*cl_id);
+                    let hs = cluster_map.get_mut(&sign_mini.sequence).unwrap();
+                    if !hs.contains(&cl_id) {
+                        hs.insert(cl_id);
                     }
                 }
             }
             let id_vec=vec![id];
-            clusters.insert(*cl_id,id_vec);
-            *cl_id += 1;
+            clusters.insert(cl_id,id_vec);
+            cl_id += 1;
         }
     }
 }
@@ -164,14 +159,12 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, cluste
     for (mini, vec_of_ids) in clusters_map {
         //iterate over the ids that we have stored in the value of each minimizer
         for id in vec_of_ids.iter() {
-            //let id = vec_of_ids[i];
             //the cluster is already in the cluster_seeds_hash_map ->add the seed hash to the hashset, otherwise add new hashset with the seed hash
             if cl_set_map.contains_key(&id){
                 cl_set_map.get_mut(&id).unwrap().push(*mini);
             }
             else{
                 let this_set: Vec<u64> = vec![*mini];
-                //this_set.push(*mini);
                 cl_set_map.insert(*id,this_set);
             }
         }
@@ -192,14 +185,12 @@ fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, s
     clusters.remove_entry(small_cluster_id);
     //also add the hashes of the small cluster into the large cluster
     for seed_hash in small_hs{
-        let mut cl_vec= clusters_map.get_mut(seed_hash).unwrap();
-        //TODO:if higher cluster id is not in the vector just replace the small cl id by the large cl id
-        if !cl_vec.contains(large_cluster_id){
-            cl_vec.insert(*large_cluster_id);
-            //cl_vec.push(*large_cluster_id);
+        let mut cl_hs= clusters_map.get_mut(seed_hash).unwrap();
+        if !cl_hs.contains(large_cluster_id){
+            cl_hs.insert(*large_cluster_id);
         }
         //delete small_cluster_id from the seed hashes so we do not have any indication of the cluster in the ds
-        cl_vec.retain(|x| *x != *small_cluster_id);
+        cl_hs.retain(|x| *x != *small_cluster_id);
     }
 }
 
@@ -208,7 +199,7 @@ fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, s
 fn merge_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, cl_set_map: & FxHashMap<i32,Vec<u64>>, large_cluster_id:&i32, small_cluster_id:&i32){
     println!("Merging cl {} into cluster {}",small_cluster_id,large_cluster_id);
     //let binding= cl_set_map.clone();
-    let mut small_hs: &Vec<u64> = cl_set_map.get(small_cluster_id).unwrap();
+    let small_hs: &Vec<u64> = cl_set_map.get(small_cluster_id).unwrap();
     update_clusters(clusters, clusters_map, small_hs, large_cluster_id, small_cluster_id);
 }
 
@@ -266,7 +257,7 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
     //println!("Merge_into_len: {}",merge_into.len());
     let mut not_mergeable_cter= 0;
     for (id , value) in merge_into{
-        let mut large_id = value;
+        let large_id = value;
         //we might already have deleted large_id from clusters during this iteration
         if clusters.contains_key(large_id) {
             //idea here: we merge the ids into larger clusters first, smaller clusters are still bound to merge into the new cluster later
@@ -321,13 +312,13 @@ pub(crate) fn generate_initial_cluster_map(this_minimizers: &Vec<Minimizer_hashe
     for minimizer in this_minimizers{//TODO: test whether into_par_iter works here
         init_cluster_map
             .entry(minimizer.sequence)
-            .or_insert_with(||new_Fx_hashset())
-            .retain(|&existing_id| existing_id != identifier);
+            .or_insert_with(||new_Fx_hashset());
+            //.retain(|&existing_id| existing_id != identifier);
         // Check if id was retained (not a duplicate) and push it if needed
-        let vec = init_cluster_map.get_mut(&minimizer.sequence).unwrap();
+        let hs = init_cluster_map.get_mut(&minimizer.sequence).unwrap();
         //vec.push(id);
-        if !vec.contains(&identifier) {
-            vec.insert(identifier);
+        if !hs.contains(&identifier) {
+            hs.insert(identifier);
             //vec.push(identifier);
         }
     }

@@ -330,7 +330,7 @@ fn main() {
         //#################################################################################################
 
         //cl_id is used to appoint a cluster id to a cluster
-        let mut cl_id = 1;
+        //let mut cl_id = 1;
         if verbose {
             if let Some(usage) = memory_stats() {
                 println!("Current physical memory usage: {}", usage.physical_mem);
@@ -427,7 +427,7 @@ fn main() {
                 //println!("{} this_minimizers", this_minimizers.len());
                 //println!(" ");
                 let mut shared_seed_infos_norm_vec: Vec<i32> = vec![0; clusters.len()];
-                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut cl_id, &mut shared_seed_infos_norm_vec);
+                clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut shared_seed_infos_norm_vec);
                 read_id += 1;
                 if verbose{
                     if read_id % 1000000==0 {
