@@ -147,13 +147,6 @@ pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clust
     parse_fasta_and_gen_clusters(fasta_path, coords, clusters, cluster_map, k, w);
     println!("Generated {} initial clusters from the reference", clusters.len());
     println!("{} s used for parsing the fasta file", now2.elapsed().as_secs());
-    //detectOverlaps(coords);
-    //for coord in &coords{
-    //    println!("id: {}",coord.0);
-    //    for coord_e in coord.1{
-    //        println!(" {}", coord_e)
-    //    }
-    //}
     println!("{} s for full GFF resolution", now1.elapsed().as_secs());
     println!("GTF resolved");
 }
@@ -177,7 +170,7 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
         let fasta_record = fasta_record.expect("Error reading FASTA record");
         let scaffold_id = fasta_record.id().to_string();
         let sequence = std::str::from_utf8(fasta_record.seq()).unwrap().to_uppercase();
-        let mut record_minis=vec![];
+        let record_minis=vec![];
         let mut is_gene= false;
         //println!("scaffold {}",scaffold_id);
         // Process GFF records for the current scaffold ID
@@ -204,9 +197,7 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
 
                     }
                     else if seeding =="syncmer"{
-                        let s=9;
-                        let t=2;
-                        if exon_seq.len()>s{
+                        if exon_seq.len() > s{
                             seeding_and_filtering_seeds::syncmers_canonical(exon_seq.as_bytes(), k, s, t, &mut this_minimizers);
                         }
                     }
@@ -217,7 +208,7 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                 }
                 clustering::generate_initial_cluster_map(&record_minis, cluster_map, gene_id);
                 let id_vec= vec![];
-                clusters.insert(gene_id,id_vec);
+                clusters.insert(gene_id, id_vec);
                 // Your logic for processing each matching GFF record goes here
                 //println!("Processing GFF Record for scaffold ID {}: {:?}", scaffold_id, gff_record);
             } else {
