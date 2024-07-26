@@ -40,7 +40,7 @@ use bio::io::fastq;
 use minimizer_iter::MinimizerBuilder;
 
 
-type Seed_Map = FxHashMap<u64, FxHashSet<i32>>; // Change here to any other hash table implementation, e.g.,  HashMap<u64, Vec<i32>, nohash_hasher::BuildNoHashHasher<u64>>;
+type Seed_Map = FxHashMap<u64, Vec<i32>>; // Change here to any other hash table implementation, e.g.,  HashMap<u64, Vec<i32>, nohash_hasher::BuildNoHashHasher<u64>>;
 type Cluster_ID_Map = FxHashMap<i32, Vec<i32>>; //  Change here to any other hash table implementation, e.g., HashMap<i32, Vec<i32>,nohash_hasher::BuildNoHashHasher<i32>>;
 
 fn compute_d() -> [f64; 128] {
