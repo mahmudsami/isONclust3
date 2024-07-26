@@ -329,8 +329,6 @@ fn main() {
         //GENERATION OF ANNOTATION BASED CLUSTERS
         //#################################################################################################
 
-        //cl_id is used to appoint a cluster id to a cluster
-        //let mut cl_id = 1;
         if verbose {
             if let Some(usage) = memory_stats() {
                 println!("Current physical memory usage: {}", usage.physical_mem);

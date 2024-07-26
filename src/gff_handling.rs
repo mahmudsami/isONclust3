@@ -1,4 +1,4 @@
-use crate::structs::{ Coord_obj};
+use crate::structs::{ Coord_obj,Minimizer_hashed};
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 
@@ -8,6 +8,7 @@ use bio::io::gff;
 use bio::io::gff::GffType::GFF3;
 use rayon::prelude::*;
 
+use minimizer_iter::MinimizerBuilder;
 use std::path::Path;
 use bio::io::fasta;
 extern crate rayon;
@@ -44,13 +45,10 @@ fn parse_fasta_and_gen_clusters(fasta_path: Option<&str>, coords: FxHashMap<Stri
 
         let mut internal_id=0;
         let mut record_minis=vec![];
-        //let mut record_seq: String =String::new();
         //retreive the current record
-        //println!("It over records");
         let seq_rec = record.expect("invalid record");
         let sequence = std::str::from_utf8(seq_rec.seq()).unwrap().to_uppercase();
         let mut overlap_ctr= 0;
-        //let local_seq= std::str::from_utf8(sequence).expect("The genomic sequence should be utf8").to_string();
         //in the next lines we make sure that we have a proper header and store it as string
         let id = seq_rec.id().to_string().split(' ').collect::<Vec<_>>()[0].to_string();
         println!("Now to the coords_ds");
@@ -94,9 +92,6 @@ fn parse_gtf_and_collect_coords(gtf_path: Option<&str>, coords:&mut FxHashMap<St
             //see if we are in a new chromosome/scaffold
             if !coords.contains_key(rec.seqname()){
                 //we are in a new chromosome/scaffold
-                //reset the gene_id
-                //gene_id = 0;
-                //
                 let sname= rec.seqname().to_string();
                 coords.insert(sname,FxHashMap::default());
 
@@ -147,20 +142,12 @@ pub(crate) fn resolve_gff(gff_path: Option<&str>, fasta_path: Option<&str>,clust
     parse_fasta_and_gen_clusters(fasta_path, coords, clusters, cluster_map, k, w);
     println!("Generated {} initial clusters from the reference", clusters.len());
     println!("{} s used for parsing the fasta file", now2.elapsed().as_secs());
-    //detectOverlaps(coords);
-    //for coord in &coords{
-    //    println!("id: {}",coord.0);
-    //    for coord_e in coord.1{
-    //        println!(" {}", coord_e)
-    //    }
-    //}
     println!("{} s for full GFF resolution", now1.elapsed().as_secs());
     println!("GTF resolved");
 }
 
 
 pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&str>, clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, k:usize, w:usize, seeding: &str,s: usize,t: usize, noncanonical_bool: bool){
-//let gff_map= gff_reader.records().map(|record| {(record.expect("We should find the record").seqname(),record.expect("Same as before"))});
     // Read the FASTA file
     let fasta_reader = File::open(Path::new(fasta_path.unwrap())).unwrap();
     let fasta_buf_reader = BufReader::new(fasta_reader);
@@ -177,14 +164,13 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
         let fasta_record = fasta_record.expect("Error reading FASTA record");
         let scaffold_id = fasta_record.id().to_string();
         let sequence = std::str::from_utf8(fasta_record.seq()).unwrap().to_uppercase();
-        let mut record_minis=vec![];
+        let record_minis=vec![];
         let mut is_gene= false;
         //println!("scaffold {}",scaffold_id);
         // Process GFF records for the current scaffold ID
         while let Some(gff_record) = gff_records.next() {
             let gff_record = gff_record.expect("Error reading GFF record");
             let gff_scaffold_id = gff_record.seqname().to_string();
-            //println!("{}",gff_scaffold_id);
             // Check if the scaffold IDs match
             if scaffold_id == gff_scaffold_id {
                 if gff_record.feature_type() =="gene" && gff_record.attributes().get("gene_biotype").expect("This algorithm requires a gene_biotype to extract the coding genes") == "protein_coding"{
@@ -195,31 +181,41 @@ pub(crate) fn gff_based_clustering(gff_path: Option<&str>, fasta_path: Option<&s
                     let exon_seq= &sequence[*gff_record.start() as usize..*gff_record.end() as usize];
                     let mut this_minimizers=vec![];
                     if seeding == "minimizer"{
-                        if noncanonical_bool{
-                            seeding_and_filtering_seeds::get_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
+                        if noncanonical_bool {
+                            let min_iter = MinimizerBuilder::<u64, _>::new()
+                                .minimizer_size(k)
+                                .width((w) as u16)
+                                .iter(sequence.as_bytes());
+                            for (minimizer, position) in min_iter {
+                                let mini = Minimizer_hashed { sequence: minimizer, position: position };
+                                this_minimizers.push(mini);
+                            }
                         }
                         else{
-                            seeding_and_filtering_seeds::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(), k, w, &mut this_minimizers);
+                            let min_iter = MinimizerBuilder::<u64, _>::new()
+                                .canonical()
+                                .minimizer_size(k)
+                                .width((w) as u16)
+                                .iter(sequence.as_bytes());
+                            for (minimizer, position, _) in min_iter {
+                                let mini = Minimizer_hashed {sequence: minimizer,position: position };
+                                this_minimizers.push(mini);
+                            }
                         }
 
                     }
                     else if seeding =="syncmer"{
-                        let s=9;
-                        let t=2;
-                        if exon_seq.len()>s{
+                        if exon_seq.len() > s{
                             seeding_and_filtering_seeds::syncmers_canonical(exon_seq.as_bytes(), k, s, t, &mut this_minimizers);
                         }
                     }
-                    //generate_sorted_fastq_new_version::get_canonical_kmer_minimizers_hashed(exon_seq.as_bytes(),k,w,&mut exon_minis);
                 }
                 else if gff_record.feature_type() =="pseudogene"{
                     is_gene = false;
                 }
                 clustering::generate_initial_cluster_map(&record_minis, cluster_map, gene_id);
                 let id_vec= vec![];
-                clusters.insert(gene_id,id_vec);
-                // Your logic for processing each matching GFF record goes here
-                //println!("Processing GFF Record for scaffold ID {}: {:?}", scaffold_id, gff_record);
+                clusters.insert(gene_id, id_vec);
             } else {
                 println!("found {} genes in {}",gene_id - previous_genes, scaffold_id);
                 previous_genes = gene_id;

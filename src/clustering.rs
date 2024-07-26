@@ -67,9 +67,8 @@ fn detect_whether_shared(min_shared_minis:f64, shared_seed_infos: &FxHashMap<i32
 pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, minimizers: &Vec<Minimizer_hashed>, clusters:&mut Cluster_ID_Map, cluster_map: &mut Seed_Map, id: i32, shared_seed_infos_norm_vec: &mut Vec<i32> ){
     //clusters contains the main result we are interested in: it will contain the cluster id as key and the read_ids of reads from the cluster as value
     //cluster_map contains a hashmap in which we have a hash_value for a minimizer as key and a vector of ids as a value
-    //let empty_hs=FxHashSet::default();
     let shared_perc_mini = min_shared_minis / 2.0_f64;
-    let mut cl_id:i32 = clusters.len() as i32;
+    let cl_id:i32 = clusters.len() as i32;
     //we do not yet have a cluster and therefore need to fill the first read into the first
     if clusters.is_empty(){
         let init_id = 0;
@@ -160,7 +159,6 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
             }
             let id_vec=vec![id];
             clusters.insert(cl_id,id_vec);
-            //cl_id += 1;
         }
     }
 }
@@ -169,8 +167,6 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
 //takes clusters_map as input and generates cl_set_map: a Hashmap containing the cluster id as key and a hashset of seedhashes as value.
 fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, clusters_map: &mut Seed_Map){
     //TODO: count overlaps between clusters to sort and identify all cluster_combinations
-    //let mut clusters_that_overlap: FxHashMap<i32,FxHashSet<i32>> = FxHashMap::default();
-    //println!("Clusters_map len {}",clusters_map.len());
     for (mini, vec_of_ids) in clusters_map {
         //iterate over the ids that we have stored in the value of each minimizer
         for id in vec_of_ids.iter() {
@@ -224,7 +220,7 @@ fn merge_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, cl
 }
 
 
-fn detect_overlaps(nr_clusters: usize, cl_set_map: & FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>, shared_seed_infos_vec: &mut Vec<i32> ){
+fn detect_overlaps( cl_set_map: & FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>, shared_seed_infos_vec: &mut Vec<i32> ){
     //shared_seed_infos_vec: a vector
     //let mut shared_seed_infos_vec: Vec<i32> = vec![0; nr_clusters];
     //println!("ALL KEYS: {:?}", cl_set_map.keys());
@@ -319,7 +315,7 @@ pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
         //generate the data structure giving us merge infos
         generate_post_clustering_ds(&mut cl_set_map,  cluster_map);
         //println!("Nr clusters: {}, nr hashes {}",nr_cl_cter, hash_cter);
-        detect_overlaps(nr_clusters, &cl_set_map, cluster_map, &mut merge_into, min_shared_minis, &mut small_hs, shared_seed_infos_vec);
+        detect_overlaps(&cl_set_map, cluster_map, &mut merge_into, min_shared_minis, &mut small_hs, shared_seed_infos_vec);
 
         //for mut item in shared_seed_infos_vec { *item = 0; }
         merge_clusters_from_merge_into(&mut merge_into, cluster_map, clusters, &mut cl_set_map, &small_hs);
