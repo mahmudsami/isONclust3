@@ -71,20 +71,18 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
     let cl_id:i32 = clusters.len() as i32;
     //we do not yet have a cluster and therefore need to fill the first read into the first
     if clusters.is_empty(){
-        let init_id = 0;
         for minimizer in sign_minis {
             //fill cluster_map with the minimizers that we found in the first read
             cluster_map
                 .entry(minimizer.sequence)
                 .or_insert_with(Vec::new);
             let vect = cluster_map.get_mut(&minimizer.sequence).unwrap();
-            if !vect.contains(&init_id) {
-                vect.push(init_id);
-                //println!("vect: {:?}", vect);
+            if !vect.contains(&cl_id) {
+                vect.push(cl_id);
             }
         }
         let id_vec=vec![id];
-        clusters.insert(init_id,id_vec);
+        clusters.insert(cl_id,id_vec);
     }
     //TODO: This can be heavily improved if I add a field, high_confidence, to the seed object (here minimizer) We then can only pass over the minis with high_confidence=false
     //entry represents a read in our data

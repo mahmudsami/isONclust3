@@ -349,6 +349,7 @@ fn main() {
         println!("{}", filename);
         let now2 = Instant::now();
         generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool);
+        let now3 = Instant::now();
         if verbose {
             println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
 
@@ -463,7 +464,9 @@ fn main() {
                 }
             }
         }
+        println!("{} s for clustering", now3.elapsed().as_secs());
     }
+
     //#################################################################################################
     //FILE OUTPUT STEP
     //#################################################################################################
