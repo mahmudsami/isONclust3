@@ -176,6 +176,8 @@ struct Cli {
     no_post_cluster: Option<bool>,
     #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
     no_fastq: Option<bool>,
+    #[arg(long,help="Minimum overlap threshold for reads to be clustered together (Experimental parameter)")]
+    min_shared_minis: Option<f64>
 }
 
 
@@ -259,6 +261,13 @@ fn main() {
     }
     if cli.k.is_some(){
         k = cli.k.unwrap();
+    }
+    let min_shared_minis;
+    if cli.min_shared_minis.is_some(){
+        min_shared_minis = cli.min_shared_minis.unwrap()
+    }
+    else{
+        min_shared_minis = 0.4;
     }
     if seeding =="syncmer"{
         if cli.s.is_some(){
@@ -369,7 +378,6 @@ fn main() {
             //the read id stores an internal id to represent our read
             let mut read_id = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
-            let min_shared_minis = 0.8;
             let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
             for record in reader.records(){
                 let seq_rec = record.expect("invalid record");
