@@ -198,12 +198,13 @@ fn main() {
     let mut s;
     let mut t;
     let mut quality_threshold;
-
+    let min_shared_minis;
     //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
     if mode=="ont"{
         k = 13;
         w = 21;
         quality_threshold = 0.9_f64.powi(k as i32);//TODO: standard: 0.9_f64
+        min_shared_minis = 0.5;
         s = 9;
         t = 2;
     }
@@ -211,6 +212,7 @@ fn main() {
         k = 15;
         w = 51;
         quality_threshold = 0.97_f64.powi(k as i32);//TODO://standard: 0.97_f64
+        min_shared_minis = 0.5;
         s = 9;
         t = 3;
     }
@@ -236,7 +238,10 @@ fn main() {
     if let Some(verb) = verbo{
         verbose = true;
     }
-
+    if cli.quality_threshold.is_some() {
+        let qt = cli.quality_threshold.unwrap();
+        quality_threshold = qt.powi(k as i32);
+    }
     let no_pc = cli.no_post_cluster;
     let mut no_post_cluster = false;
     if let Some(npc) = no_pc{
@@ -262,14 +267,10 @@ fn main() {
     if cli.k.is_some(){
         k = cli.k.unwrap();
     }
-    let min_shared_minis;
+
     if cli.min_shared_minis.is_some(){
         min_shared_minis = cli.min_shared_minis.unwrap()
     }
-    else{
-        min_shared_minis = 0.4;
-    }
-    println!("Min shared minis: {}",min_shared_minis);
     if seeding =="syncmer"{
         if cli.s.is_some(){
             s = cli.s.unwrap();
@@ -302,6 +303,8 @@ fn main() {
     println!("w: {:?}", w);
     println!("s: {:?}", s);
     println!("t: {:?}", t);
+    println!("quality_threshold {:?}",quality_threshold);
+    println!("Min shared minis: {}",min_shared_minis);
     //let k = cli.k;
     let outfolder = cli.outfolder;
     let gff_path = cli.gff.as_deref();
