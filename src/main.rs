@@ -476,7 +476,7 @@ fn main() {
                 }
             }
         }
-        println!("{} s for clustering", now3.elapsed().as_secs());
+        println!("{} s for clustering and post_clustering", now3.elapsed().as_secs());
     }
 
     //#################################################################################################
