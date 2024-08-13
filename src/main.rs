@@ -198,7 +198,7 @@ fn main() {
     let mut s;
     let mut t;
     let mut quality_threshold;
-    let min_shared_minis;
+    let mut min_shared_minis ;
     //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
     if mode=="ont"{
         k = 13;
@@ -222,14 +222,12 @@ fn main() {
             if cli.k.is_some(){
                 k = cli.k.unwrap();
             }
-            else{
-                k = 0;
-            }
+            else{ panic!("Please set k")}
             w = 0;
             t = 0;
             s = 0;
             quality_threshold = qt.powi(k as i32);
-
+            min_shared_minis = 0.5;
         }
         else { panic!("Please set the quality_threshold") }
     }
