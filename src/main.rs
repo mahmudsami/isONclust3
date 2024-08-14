@@ -203,7 +203,7 @@ fn main() {
     if mode=="ont"{
         k = 13;
         w = 21;
-        quality_threshold = 0.9_f64.powi(k as i32);//TODO: standard: 0.9_f64
+        quality_threshold = 0.95_f64.powi(k as i32);//TODO: standard: 0.9_f64
         min_shared_minis = 0.5;
         s = 9;
         t = 2;
@@ -211,7 +211,7 @@ fn main() {
     else if mode == "pacbio"{
         k = 15;
         w = 51;
-        quality_threshold = 0.97_f64.powi(k as i32);//TODO://standard: 0.97_f64
+        quality_threshold = 0.98_f64.powi(k as i32);//TODO://standard: 0.97_f64
         min_shared_minis = 0.5;
         s = 9;
         t = 3;
