@@ -172,8 +172,8 @@ struct Cli {
     quality_threshold: Option<f64>,
     #[arg(long,help="print additional information")]
     verbose: Option<bool>,
-    #[arg(long,help="Do not run the post clustering step during the analysis")]
-    no_post_cluster: Option<bool>,
+    #[arg(long,help="Run the post clustering step during the analysis (small improvement for results but much higher runtime)")]
+    post_cluster: Option<bool>,
     #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
     no_fastq: Option<bool>,
     #[arg(long,help="Minimum overlap threshold for reads to be clustered together (Experimental parameter)")]
@@ -240,10 +240,10 @@ fn main() {
         let qt = cli.quality_threshold.unwrap();
         quality_threshold = qt.powi(k as i32);
     }
-    let no_pc = cli.no_post_cluster;
-    let mut no_post_cluster = false;
+    let no_pc = cli.post_cluster;
+    let mut post_cluster = false;
     if let Some(npc) = no_pc{
-        no_post_cluster = true;
+        post_cluster = true;
     }
 
     let no_fq = cli.no_fastq;
@@ -309,7 +309,6 @@ fn main() {
     //makes the read  identifiable and gives us the possibility to only use ids during the clustering step
     let mut id_map = FxHashMap::default();
     let mut clusters: Cluster_ID_Map = HashMap::default(); //FxHashMap<i32, Vec<i32>> = FxHashMap::default();
-
 
     let mut annotation_based= false;
     let filename = outfolder.clone() + "/clustering/sorted.fastq";
@@ -458,8 +457,8 @@ fn main() {
                 println!("Couldn't get the current memory usage :(");
             }
 
-            //no_post_cluster: true -> do not run post_clustering
-            if !no_post_cluster{
+            //post_cluster: true -> run post_clustering
+            if post_cluster{
                 println!("Starting post-clustering to refine clusters");
                 let now_pc = Instant::now();
                 let mut shared_seed_infos_vec: Vec<i32> = vec![0; clusters.len()];
