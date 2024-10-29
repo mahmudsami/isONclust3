@@ -45,7 +45,8 @@ The output consists of a tsv file `final_clusters.tsv` present in the specified 
 n read_Z_acc
 ```
 if there are n reads there will be n rows. Some reads might be singletons.
-
+### Clusters
+IsONclust outputs the reads in .fastq file format with each file containing the reads for the respective cluster. The .fastq files are located in the `fastq_files` directory that is created in the given outfolder.
 
 ## Contact <a name="contact"></a>
 If you encounter any problems, please raise an issue on the issues page, you can also contact the developer of this repository via:
