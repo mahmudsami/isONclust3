@@ -139,7 +139,7 @@ fn convert_cl_id(v: usize) -> Option<i32> {
 #[derive(Parser,Debug)]
 #[command(name = "isONclust3")]
 #[command(author = "Alexander J. Petri <alexjpetri@gmail.com>")]
-#[command(version = "0.0.1")]
+#[command(version = "0.0.2")]
 #[command(about = "Clustering of long-read sequencing data into gene families", long_about = "isONclust is a tool for clustering either PacBio Iso-Seq reads, or Oxford Nanopore reads into clusters, where each cluster represents all reads that came from a gene." )]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -162,7 +162,7 @@ struct Cli {
     #[arg(long, short,help="Path to gff3 file (optional parameter)")]
     gff: Option<String>,
     #[arg(long,help="we do not want to use canonical seeds")]
-    noncanonical: Option<bool>,
+    noncanonical: bool,
     #[arg(long,help="Run mode of isONclust (pacbio or ont")]
     mode: String,
     //TODO:add argument telling us whether we want to use syncmers instead of kmers, maybe also add argument determining whether we want to use canonical_minimizers
@@ -171,11 +171,11 @@ struct Cli {
     #[arg(long,help="quality threshold used for the data (standard: 0.9) ")]
     quality_threshold: Option<f64>,
     #[arg(long,help="print additional information")]
-    verbose: Option<bool>,
+    verbose: bool,
     #[arg(long,help="Run the post clustering step during the analysis (small improvement for results but much higher runtime)")]
-    post_cluster: Option<bool>,
+    post_cluster: bool,
     #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
-    no_fastq: Option<bool>,
+    no_fastq: bool,
     #[arg(long,help="Minimum overlap threshold for reads to be clustered together (Experimental parameter)")]
     min_shared_minis: Option<f64>
 }
@@ -231,32 +231,32 @@ fn main() {
         }
         else { panic!("Please set the quality_threshold") }
     }
-    let verbo = cli.verbose;
-    let mut verbose = false;
+    let verbose = cli.verbose;
+    /*let mut verbose = false;
     if let Some(verb) = verbo{
         verbose = true;
-    }
+    }*/
     if cli.quality_threshold.is_some() {
         let qt = cli.quality_threshold.unwrap();
         quality_threshold = qt.powi(k as i32);
     }
-    let no_pc = cli.post_cluster;
-    let mut post_cluster = false;
+    let post_cluster = cli.post_cluster;
+    /*let mut post_cluster = false;
     if let Some(npc) = no_pc{
         post_cluster = true;
-    }
+    }*/
 
-    let no_fq = cli.no_fastq;
-    let mut no_fastq = false;
+    let no_fastq = cli.no_fastq;
+    /*let mut no_fastq = false;
     if let Some(nfq) = no_fq{
         no_fastq = true;
-    }
+    }*/
 
-    let noncan = cli.noncanonical;
-    let mut noncanonical_bool= false;
+    let noncanonical_bool = cli.noncanonical;
+    /*let mut noncanonical_bool= false;
     if let Some(noncanonical)= noncan{
         noncanonical_bool = true;
-    }
+    }*/
     let seeding_input = cli.seeding.as_deref();
     let mut seeding= "minimizer";
     if let Some(seed) = seeding_input {

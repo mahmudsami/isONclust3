@@ -113,18 +113,18 @@ pub fn path_exists(path: &str) -> bool {
 
 
 
-pub(crate) fn write_output(outfolder:String, clusters:&Cluster_ID_Map, fastq:String, id_map:FxHashMap<i32,String>, n:usize, no_fastq: bool){
+pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: String, id_map: FxHashMap<i32,String>, n: usize, no_fastq: bool){
 
     if !path_exists(&outfolder){
         let _ = fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
     //clustering_path: the outfolder of isONclust3
-    let clustering_path=Path::new(&outfolder).join("clustering");
+    let clustering_path= Path::new(&outfolder).join("clustering");
     if !clustering_path.exists(){
         let _ = fs::create_dir(clustering_path.clone());
     }
     //the subfolder of clustering in which we write the fastq_files ( as done in isONclust1)
-    let fastq_path=clustering_path.join("fastq_files");
+    let fastq_path= clustering_path.join("fastq_files");
     if !fastq_path.exists(){
         let _ = fs::create_dir(fastq_path.clone());
     }
