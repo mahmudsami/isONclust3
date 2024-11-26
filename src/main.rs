@@ -145,7 +145,7 @@ fn convert_cl_id(v: usize) -> Option<i32> {
 struct Cli {
     #[arg(long, short, help="Path to consensus fastq file(s)")]
     fastq: String,
-    #[arg(long, short,help="Path to initial clusters (stored in fasta format) which is required when --gff is run")]
+    #[arg(long, short,help="Path to initial clusters (stored in fasta format), which is required when --gff is set")]
     init_cl: Option<String>,
     #[arg(short,  help="Kmer length")]
     k: Option<usize>,
