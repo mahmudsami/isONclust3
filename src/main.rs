@@ -145,7 +145,7 @@ fn convert_cl_id(v: usize) -> Option<i32> {
 struct Cli {
     #[arg(long, short, help="Path to consensus fastq file(s)")]
     fastq: String,
-    #[arg(long, short,help="Path to initial clusters (stored in fastq format)")]
+    #[arg(long, short,help="Path to initial clusters (stored in fasta format) which is required when --gff is run")]
     init_cl: Option<String>,
     #[arg(short,  help="Kmer length")]
     k: Option<usize>,
@@ -159,7 +159,7 @@ struct Cli {
     outfolder: String,
     #[arg(long,short,default_value_t= 1, help="Minimum number of reads for cluster")]
     n: usize,
-    #[arg(long, short,help="Path to gff3 file (optional parameter)")]
+    #[arg(long, short,help="Path to gff3 file (optional parameter), requires a reference added by calling --init-cl <REFERENCE.fasta>")]
     gff: Option<String>,
     #[arg(long,help="we do not want to use canonical seeds")]
     noncanonical: bool,
