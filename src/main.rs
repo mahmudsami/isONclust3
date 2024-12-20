@@ -462,7 +462,8 @@ fn main() {
                 println!("Starting post-clustering to refine clusters");
                 let now_pc = Instant::now();
                 let mut shared_seed_infos_vec: Vec<i32> = vec![0; clusters.len()];
-                post_clustering(&mut clusters, &mut cluster_map, 0.8,&mut shared_seed_infos_vec);
+
+                post_clustering(&mut clusters, &mut cluster_map, 0.8, &mut shared_seed_infos_vec, verbose);
                 println!("{} s for post-clustering", now_pc.elapsed().as_secs());
                 println!("Got {} clusters from Post-clustering",clusters.len());
                 if let Some(usage) = memory_stats() {
