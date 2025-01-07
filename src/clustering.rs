@@ -1,7 +1,7 @@
 use crate::structs::Minimizer_hashed;
 
 use rustc_hash::{FxHashMap, FxHashSet};
-//use rayon::prelude::*;
+use rayon::prelude::*;
 use crate::{Cluster_ID_Map, Seed_Map};
 
 pub(crate) fn reverse_complement(dna: &str) -> String {
@@ -203,6 +203,7 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
             if let Some(belongs_to) = cluster_map.get(hash) {
                 //iterate over belongs_to to update the counts of shared minimizers for each cluster
                 for &belong_cluster in belongs_to {
+                    //do not add an overlap with this cluster
                     if belong_cluster != *cl_id {
                         shared_seed_infos_vec[belong_cluster as usize] += 1;
                     }
@@ -213,39 +214,45 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
             let nr_minis= hashes.len();
             let mut shared_perc: f64;
             let most_shared_cluster_id= max_cluster_id as i32;
-            //we have more shared minis with the cluster than our threshold and this is the cluster we share the most minimizers with
+            //calculate the percentage of shared minimizers
             shared_perc = calculate_shared_perc(nr_minis, *max_shared);
             //We only merge if we share more than min_shared_minis
             if shared_perc > min_shared_minis {
                 //println!("ENTERING MERGE");
-                //we have a new best cluster as soon as
-                if  nr_minis < cl_set_map.get(&most_shared_cluster_id).unwrap().len() && !small_hs.contains(cl_id) {
+                //if this cluster has less minimizers than most_shared_cluster and most_shared_cluster is not in small_hs (does not get merged into another cluster)
+                if  nr_minis < cl_set_map.get(&most_shared_cluster_id).unwrap().len() && !small_hs.contains(&most_shared_cluster_id) {
                     if !merge_into.contains(&(*cl_id,most_shared_cluster_id)){
+                        //add the info to merge_into that we want to merge cl_id into most_shared_cluster
                         merge_into.push((*cl_id, most_shared_cluster_id));
                         small_hs.insert(*cl_id);
-                        continue
                     }
 
-                } else if cl_set_map.get(&most_shared_cluster_id).unwrap().len() < nr_minis && !small_hs.contains(&most_shared_cluster_id) {
+                }
+                /*else if cl_set_map.get(&most_shared_cluster_id).unwrap().len() < nr_minis && !small_hs.contains(cl_id) {
                     if !merge_into.contains(&(most_shared_cluster_id,*cl_id)) {
+                        //add the info to merge_into that we want to merge most_shared_cluster into cl_id
                         merge_into.push((most_shared_cluster_id, *cl_id));
                         small_hs.insert(most_shared_cluster_id);
                     }
-                } else {//the clusters have exactly the same number of seeds
-                    if *cl_id < most_shared_cluster_id && !small_hs.contains(cl_id){
+                }*/
+                else {//the clusters have exactly the same number of seeds
+                    //if cl_id is smaller than most_shared_cluster_id (we need some kind of merging same size clusters)
+                    if *cl_id < most_shared_cluster_id && !small_hs.contains(&most_shared_cluster_id){
                         if !merge_into.contains(&(*cl_id,most_shared_cluster_id)) {
+                            //add the info to merge_into that we want to merge cl_id into most_shared_cluster
                             merge_into.push((*cl_id, most_shared_cluster_id));
                             small_hs.insert(*cl_id);
-                            continue
                         }
                     }
-
+                        /*
+                    //most_shared_cluster_id is smaller than cl_id -> merge most_shared_cluster into cl_id
                     else{
-                        if !merge_into.contains(&(most_shared_cluster_id,*cl_id)) && !small_hs.contains(&most_shared_cluster_id){
+                        if !merge_into.contains(&(most_shared_cluster_id,*cl_id)) && !small_hs.contains(cl_id){
+                            //add the info to merge_into that we want to merge most_shared_cluster into cl_id
                             merge_into.push((most_shared_cluster_id, *cl_id));
                             small_hs.insert(most_shared_cluster_id);
                         }
-                    }
+                    }*/
                 }
             }
         }
@@ -278,6 +285,7 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
 
 
 pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64, shared_seed_infos_vec: &mut Vec<i32>, verbose: bool){
+    let min_shared_minis_pc= min_shared_minis;
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
     let mut cl_set_map: FxHashMap<i32,Vec<u64>> = FxHashMap::default();
     if verbose{
@@ -301,7 +309,8 @@ pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
         //merge_into contains the information about which clusters to merge into which
         //generate the data structure giving us merge infos
         generate_post_clustering_ds(&mut cl_set_map,  cluster_map);
-        detect_overlaps(&mut cl_set_map, cluster_map, &mut merge_into, min_shared_minis, &mut small_hs, shared_seed_infos_vec, verbose);
+        println!("Post_clustering_ds generated");
+        detect_overlaps(&mut cl_set_map, cluster_map, &mut merge_into, min_shared_minis_pc, &mut small_hs, shared_seed_infos_vec, verbose);
         if verbose{
             println!("Merge_into {:?}",merge_into);
         }
