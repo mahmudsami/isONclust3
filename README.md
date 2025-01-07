@@ -54,3 +54,7 @@ alexander.petri[at]math.su.se
 
 
 ## Credits <a name="credits"></a>
+
+Please cite this study when using isONclust3:
+
+Alexander J. Petri, Kristoffer Sahlin. De novo clustering of extensive long-read transcriptome datasets with isONclust3. bioRxiv 2024.10.29.620862; doi: [https://doi.org/10.1101/2024.10.29.620862](https://doi.org/10.1101/2024.10.29.620862)
