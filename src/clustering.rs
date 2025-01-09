@@ -286,6 +286,7 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
 
 pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64, shared_seed_infos_vec: &mut Vec<i32>, verbose: bool){
     let min_shared_minis_pc= min_shared_minis;
+    println!("min_shared_minis_pc: {}",min_shared_minis_pc);
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
     let mut cl_set_map: FxHashMap<i32,Vec<u64>> = FxHashMap::default();
     if verbose{
