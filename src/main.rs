@@ -438,7 +438,7 @@ fn main() {
                 clustering::cluster(&filtered_minis, min_shared_minis, &this_minimizers, &mut clusters, &mut cluster_map, read_id, &mut shared_seed_infos_norm_vec);
                 read_id += 1;
                 if verbose{
-                    if read_id % 1000000==0 {
+                    if read_id % 1000000 == 0 {
                         println!("{} reads processed", read_id);
                     }
                 }
