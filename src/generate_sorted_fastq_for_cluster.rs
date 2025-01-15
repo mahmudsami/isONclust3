@@ -1,5 +1,7 @@
 use std::path::Path;
 use std::collections::HashSet;
+use std::process::exit;
+use std::thread::sleep;
 use rayon::prelude::*;
 use std::time::Instant;
 use std::collections::VecDeque;
@@ -205,8 +207,9 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool) {
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool, memory_restriction: bool){ 
     println!("Sorting the fastq_file");
+    println!("Memory restriction: {}", memory_restriction);
     let now = Instant::now();
     //holds the internal ids and scores as tuples to be able to sort properly
     let mut score_vec=vec![];
@@ -220,7 +223,38 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
         fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
     //write a fastq-file that contains the reordered reads
+    if memory_restriction{
+        println!("Memory restriction is active");
+        let num_part = 8;
+        let num_chunks = 16;
+        
+        let total_size = score_vec.len();
+        let step = total_size / num_chunks;
+        let rem = total_size - (total_size / num_chunks) * (num_chunks-1);
+
+        let (id_maps, score_vecs) = partition_id_map(&mut id_map, &mut score_vec, num_part);
+        
+        for i in 0..num_part{
+            write_output::write_ordered_fastq_offset(&score_vecs[i], outfolder, &id_maps[i], in_file_path, num_chunks, i==0, step, rem);
+        }
+    }
+    else{
     write_output::write_ordered_fastq(&score_vec, outfolder,&id_map,in_file_path);
+    }
     println!("Wrote the sorted fastq file");
+    sleep(std::time::Duration::from_secs(10));
     //print_statistics(fastq_records.borrow());
+}
+
+fn partition_id_map( id_map: &mut FxHashMap<i32,String>, score_vec: &mut Vec<(i32,usize)>, num_part: usize) -> (Vec<FxHashMap<i32,String>>, Vec<Vec<(i32,usize)>>){
+    let mut id_maps = vec![FxHashMap::default(); num_part];
+    let mut score_vecs = vec![vec![]; num_part];
+    let n = score_vec.len();
+    let p = (n + (num_part - n % num_part )) / num_part;
+    for (i, (id, score))  in score_vec.iter().enumerate(){
+        let part = i / p;
+        id_maps[part].insert(*id, id_map.get(id).unwrap().clone());
+        score_vecs[part].push((*id, *score));
+    }
+    (id_maps, score_vecs)
 }

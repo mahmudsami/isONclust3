@@ -177,7 +177,9 @@ struct Cli {
     #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
     no_fastq: bool,
     #[arg(long,help="Minimum overlap threshold for reads to be clustered together (Experimental parameter)")]
-    min_shared_minis: Option<f64>
+    min_shared_minis: Option<f64>,
+    #[arg(long,help="Memory restriction for the sorting step")]
+    memrest: bool
 }
 
 
@@ -358,7 +360,7 @@ fn main() {
         let d_no_min = seeding_and_filtering_seeds::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool, cli.memrest);
         let now3 = Instant::now();
         if verbose {
             println!("{} s for sorting the fastq file", now2.elapsed().as_secs());

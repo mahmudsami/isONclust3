@@ -99,7 +99,7 @@ impl fmt::Display for FastqRecord {
     }
 }
 
-
+#[derive(Clone)]
 pub(crate) struct FastqRecord_isoncl_init {
     //a struct used to store fastq records
     pub header: String,
