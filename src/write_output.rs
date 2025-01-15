@@ -6,7 +6,7 @@ use std::fs;
 use crate::structs::FastqRecord_isoncl_init;
 use rustc_hash::FxHashMap;
 use crate::{Cluster_ID_Map, file_actions};
-use rayon::prelude::*;
+use rayon::{prelude::*, vec};
 
 
 pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
@@ -28,6 +28,52 @@ pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &Stri
     buf_write.flush().expect("Failed to flush the buffer");
 }
 
+pub(crate) fn write_ordered_fastq_offset(score_vec: &Vec<(i32,usize)>, outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str, num_chunks: usize, create: bool, step: usize, rem: usize ){
+    //writes the fastq file
+    if create {
+        let _ = fs::create_dir_all(PathBuf::from(outfolder).join("clustering"));
+    }
+    //let mut fastq_records= FxHashMap::default();
+    let f = if create {
+        File::create(outfolder.to_owned()+"/clustering/sorted.fastq").expect("Unable to create file")
+    } else {
+        std::fs::OpenOptions::new().append(true).open(outfolder.to_owned()+"/clustering/sorted.fastq").expect("Unable to create file")
+    };
+    let mut global_records: Vec<Vec<FastqRecord_isoncl_init>> = vec![Vec::new();num_chunks];
+    let mut max = vec![0;num_chunks];
+    let mut current = vec![0;num_chunks];
+
+    for i in 0..num_chunks{
+        let start = i*step;
+        let size = if i == num_chunks-1 {rem} else {step};
+        let mut records = FxHashMap::default();
+        file_actions::parse_fastq_hashmap_offset(fastq,&mut records,start,size);
+        for score_tup in score_vec.iter(){
+            let this_header = id_map.get(&score_tup.0).unwrap();
+            if records.get(this_header).is_some(){
+                let record:&FastqRecord_isoncl_init= records.get(this_header).unwrap();
+                global_records[i].push((*record).clone());
+                max[i] += 1;
+            }
+        }
+    }
+
+    let mut buf_write = BufWriter::new(&f);
+    for (read_id,_) in score_vec.iter(){
+        for i in 0..num_chunks{
+            if current[i] < max[i]{
+                if global_records[i][current[i]].header == *id_map.get(&read_id).unwrap(){
+                    write!(buf_write, "@{}\n{}\n+\n{}\n", global_records[i][current[i]].get_header(), global_records[i][current[i]].get_sequence(),global_records[i][current[i]].get_quality()).expect("Could not write file");
+                    current[i] += 1;
+                    break;
+                }
+            }
+        }
+    }
+    buf_write.flush().expect("Failed to flush the buffer");
+    
+
+}
 
 fn write_final_clusters_tsv(outfolder: &Path, clusters: Cluster_ID_Map, id_map:FxHashMap<i32,String>, header_cluster_map:&mut FxHashMap<String,i32>){
     let file_path = PathBuf::from(outfolder).join("final_clusters.tsv");
