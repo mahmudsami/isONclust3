@@ -123,6 +123,30 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
     }
 }
 
+fn create_final_ds_offset(header_cluster_map: FxHashMap<String,i32>, fastq: String, cluster_map: &mut FxHashMap<i32,Vec<FastqRecord_isoncl_init>>, num_chunks: usize , step: usize, rem: usize){
+    for i in 0..num_chunks{
+        let start = i*step;
+        let size = if i == num_chunks-1 {rem} else {step};
+        let mut fastq_vec= vec![];
+        //parse the fastq file to store the data in fastq_vec
+        file_actions::parse_fastq_offset(fastq.clone(),&mut fastq_vec,start,size);
+        //iterate over fastq_vec and add the reads to cluster_map
+        for read in fastq_vec{
+            let id = read.header.clone();
+            if header_cluster_map.contains_key(&id) {
+                let cluster_id = header_cluster_map.get(&id).unwrap();
+                if cluster_map.contains_key(cluster_id) {
+                    let mut id_vec: &mut Vec<FastqRecord_isoncl_init> = cluster_map.get_mut(cluster_id).unwrap();
+                    id_vec.push(read)
+                } else {
+                    let mut id_vec = vec![read];
+                    cluster_map.insert(*cluster_id, id_vec);
+                }
+            }
+        }
+    }
+
+}
 
 
 fn write_fastq_files(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>, n: usize){
@@ -158,8 +182,33 @@ pub fn path_exists(path: &str) -> bool {
 }
 
 
+fn write_fastq_files_offset(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<FastqRecord_isoncl_init>>, n: usize, num_part: usize, part: usize){
+    let mut new_cl_id = part;
+    let mut read_cter= 0;
+    //fs::create_dir_all(PathBuf::from(outfolder).join("fastq_files"));
+    let fastq_outfolder= PathBuf::from(outfolder);
+    //Writes the fastq files using the data structure cluster_map HashMap<i32, Vec<FastqRecord_isoncl_init>>
+    for (cl_id, records) in cluster_map.into_iter(){
+        if records.len() >= n { //only write the records if we have n or more reads supporting the cluster
+            let filename = new_cl_id.to_string()+".fastq";
+            let file_path = fastq_outfolder.join(filename);
+            let f = File::create(file_path).expect("unable to create file");
+            let mut buf_write = BufWriter::new(&f);
+            for record in records{
+                write!(buf_write ,"@{}\n{}\n+\n{}\n", record.header, record.sequence,record.quality).expect("We should be able to write the entries");
+                read_cter += 1;
+            }
+            buf_write.flush().expect("Failed to flush the buffer");
+            new_cl_id += num_part; //this is the new cl_id as we skip some on the way
+        }
 
-pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: String, id_map: FxHashMap<i32,String>, n: usize, no_fastq: bool){
+
+        //println!("cl id for writing: {}, {}",cl_id,read_cter);
+    }
+    println!("{} reads written",read_cter);
+}
+
+pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: String, id_map: FxHashMap<i32,String>, n: usize, no_fastq: bool, memory_restrict: bool){
 
     if !path_exists(&outfolder){
         let _ = fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
@@ -179,10 +228,32 @@ pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: 
     write_final_clusters_tsv(&clustering_path, clusters.clone(), id_map.clone(), &mut  header_cluster_map);
     //no_fastq: true -> we do not want to write the fastq files
     if !no_fastq{
-        //create a data structure that we use to generate the proper fastq files
-        create_final_ds(header_cluster_map, fastq,&mut cluster_hashmap_fastq_record);
-        //println!("Cluster_hashmap: {}",cluster_hashmap_fastq_record.len());
-        println!("Writing the fastq files");
-        write_fastq_files(&fastq_path, cluster_hashmap_fastq_record, n);
+        if memory_restrict {
+            let num_part = 7;
+            let num_chunks = 10;
+            let total_size = id_map.len();
+            let step = total_size / num_chunks;
+            let rem = total_size - (total_size / num_chunks) * (num_chunks-1);
+            let header_cluster_maps = partition_cluster_map(&header_cluster_map,num_part);
+            for i in 0..num_part{
+                create_final_ds_offset(header_cluster_maps[i].clone(), fastq.clone(), &mut cluster_hashmap_fastq_record, num_chunks, step, rem);
+                write_fastq_files_offset(&fastq_path, cluster_hashmap_fastq_record.clone(), n, num_part, i);
+                cluster_hashmap_fastq_record.clear();
+            }
+        }else{
+            //create a data structure that we use to generate the proper fastq files
+            create_final_ds(header_cluster_map, fastq,&mut cluster_hashmap_fastq_record);
+            //println!("Cluster_hashmap: {}",cluster_hashmap_fastq_record.len());
+            println!("Writing the fastq files");
+            write_fastq_files(&fastq_path, cluster_hashmap_fastq_record, n);
+        }
     }
+}
+
+fn partition_cluster_map(header_cluster_map: &FxHashMap<String,i32>, num_part: usize) -> Vec<FxHashMap<String,i32>>{
+    let mut header_cluster_maps = vec![FxHashMap::default();num_part];
+    for (header,cl_id) in header_cluster_map.iter(){
+        header_cluster_maps[(cl_id%num_part as i32) as usize].insert(header.clone(),*cl_id);
+    }
+    header_cluster_maps
 }

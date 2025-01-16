@@ -182,6 +182,58 @@ pub(crate) fn parse_fastq(file: File,records: &mut Vec<structs::FastqRecord_ison
     }
 }
 
+pub(crate) fn parse_fastq_offset(fastq: String,records: &mut Vec<structs::FastqRecord_isoncl_init>,offset:usize,size:usize){
+    let file = File::open(fastq).unwrap();
+    //Parses a fastq file, returns a vector of FastqRecords
+    let mut reader = BufReader::new(file);
+    let mut line = String::new();
+    'outer: for _ in 0..offset {
+        for _ in 0..4 {
+            let line_read = reader.read_line(&mut line).expect("Should be contained");
+            if line_read == 0 {
+                break 'outer;
+            }
+            line.clear();
+        }
+    }
+
+    for _ in 0..size {
+        let mut header = String::new();
+        let header_read = reader.read_line(&mut header).expect("Should be contained");
+        if header_read == 0 {
+            break;
+        }
+
+        header = header.trim().to_owned();
+        header = (header[1..]).to_string();
+        header = shorten_header(&header).parse().unwrap();
+        let mut sequence = String::new();
+        let sequence_read = reader.read_line(&mut sequence).expect("Should be contained");
+        if sequence_read == 0 {
+            break;
+        }
+        sequence = sequence.trim().to_owned();
+
+        let mut quality_header = String::new();
+        let quality_header_read = reader.read_line(&mut quality_header).expect("Should be contained");
+        if quality_header_read == 0 {
+            break;
+        }
+        quality_header = quality_header.trim().to_owned();
+
+        let mut quality = String::new();
+        let quality_read = reader.read_line(&mut quality).expect("Should be contained");
+        if quality_read == 0 {
+            break;
+        }
+        quality = quality.trim().to_owned();
+        let score=0.0_f64;
+        let error_rate=0.0_f64;
+        records.push(FastqRecord_isoncl_init { header, sequence,/* quality_header,*/ quality, score,error_rate});
+    }
+
+}
+
 /*pub(crate) fn parse_fastq(file: File) -> (Vec<FastqRecord_isoncl_init>, HashMap<i32,String>) {
     let file = File::open(file)?;
     let mut id_map=HashMap::new();

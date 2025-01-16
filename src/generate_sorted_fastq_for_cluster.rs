@@ -232,7 +232,7 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
         let step = total_size / num_chunks;
         let rem = total_size - (total_size / num_chunks) * (num_chunks-1);
 
-        let (id_maps, score_vecs) = partition_id_map(&mut id_map, &mut score_vec, num_part);
+        let (id_maps, score_vecs) = partition_id_map(& id_map, & score_vec, num_part);
         
         for i in 0..num_part{
             write_output::write_ordered_fastq_offset(&score_vecs[i], outfolder, &id_maps[i], in_file_path, num_chunks, i==0, step, rem);
@@ -246,7 +246,7 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
     //print_statistics(fastq_records.borrow());
 }
 
-fn partition_id_map( id_map: &mut FxHashMap<i32,String>, score_vec: &mut Vec<(i32,usize)>, num_part: usize) -> (Vec<FxHashMap<i32,String>>, Vec<Vec<(i32,usize)>>){
+fn partition_id_map( id_map: & FxHashMap<i32,String>, score_vec: & Vec<(i32,usize)>, num_part: usize) -> (Vec<FxHashMap<i32,String>>, Vec<Vec<(i32,usize)>>){
     let mut id_maps = vec![FxHashMap::default(); num_part];
     let mut score_vecs = vec![vec![]; num_part];
     let n = score_vec.len();
