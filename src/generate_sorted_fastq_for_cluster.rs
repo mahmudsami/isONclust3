@@ -207,7 +207,7 @@ fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool, memory_restriction: bool){ 
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool, memory_restriction: bool, p: usize, c: usize){ 
     println!("Sorting the fastq_file");
     println!("Memory restriction: {}", memory_restriction);
     let now = Instant::now();
@@ -225,8 +225,8 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
     //write a fastq-file that contains the reordered reads
     if memory_restriction{
         println!("Memory restriction is active");
-        let num_part = 8;
-        let num_chunks = 16;
+        let num_part = p;
+        let num_chunks = c;
         
         let total_size = score_vec.len();
         let step = total_size / num_chunks;

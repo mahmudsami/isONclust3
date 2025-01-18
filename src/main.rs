@@ -179,7 +179,11 @@ struct Cli {
     #[arg(long,help="Minimum overlap threshold for reads to be clustered together (Experimental parameter)")]
     min_shared_minis: Option<f64>,
     #[arg(long,help="Memory restriction for the sorting step")]
-    mem_rest: bool
+    mem_rest: bool,
+    #[arg(short,  help=" Memory restriction partition number")]
+    p: Option<usize>,
+    #[arg(short, help="Memory restriction chunk number")]
+    c: Option<usize>
 }
 
 
@@ -199,6 +203,8 @@ fn main() {
     let mut w;
     let mut s;
     let mut t;
+    let mut p: usize;
+    let mut c: usize;
     let mut quality_threshold;
     let mut min_shared_minis ;
     //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
@@ -232,6 +238,18 @@ fn main() {
             min_shared_minis = 0.5;
         }
         else { panic!("Please set the quality_threshold") }
+    }
+    if cli.p.is_some(){
+        p = cli.p.unwrap();
+    }
+    else{
+        p = 4;
+    }
+    if cli.c.is_some(){
+        c = cli.c.unwrap();
+    }
+    else{
+        c = 4;
     }
     let verbose = cli.verbose;
     /*let mut verbose = false;
@@ -360,7 +378,7 @@ fn main() {
         let d_no_min = seeding_and_filtering_seeds::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool, cli.mem_rest);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool, cli.mem_rest,p ,c);
         let now3 = Instant::now();
         if verbose {
             println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
@@ -483,7 +501,7 @@ fn main() {
     //FILE OUTPUT STEP
     //#################################################################################################
     let now4 = Instant::now();
-    write_output::write_output(outfolder, &clusters, filename, id_map, n ,no_fastq, cli.mem_rest);
+    write_output::write_output(outfolder, &clusters, filename, id_map, n ,no_fastq, cli.mem_rest, p, c);
     println!("{} s for file output", now4.elapsed().as_secs());
     if let Some(usage) = memory_stats() {
         println!("Current physical memory usage: {}", usage.physical_mem);

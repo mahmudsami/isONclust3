@@ -208,7 +208,7 @@ fn write_fastq_files_offset(outfolder: &Path, cluster_map: FxHashMap<i32, Vec<Fa
     println!("{} reads written",read_cter);
 }
 
-pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: String, id_map: FxHashMap<i32,String>, n: usize, no_fastq: bool, memory_restrict: bool){
+pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: String, id_map: FxHashMap<i32,String>, n: usize, no_fastq: bool, memory_restrict: bool, p: usize, c: usize){
 
     if !path_exists(&outfolder){
         let _ = fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
@@ -229,8 +229,8 @@ pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: 
     //no_fastq: true -> we do not want to write the fastq files
     if !no_fastq{
         if memory_restrict {
-            let num_part = 7;
-            let num_chunks = 10;
+            let num_part = p;
+            let num_chunks = c;
             let total_size = id_map.len();
             let step = total_size / num_chunks;
             let rem = total_size - (total_size / num_chunks) * (num_chunks-1);
