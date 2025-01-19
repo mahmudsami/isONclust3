@@ -165,7 +165,7 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, cluste
 
 
 //helper function for the post_clustering step: Updates the 'clusters' and 'clusters_map' data structures
-fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, small_hs: &[u64], large_cluster_id: &i32, small_cluster_id:&i32){
+fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, small_hs: &Vec<u64>, large_cluster_id: &i32, small_cluster_id:&i32){
     //println!("attempt: {} into {}",small_cluster_id,large_cluster_id);
     //get the infos of clusters that belong to the two clusters we want to merge
     let small_cl_info= clusters.remove(small_cluster_id).unwrap();
@@ -223,6 +223,7 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
                         merge_into.push((*cl_id, most_shared_cluster_id));
                         small_hs.insert(*cl_id);
                     }
+
                 }
 
                 else {//the clusters have exactly the same number of seeds
