@@ -165,7 +165,7 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, cluste
 
 //helper function for the post_clustering step: Updates the 'clusters' and 'clusters_map' data structures
 fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, small_hs: &Vec<u64>, large_cluster_id: &i32, small_cluster_id:&i32){
-    println!("attempt: {} into {}",small_cluster_id,large_cluster_id);
+    //println!("attempt: {} into {}",small_cluster_id,large_cluster_id);
     //get the infos of clusters that belong to the two clusters we want to merge
     let binding = clusters.clone();
     //TODO: error here, problem the small id is several times as small id in merge_into. Not yet clear where to prevent...
@@ -228,13 +228,7 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
                     }
 
                 }
-                /*else if cl_set_map.get(&most_shared_cluster_id).unwrap().len() < nr_minis && !small_hs.contains(cl_id) {
-                    if !merge_into.contains(&(most_shared_cluster_id,*cl_id)) {
-                        //add the info to merge_into that we want to merge most_shared_cluster into cl_id
-                        merge_into.push((most_shared_cluster_id, *cl_id));
-                        small_hs.insert(most_shared_cluster_id);
-                    }
-                }*/
+
                 else {//the clusters have exactly the same number of seeds
                     //if cl_id is smaller than most_shared_cluster_id (we need some kind of merging same size clusters)
                     if *cl_id < most_shared_cluster_id && !small_hs.contains(&most_shared_cluster_id){
@@ -244,15 +238,6 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
                             small_hs.insert(*cl_id);
                         }
                     }
-                        /*
-                    //most_shared_cluster_id is smaller than cl_id -> merge most_shared_cluster into cl_id
-                    else{
-                        if !merge_into.contains(&(most_shared_cluster_id,*cl_id)) && !small_hs.contains(cl_id){
-                            //add the info to merge_into that we want to merge most_shared_cluster into cl_id
-                            merge_into.push((most_shared_cluster_id, *cl_id));
-                            small_hs.insert(most_shared_cluster_id);
-                        }
-                    }*/
                 }
             }
         }
