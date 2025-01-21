@@ -165,7 +165,7 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, cluste
 
 
 //helper function for the post_clustering step: Updates the 'clusters' and 'clusters_map' data structures
-fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, small_hs: &Vec<u64>, large_cluster_id: &i32, small_cluster_id:&i32){
+fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, small_hs: &[u64], large_cluster_id: &i32, small_cluster_id:&i32){
     //println!("attempt: {} into {}",small_cluster_id,large_cluster_id);
     //get the infos of clusters that belong to the two clusters we want to merge
     let small_cl_info= clusters.remove(small_cluster_id).unwrap();
@@ -191,10 +191,10 @@ fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, s
 
 fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>, shared_seed_infos_vec: &mut [i32], verbose:bool ){
     //shared_seed_infos_vec: a vector
-    //let mut cl_sorted: Vec<(&i32,&Vec<u64>)> = cl_set_map.iter().collect();
-    //cl_sorted.sort_by_key(|&(_, v)| v.len());
-    //for (cl_id,hashes) in cl_sorted{
-    for (cl_id, hashes) in cl_set_map{
+    let mut cl_sorted: Vec<(&i32,&Vec<u64>)> = cl_set_map.iter().collect();
+    cl_sorted.sort_by_key(|&(_, v)| v.len());
+    for (cl_id,hashes) in cl_sorted{
+    //for (cl_id, hashes) in cl_set_map{
         //iterate over the hashes for each cl_id
         for hash in hashes.iter() {
             if let Some(belongs_to) = cluster_map.get(hash) {
