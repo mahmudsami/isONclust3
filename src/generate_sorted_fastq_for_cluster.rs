@@ -74,8 +74,8 @@ fn calculate_error_rate(qual: &[u8], d_no_min: &[f64; 128]) -> f64 {
         total_count += *cnt;
     }
 
-    let error_rate = poisson_mean / total_count as f64;
-    error_rate
+    poisson_mean / total_count as f64
+
 }
 
 
@@ -85,7 +85,7 @@ fn compute_d() -> [f64; 128] {
         let chr_i = i as u8 as char;
         let ord_i = chr_i as i8;
         let exponent = -(ord_i - 33) as f64 / 10.0;
-        d[i] = (10.0 as f64).powf(exponent).min(0.79433);
+        d[i] = (10.0_f64).powf(exponent).min(0.79433);
     }
     d
 }
@@ -99,7 +99,7 @@ fn compute_d_no_min() -> [f64; 128] {
         let chr_i = i as u8 as char;
         let ord_i = chr_i as i8;
         let exponent = -(ord_i - 33) as f64 / 10.0;
-        d[i] = (10.0 as f64).powf(exponent);
+        d[i] = (10.0_f64).powf(exponent);
     }
     d
 }
@@ -127,7 +127,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
         w = 1;
     }
     //iterate over the records
-    for record in reader.records().into_iter(){
+    for record in reader.records(){
         let seq_rec = record.expect("invalid record");
         let header_new = seq_rec.id();
         let sequence = seq_rec.seq();
@@ -192,7 +192,7 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
 }
 
 
-fn print_statistics(fastq_records:&Vec<FastqRecord_isoncl_init>){
+fn print_statistics(fastq_records: &[FastqRecord_isoncl_init]){
     /*
     Prints the statistics for the resulting file TODO: add median and mean
      */

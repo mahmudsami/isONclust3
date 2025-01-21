@@ -9,9 +9,9 @@ use crate::{Cluster_ID_Map, file_actions};
 use rayon::prelude::*;
 
 
-pub(crate) fn write_ordered_fastq(score_vec: &Vec<(i32,usize)>, outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
+pub(crate) fn write_ordered_fastq(score_vec: &[(i32,usize)], outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
     //writes the fastq file
-    let _ = fs::create_dir_all(PathBuf::from(outfolder).join("clustering"));
+    fs::create_dir_all(PathBuf::from(outfolder).join("clustering"));
     let fastq_file = File::open(fastq).unwrap();
     let mut fastq_records= FxHashMap::default();
     file_actions::parse_fastq_hashmap(fastq_file,&mut fastq_records);
@@ -116,7 +116,7 @@ pub fn path_exists(path: &str) -> bool {
 pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: String, id_map: FxHashMap<i32,String>, n: usize, no_fastq: bool){
 
     if !path_exists(&outfolder){
-        let _ = fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
+        fs::create_dir(outfolder.clone()).expect("We should be able to create the directory");
     }
     //clustering_path: the outfolder of isONclust3
     let clustering_path= Path::new(&outfolder).join("clustering");
