@@ -11,7 +11,7 @@ use rayon::prelude::*;
 
 pub(crate) fn write_ordered_fastq(score_vec: &[(i32,usize)], outfolder: &String,id_map: &FxHashMap<i32,String>,fastq: &str){
     //writes the fastq file
-    fs::create_dir_all(PathBuf::from(outfolder).join("clustering"));
+    let _ = fs::create_dir_all(PathBuf::from(outfolder).join("clustering"));
     let fastq_file = File::open(fastq).unwrap();
     let mut fastq_records= FxHashMap::default();
     file_actions::parse_fastq_hashmap(fastq_file,&mut fastq_records);
@@ -70,7 +70,7 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
                 let mut id_vec: &mut Vec<FastqRecord_isoncl_init> = cluster_map.get_mut(cluster_id).unwrap();
                 id_vec.push(read)
             } else {
-                let mut id_vec = vec![read];
+                let id_vec = vec![read];
                 cluster_map.insert(*cluster_id, id_vec);
             }
         }

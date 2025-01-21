@@ -165,7 +165,7 @@ fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, cluste
 
 
 //helper function for the post_clustering step: Updates the 'clusters' and 'clusters_map' data structures
-fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, small_hs: &Vec<u64>, large_cluster_id: &i32, small_cluster_id:&i32){
+fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, small_hs: &[u64], large_cluster_id: &i32, small_cluster_id:&i32){
     //println!("attempt: {} into {}",small_cluster_id,large_cluster_id);
     //get the infos of clusters that belong to the two clusters we want to merge
     let small_cl_info= clusters.remove(small_cluster_id).unwrap();
@@ -191,10 +191,10 @@ fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, s
 
 fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>, shared_seed_infos_vec: &mut [i32], verbose:bool ){
     //shared_seed_infos_vec: a vector
-    //let mut cl_sorted: Vec<(&i32,&Vec<u64>)> = cl_set_map.iter().collect();
-    //cl_sorted.sort_by_key(|&(_, v)| v.len());
-    //for (cl_id,hashes) in cl_sorted{
-    for (cl_id, hashes) in cl_set_map{
+    let mut cl_sorted: Vec<(&i32,&Vec<u64>)> = cl_set_map.iter().collect();
+    cl_sorted.sort_by_key(|&(_, v)| v.len());
+    for (cl_id,hashes) in cl_sorted{
+    //for (cl_id, hashes) in cl_set_map{
         //iterate over the hashes for each cl_id
         for hash in hashes.iter() {
             if let Some(belongs_to) = cluster_map.get(hash) {
@@ -209,7 +209,7 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
         }
         if let Some((max_cluster_id, max_shared)) = shared_seed_infos_vec.iter().enumerate().max_by_key(|&(_, value)| value) {
             let nr_minis= hashes.len();
-            let mut shared_perc: f64;
+            let shared_perc: f64;
             let most_shared_cluster_id= max_cluster_id as i32;
             //calculate the percentage of shared minimizers
             shared_perc = calculate_shared_perc(nr_minis, *max_shared);
@@ -247,7 +247,6 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
 
 fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map: &mut  Seed_Map, clusters: &mut Cluster_ID_Map, cl_set_map: &mut FxHashMap<i32,Vec<u64>>, small_hs: &FxHashSet<i32>, not_large: &mut FxHashSet<i32>){
     //println!("Merge_into_len: {}",merge_into.len());
-    let mut not_mergeable_cter= 0;
     for (id , value) in merge_into{
         let large_id = value;
         //we might already have deleted large_id from clusters during this iteration
@@ -259,7 +258,6 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
                 update_clusters(clusters, clusters_map, small_hs, large_id, id);
             }
             else{
-                not_mergeable_cter += 1;
                 not_large.insert(*large_id);
             }
         }

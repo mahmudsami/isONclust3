@@ -379,7 +379,7 @@ fn main() {
             //the read id stores an internal id to represent our read
             let mut read_id = 0;
             //this gives the percentage of high_confidence seeds that the read has to share with a cluster to be added to it
-            let mut reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
+            let reader = fastq::Reader::from_file(Path::new(&filename)).expect("We expect the file to exist");
             for record in reader.records(){
                 let seq_rec = record.expect("invalid record");
                 let header_new = seq_rec.id();
