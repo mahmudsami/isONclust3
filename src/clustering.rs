@@ -191,10 +191,10 @@ fn update_clusters(clusters: &mut Cluster_ID_Map, clusters_map: &mut Seed_Map, s
 
 fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed_Map, merge_into: &mut Vec<(i32,i32)>, min_shared_minis: f64, small_hs: &mut FxHashSet<i32>, shared_seed_infos_vec: &mut [i32], verbose:bool ){
     //shared_seed_infos_vec: a vector
-    let mut cl_sorted: Vec<(&i32,&Vec<u64>)> = cl_set_map.iter().collect();
-    cl_sorted.sort_by_key(|&(_, v)| v.len());
-    for (cl_id,hashes) in cl_sorted{
-    //for (cl_id, hashes) in cl_set_map{
+    //let mut cl_sorted: Vec<(&i32,&Vec<u64>)> = cl_set_map.iter().collect();
+    //cl_sorted.sort_by_key(|&(_, v)| v.len());
+    //for (cl_id,hashes) in cl_sorted{
+    for (cl_id, hashes) in cl_set_map{
         //iterate over the hashes for each cl_id
         for hash in hashes.iter() {
             if let Some(belongs_to) = cluster_map.get(hash) {
@@ -223,7 +223,6 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
                         merge_into.push((*cl_id, most_shared_cluster_id));
                         small_hs.insert(*cl_id);
                     }
-
                 }
 
                 else {//the clusters have exactly the same number of seeds
