@@ -123,7 +123,7 @@ fn create_final_ds(header_cluster_map: FxHashMap<String,i32>, fastq: String, clu
     }
 }
 
-fn create_final_ds_offset(header_cluster_map: &FxHashMap<String,i32>, fastq: String, cluster_map: &mut FxHashMap<i32,Vec<FastqRecord_isoncl_init>>, num_chunks: usize , step: usize, rem: usize){
+fn create_final_ds_offset(header_cluster_map: &FxHashMap<String,i32>, fastq: &String, cluster_map: &mut FxHashMap<i32,Vec<FastqRecord_isoncl_init>>, num_chunks: usize , step: usize, rem: usize){
     for i in 0..num_chunks{
         let start = i*step;
         let size = if i == num_chunks-1 {rem} else {step};
@@ -236,7 +236,7 @@ pub(crate) fn write_output(outfolder: String, clusters: &Cluster_ID_Map, fastq: 
             let rem = total_size - (total_size / num_chunks) * (num_chunks-1);
             let header_cluster_maps = partition_cluster_map(&header_cluster_map,num_part);
             for i in 0..num_part{
-                create_final_ds_offset(&header_cluster_maps[i], fastq.clone(), &mut cluster_hashmap_fastq_record, num_chunks, step, rem);
+                create_final_ds_offset(&header_cluster_maps[i], &fastq, &mut cluster_hashmap_fastq_record, num_chunks, step, rem);
                 write_fastq_files_offset(&fastq_path, &cluster_hashmap_fastq_record, n, num_part, i);
                 cluster_hashmap_fastq_record.clear();
             }
