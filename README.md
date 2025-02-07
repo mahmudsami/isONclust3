@@ -10,18 +10,22 @@ isONclust3 is a tool for clustering either PacBio Iso-Seq reads, or Oxford Nanop
 5. [Credits](#credits)
 
 ## Installation Guide <a name="installationguide"></a>
-At the moment building from source is the only option to install the tool. This requires users to install the Rust programming language onto their system.
+The installation of isONclust3 requires users to install the Rust programming language onto their system.
 
 ## Installing Rust <a name="installingrust"></a>
 You can install rust via<br />
 
 `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh` (for macOS and Linux or other Unix-based OS). For Windows please follow the instructions on the following site: https://forge.rust-lang.org/infra/other-installation-methods.html .<br />
 
+## Installation via Cargo package manager <a name="installation cargo"></a>
+When you have installed Rust run  `cargo install isONclust3` to install the binary globally.
+
 ## Installation <a name="installation"></a>
 After cloning the repository via `git clone https://github.com/aljpetri/isONclust3.git` use the following two commands to compile the code: <br />
 `cd isONclust3` <br />
 `cargo build --release` ( Compile the current package, the executable is then located in target/release) <br />
-
+## Testing the installation <a name="installation"></a>
+In the repository run `/usr/bin/time -v target/release/isONclust3 --fastq Example_data/test_data.fastq --mode ont --outfolder Example_out --seeding minimizer --post-cluster`. This generates an output directory in the repository folder. The fastq_files folder inside clustering should now contain 94 fastq files(each representing one cluster). 
 
 ## Running isONclust3 <a name="Running"></a>
 IsONclust3 can be used on either Pacbio data or ONT data. 
