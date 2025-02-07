@@ -1,7 +1,7 @@
 rustflags = ["-Ctarget-cpu=native"]
 [package]
 name = "isONclust3"
-version = "0.0.3"
+version = "0.3.0"
 edition = "2021"
 repository = "https://github.com/aljpetri/isONclust3"
 license="MIT"

@@ -439,7 +439,7 @@ dependencies = [
 
 [[package]]
 name = "isONclust3"
-version = "0.0.3"
+version = "0.3.0"
 dependencies = [
  "bio",
  "bio-seq",
