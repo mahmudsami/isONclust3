@@ -144,7 +144,7 @@ pub(crate) fn cluster(sign_minis: &Vec<Minimizer_hashed>, min_shared_minis:f64, 
 
 
 //takes clusters_map as input and generates cl_set_map: a Hashmap containing the cluster id as key and a hashset of seedhashes as value.
-fn generate_post_clustering_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, clusters_map: &mut Seed_Map){
+fn generate_cluster_merging_ds(cl_set_map: &mut FxHashMap<i32, Vec<u64>>, clusters_map: &mut Seed_Map){
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
     //iterate over clusters_map
     for (mini, vec_of_ids) in clusters_map {
@@ -265,7 +265,7 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
 }
 
 
-pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64, shared_seed_infos_vec: &mut Vec<i32>, verbose: bool){
+pub(crate) fn cluster_merging(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64, shared_seed_infos_vec: &mut Vec<i32>, verbose: bool){
     let min_shared_minis_pc = 0.5;
     println!("min_shared_minis_pc: {}",min_shared_minis_pc);
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
@@ -291,7 +291,7 @@ pub(crate) fn post_clustering(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
         //merge_into contains the information about which clusters to merge into which
         //generate the data structure giving us merge infos
         let now_pc1 = Instant::now();
-        generate_post_clustering_ds(&mut cl_set_map,  cluster_map);
+        generate_cluster_merging_ds(&mut cl_set_map,  cluster_map);
         println!("{} s for creating the pc ds", now_pc1.elapsed().as_secs());
         println!("Post_clustering_ds generated");
         let now_pc2 = Instant::now();

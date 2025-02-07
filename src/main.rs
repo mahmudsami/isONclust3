@@ -20,7 +20,7 @@ mod Parallelization_side;
 
 //mod isONclust;
 use std::{collections::HashMap};
-use crate::clustering::post_clustering;
+use crate::clustering::cluster_merging;
 use crate::structs::{Minimizer_hashed, FastqRecord_isoncl_init};
 
 use clap::Parser;
@@ -463,7 +463,7 @@ fn main() {
                 let now_pc = Instant::now();
                 let mut shared_seed_infos_vec: Vec<i32> = vec![0; clusters.len()];
 
-                post_clustering(&mut clusters, &mut cluster_map, 0.8, &mut shared_seed_infos_vec, verbose);
+                cluster_merging(&mut clusters, &mut cluster_map, 0.8, &mut shared_seed_infos_vec, verbose);
                 println!("{} s for post-clustering", now_pc.elapsed().as_secs());
                 println!("Got {} clusters from Post-clustering",clusters.len());
                 if let Some(usage) = memory_stats() {
