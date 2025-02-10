@@ -105,7 +105,7 @@ fn compute_d_no_min() -> [f64; 128] {
 }
 
 
-fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_threshold: &f64, window_size: usize, score_vec: &mut Vec<(i32,usize)>, id_map: &mut FxHashMap<i32,String>, seeding: &str, s: usize, t: usize, noncanonical_bool: bool){
+fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_threshold: &f64, window_size: usize, score_vec: &mut Vec<(i32,usize)>, id_map: &mut FxHashMap<i32,String>, seeding: &str, s: usize, t: usize, noncanonical_bool: bool, verbose:bool){
     /*
     Reads, filters and sorts reads from a fastq file so that we are left with reads having a reasonable quality score, that are sorted by score
      */
@@ -187,6 +187,13 @@ fn analyse_fastq_and_sort(k:usize, q_threshold:f64, in_file_path:&str, quality_t
     }
     //sort the score_vec by the number of high-confidence seeds (most to least)
     score_vec.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());//TODO: replace by par_sort_by
+    if verbose{
+        let print_vec= &score_vec[0..5];
+        for score_tup in print_vec{
+            println!("ID {} count {}", &score_tup.0,score_tup.1);
+        }
+    }
+
     println!("{} reads accepted",score_vec.len());
     //println!("{:?}",score_vec.pop());
 }
@@ -205,7 +212,7 @@ fn print_statistics(fastq_records: &[FastqRecord_isoncl_init]){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool) {
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool, verbose: bool) {
     println!("Sorting the fastq_file");
     let now = Instant::now();
     //holds the internal ids and scores as tuples to be able to sort properly
@@ -213,7 +220,7 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
     //holds the internal read id
     let mut id_map=FxHashMap::default();
     //the main step of the sort_fastq_for_cluster step: Gets the number of high-confidence seeds for each read and writes them into score_vec
-    analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size,&mut score_vec, &mut id_map, seeding,s,t, noncanonical_bool);
+    analyse_fastq_and_sort(k, q_threshold, in_file_path,quality_threshold,window_size,&mut score_vec, &mut id_map, seeding,s,t, noncanonical_bool, verbose);
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
     if !path_exists(outfolder){

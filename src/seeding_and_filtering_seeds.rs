@@ -328,8 +328,8 @@ pub fn filter_seeds_by_quality(this_minimizers: &Vec<Minimizer_hashed>, fastq_qu
         }
     }
     if verbose{
-        println!("Number of insignificant seeds: {}",skipped_cter );
-        println!("Number of significant seeds: {}",minimizers_filtered.len());
+        //println!("Number of insignificant seeds: {}",skipped_cter );
+        //println!("Number of significant seeds: {}",minimizers_filtered.len());
     }
 }
 

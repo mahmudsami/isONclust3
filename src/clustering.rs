@@ -215,6 +215,10 @@ fn detect_overlaps( cl_set_map: &FxHashMap<i32,Vec<u64>>, cluster_map: &mut Seed
             shared_perc = calculate_shared_perc(nr_minis, *max_shared);
             //We only merge if we share more than min_shared_minis
             if shared_perc > min_shared_minis {
+                if verbose{
+                    println!("CL_ID {}, msc {}", cl_id, most_shared_cluster_id);
+                    println!("nr_minis {}, max_shared {}, shared_perc {}",nr_minis, max_shared,shared_perc);
+                }
                 //println!("ENTERING MERGE");
                 //if this cluster has less minimizers than most_shared_cluster and most_shared_cluster is not in small_hs (does not get merged into another cluster)
                 if  nr_minis < cl_set_map.get(&most_shared_cluster_id).unwrap().len() && !small_hs.contains(&most_shared_cluster_id) {
@@ -266,12 +270,12 @@ fn merge_clusters_from_merge_into(merge_into: &mut Vec<(i32,i32)>, clusters_map:
 
 
 pub(crate) fn cluster_merging(clusters: &mut Cluster_ID_Map, cluster_map: &mut Seed_Map, min_shared_minis:f64, shared_seed_infos_vec: &mut Vec<i32>, verbose: bool){
-    let min_shared_minis_pc = 0.5;
-    println!("min_shared_minis_pc: {}",min_shared_minis_pc);
+    //let min_shared_minis_pc = 0.5;
+    println!("min_shared_minis_pc: {}",min_shared_minis);
     //cl_set_map is a hashmap with cl_id -> Hashset of seed hashes
     let mut cl_set_map: FxHashMap<i32,Vec<u64>> = FxHashMap::default();
     if verbose{
-        println!("Cl_set_map {:?}",cl_set_map);
+        println!("Cl_set_map {:?}",cl_set_map.len());
     }
     //merge_into is a vector of a tuple(cl_id1,cl_id2)
     let mut merge_into: Vec<(i32,i32)> = vec![];
@@ -295,7 +299,7 @@ pub(crate) fn cluster_merging(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
         println!("{} s for creating the pc ds", now_pc1.elapsed().as_secs());
         println!("Post_clustering_ds generated");
         let now_pc2 = Instant::now();
-        detect_overlaps(&mut cl_set_map, cluster_map, &mut merge_into, min_shared_minis_pc, &mut small_hs, shared_seed_infos_vec, verbose);
+        detect_overlaps(&mut cl_set_map, cluster_map, &mut merge_into, min_shared_minis, &mut small_hs, shared_seed_infos_vec, verbose);
         println!("{} s for detection of overlaps", now_pc2.elapsed().as_secs());
         if verbose{
             println!("Merge_into {:?}",merge_into);
@@ -307,9 +311,10 @@ pub(crate) fn cluster_merging(clusters: &mut Cluster_ID_Map, cluster_map: &mut S
         merge_into.retain(|&(_, second)| !not_large.contains(&second));
         println!("{} s for retaining merge_into", now_pc4.elapsed().as_secs());
         println!("{} s since create ds", now_pc2.elapsed().as_secs());
+        
         cl_set_map.clear();
     }
-    println!("min_shared_minis_pc: {}",min_shared_minis_pc);
+    println!("min_shared_minis_pc: {}",min_shared_minis);
 }
 
 

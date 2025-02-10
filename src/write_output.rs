@@ -17,6 +17,7 @@ pub(crate) fn write_ordered_fastq(score_vec: &[(i32,usize)], outfolder: &String,
     file_actions::parse_fastq_hashmap(fastq_file,&mut fastq_records);
     let f = File::create(outfolder.to_owned()+"/clustering/sorted.fastq").expect("Unable to create file");
     let mut buf_write = BufWriter::new(&f);
+
     //for record in fastq_records {
     for score_tup in score_vec.iter(){
         let this_header = id_map.get(&score_tup.0).unwrap();

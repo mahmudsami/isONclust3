@@ -177,7 +177,9 @@ struct Cli {
     #[arg(long,help="Do not write the fastq_files (no write_fastq in isONclust1)")]
     no_fastq: bool,
     #[arg(long,help="Minimum overlap threshold for reads to be clustered together (Experimental parameter)")]
-    min_shared_minis: Option<f64>
+    min_shared_minis: Option<f64>,
+    #[arg(long,help="Minimum thresholds of shared HCS for clusters to be merged during cluster merging")]
+    cm_mini: Option<f64>
 }
 
 
@@ -199,12 +201,14 @@ fn main() {
     let mut t;
     let mut quality_threshold;
     let mut min_shared_minis ;
+    let mut cm_mini;
     //right now we only have two modes( custom settings for variables k, w, s, and t: 'ont' for reads with  3% error rate or more and 'pacbio' for reads with less than 3% error rate)
     if mode=="ont"{
         k = 13;
         w = 21;
         quality_threshold = 0.9_f64.powi(k as i32);//TODO: standard: 0.9_f64
         min_shared_minis = 0.5;
+        cm_mini = 0.5;
         s = 9;
         t = 2;
     }
@@ -213,10 +217,14 @@ fn main() {
         w = 51;
         quality_threshold = 0.98_f64.powi(k as i32);//TODO://standard: 0.97_f64
         min_shared_minis = 0.5;
+        cm_mini = 0.8;
         s = 9;
         t = 3;
     }
     else {
+        if cli.cm_mini.is_some(){
+            let cm_mini = cli.cm_mini;
+        }
         if cli.quality_threshold.is_some(){
             let qt=cli.quality_threshold.unwrap();
             if cli.k.is_some(){
@@ -228,6 +236,7 @@ fn main() {
             s = 0;
             quality_threshold = qt.powi(k as i32);
             min_shared_minis = 0.5;
+            cm_mini = 0.5;
         }
         else { panic!("Please set the quality_threshold") }
     }
@@ -358,7 +367,7 @@ fn main() {
         let d_no_min = seeding_and_filtering_seeds::compute_d_no_min();
         println!("{}", filename);
         let now2 = Instant::now();
-        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool);
+        generate_sorted_fastq_for_cluster::sort_fastq_for_cluster(k, q_threshold, &cli.fastq, &outfolder, &quality_threshold, w, seeding, s, t, noncanonical_bool,verbose);
         let now3 = Instant::now();
         if verbose {
             println!("{} s for sorting the fastq file", now2.elapsed().as_secs());
@@ -384,7 +393,7 @@ fn main() {
                 let seq_rec = record.expect("invalid record");
                 let header_new = seq_rec.id();
                 if verbose{
-                    println!("ID: {}",header_new);
+                    //println!("ID: {}",header_new);
                 }
                 let sequence = seq_rec.seq();
                 let quality = seq_rec.qual();
@@ -463,7 +472,7 @@ fn main() {
                 let now_pc = Instant::now();
                 let mut shared_seed_infos_vec: Vec<i32> = vec![0; clusters.len()];
 
-                cluster_merging(&mut clusters, &mut cluster_map, 0.8, &mut shared_seed_infos_vec, verbose);
+                cluster_merging(&mut clusters, &mut cluster_map, cm_mini, &mut shared_seed_infos_vec, verbose);
                 println!("{} s for post-clustering", now_pc.elapsed().as_secs());
                 println!("Got {} clusters from Post-clustering",clusters.len());
                 if let Some(usage) = memory_stats() {
