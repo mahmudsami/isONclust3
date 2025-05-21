@@ -90,7 +90,25 @@ pub(crate) fn parse_fastq_hashmap(file: File,records: &mut FxHashMap<String,stru
     }
 }
 
+pub(crate) fn parse_fastq_hashmap_offset(fastq: &str,records: &mut FxHashMap<String,structs::FastqRecord_isoncl_init>,offset:usize,size:usize){
+    let file = File::open(fastq).unwrap();
+    //Parses a fastq file, returns a vector of FastqRecords
+    let reader = BufReader::new(file);
+    let mut lines = reader.lines().skip(offset*4).take(size*4);
+    
+    while let Some(chunk) = (0..4).map(|_| lines.next()).collect::<Option<Vec<_>>>() {
+        let header = chunk[0].as_ref().unwrap().trim().to_owned();
+        let header = (header[1..]).to_string();
+        let header: String = shorten_header(&header).parse().unwrap();
+        let sequence = chunk[1].as_ref().unwrap().trim().to_owned();
+        let quality_header = chunk[2].as_ref().unwrap().trim().to_owned();
+        let quality = chunk[3].as_ref().unwrap().trim().to_owned();
+        let score=0.0_f64;
+        let error_rate=0.0_f64;
+        records.insert(header.clone(),FastqRecord_isoncl_init { header, sequence,/* quality_header,*/ quality, score,error_rate});
+    }
 
+}
 
 pub(crate) fn parse_fastq(file: File,records: &mut Vec<structs::FastqRecord_isoncl_init>){
     //Parses a fastq file, returns a vector of FastqRecords
@@ -130,6 +148,25 @@ pub(crate) fn parse_fastq(file: File,records: &mut Vec<structs::FastqRecord_ison
         let error_rate=0.0_f64;
         records.push(FastqRecord_isoncl_init { header, sequence,/* quality_header,*/ quality, score,error_rate});
     }
+}
+
+pub(crate) fn parse_fastq_offset(fastq: String,records: &mut Vec<structs::FastqRecord_isoncl_init>,offset:usize,size:usize){
+    let file = File::open(fastq).unwrap();
+    //Parses a fastq file, returns a vector of FastqRecords
+    let mut reader = BufReader::new(file);
+    let mut lines = reader.lines().skip(offset*4).take(size*4);
+    while let Some(chunk) = (0..4).map(|_| lines.next()).collect::<Option<Vec<_>>>() {
+        let header = chunk[0].as_ref().unwrap().trim().to_owned();
+        let header = (header[1..]).to_string();
+        let header: String = shorten_header(&header).parse().unwrap();
+        let sequence = chunk[1].as_ref().unwrap().trim().to_owned();
+        let quality_header = chunk[2].as_ref().unwrap().trim().to_owned();
+        let quality = chunk[3].as_ref().unwrap().trim().to_owned();
+        let score=0.0_f64;
+        let error_rate=0.0_f64;
+        records.push(FastqRecord_isoncl_init { header, sequence,/* quality_header,*/ quality, score,error_rate});  
+    }
+
 }
 
 /*pub(crate) fn parse_fastq(file: File) -> (Vec<FastqRecord_isoncl_init>, HashMap<i32,String>) {
