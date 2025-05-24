@@ -212,7 +212,7 @@ fn print_statistics(fastq_records: &[FastqRecord_isoncl_init]){
 }
 
 
-pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool, verbose: bool, memory_restriction: bool) {
+pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str, outfolder: &String, quality_threshold:&f64, window_size: usize, seeding: &str, s: usize, t: usize, noncanonical_bool: bool, verbose: bool, memory_restriction: bool, num_part: usize, num_chunks: usize) {
     println!("Sorting the fastq_file");
     println!("Memory restriction: {}", memory_restriction);
     let now = Instant::now();
@@ -230,14 +230,12 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
     //write a fastq-file that contains the reordered reads
     if memory_restriction{
         println!("Memory restriction is active");
-        let num_part = 8;
-        let num_chunks = 16;
         
         let total_size = score_vec.len();
         let step = total_size / num_chunks;
         let rem = total_size - (total_size / num_chunks) * (num_chunks-1);
 
-        let (id_maps, score_vecs) = partition_id_map(&mut id_map, &mut score_vec, num_part);
+        let (id_maps, score_vecs) = partition_id_map(& id_map, & score_vec, num_part);
         
         for i in 0..num_part{
             write_output::write_ordered_fastq_offset(&score_vecs[i], outfolder, &id_maps[i], in_file_path, num_chunks, i==0, step, rem);
@@ -250,8 +248,7 @@ pub(crate) fn sort_fastq_for_cluster(k:usize, q_threshold:f64, in_file_path:&str
     //print_statistics(fastq_records.borrow());
 }
 
-fn partition_id_map( id_map: &mut FxHashMap<i32,String>, score_vec: &mut Vec<(i32,usize)>, num_part: usize) -> (Vec<FxHashMap<i32,String>>, Vec<Vec<(i32,usize)>>){
-    let mut id_maps = vec![FxHashMap::default(); num_part];
+fn partition_id_map( id_map: & FxHashMap<i32,String>, score_vec: & Vec<(i32,usize)>, num_part: usize) -> (Vec<FxHashMap<i32,String>>, Vec<Vec<(i32,usize)>>){    let mut id_maps = vec![FxHashMap::default(); num_part];
     let mut score_vecs = vec![vec![]; num_part];
     let n = score_vec.len();
     let p = (n + (num_part - n % num_part )) / num_part;
